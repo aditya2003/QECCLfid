@@ -133,7 +133,6 @@ def AdjustToLevel(pi, qcode, levels):
         for k in range(1, t + 1):
             sum = sum + comb(qcode.N, k) * np.pow(pi, k) * np.pow(1 - pi, qcode.N - k)
         pi = sum
-        print("After: ", pi)
     return pi
 
 

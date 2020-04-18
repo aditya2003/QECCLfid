@@ -136,38 +136,46 @@ def AdjustToLevel(pi, qcode, levels):
     return pi
 
 
-def ComputeUnCorrProb(qcode, pauliProbs, levels=1):
+def ComputeUnCorrProb(pauliProbs, qcode, levels=1):
     r"""
     Generates all Paulis of weight k and k+1,checks their membership in N(S),
     generates the clique from the set not in N(S) and returns a list of pauli errors
     that are correctable
     """
-    k = 1
-    PauliWtKandk1 = GenPauliWtK(qcode, k) + GenPauliWtK(qcode, k + 1)
-    print("Number of 1 and 2 qubit errors: ", len(PauliWtKandk1))
-    prodInNS = []
-    for i in range(len(PauliWtKandk1)):
-        PauliE = PauliWtKandk1[i]
-        for j in range(i + 1, len(PauliWtKandk1)):
-            PauliF = PauliWtKandk1[j]
-            PauliProdEF = prod_sym(PauliE, PauliF)
-            if checkNSmembership(PauliProdEF, qcode):
-                prodInNS.append((i, j))
-    cliqueG = FindMaxClique(prodInNS, len(PauliWtKandk1))
-    Paulis_correctable = list(
-        map(
-            convert_symplectic_to_Pauli,
-            list(map(PauliWtKandk1.__getitem__, list(cliqueG))),
+    if qcode.PauliCorrectableIndices is None:
+        k = 1
+        PauliWtKandk1 = GenPauliWtK(qcode, k) + GenPauliWtK(qcode, k + 1)
+        print("Number of 1 and 2 qubit errors: ", len(PauliWtKandk1))
+        prodInNS = []
+        for i in range(len(PauliWtKandk1)):
+            PauliE = PauliWtKandk1[i]
+            for j in range(i + 1, len(PauliWtKandk1)):
+                PauliF = PauliWtKandk1[j]
+                PauliProdEF = prod_sym(PauliE, PauliF)
+                if checkNSmembership(PauliProdEF, qcode):
+                    prodInNS.append((i, j))
+        cliqueG = FindMaxClique(prodInNS, len(PauliWtKandk1))
+        Paulis_correctable = [0 for __ in range(qcode.N)] + list(
+            map(
+                convert_symplectic_to_Pauli,
+                list(map(PauliWtKandk1.__getitem__, list(cliqueG))),
+            )
         )
-    )
-    PaulisCorrectableIndices = list(
-        map(lambda op: qcode.GetPositionInLST(op), Paulis_correctable)
-    )
-    print(
-        "Number of correctable 1 and 2 qubit errors : ", len(PaulisCorrectableIndices)
-    )
-
-    return 1 - AdjustToLevel(pauliProbs[PaulisCorrectableIndices].sum(), qcode, levels)
+        qcode.PauliCorrectableIndices = list(
+            map(lambda op: qcode.GetPositionInLST(op), Paulis_correctable)
+        )
+        print(
+            "Number of correctable 1 and 2 qubit errors : ",
+            len(qcode.PauliCorrectableIndices),
+        )
+    if pauliProbs.shape[0] == 4 ** qcode.N:
+        probs = pauliProbs
+    else:
+        probs = {
+            qcode.PauliCorrectableIndices[p]: np.prod(pauliProbs[Paulis_correctable[p]])
+            for p in range(len(qcode.PauliCorrectableIndices))
+        }
+    return 1 - sum([probs[p] for p in qcode.PauliCorrectableIndices])
 
 
 # if __name__ == "__main__":

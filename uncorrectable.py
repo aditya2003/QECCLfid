@@ -155,27 +155,33 @@ def ComputeUnCorrProb(pauliProbs, qcode, levels=1):
                 if checkNSmembership(PauliProdEF, qcode):
                     prodInNS.append((i, j))
         cliqueG = FindMaxClique(prodInNS, len(PauliWtKandk1))
-        Paulis_correctable = [0 for __ in range(qcode.N)] + list(
+        qcode.Paulis_correctable = [[0 for __ in range(qcode.N)]] + list(
             map(
                 convert_symplectic_to_Pauli,
                 list(map(PauliWtKandk1.__getitem__, list(cliqueG))),
             )
         )
         qcode.PauliCorrectableIndices = list(
-            map(lambda op: qcode.GetPositionInLST(op), Paulis_correctable)
+            map(lambda op: qcode.GetPositionInLST(op), qcode.Paulis_correctable)
         )
-        print(
-            "Number of correctable 1 and 2 qubit errors : ",
-            len(qcode.PauliCorrectableIndices),
-        )
+        # print("Correctable 1 and 2 qubit errors : {}".format(qcode.Paulis_correctable))
     if pauliProbs.shape[0] == 4 ** qcode.N:
         probs = pauliProbs
     else:
         probs = {
-            qcode.PauliCorrectableIndices[p]: np.prod(pauliProbs[Paulis_correctable[p]])
+            qcode.PauliCorrectableIndices[p]: np.prod(
+                pauliProbs[qcode.Paulis_correctable[p]]
+            )
             for p in range(len(qcode.PauliCorrectableIndices))
         }
-    return 1 - sum([probs[p] for p in qcode.PauliCorrectableIndices])
+    # print(
+    #     "probs: {}\ntotal: {}\n====".format(
+    #         probs, sum([probs[p] for p in qcode.PauliCorrectableIndices])
+    #     )
+    # )
+    return 1 - AdjustToLevel(
+        sum([probs[p] for p in qcode.PauliCorrectableIndices]), qcode, levels
+    )
 
 
 # if __name__ == "__main__":

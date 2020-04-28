@@ -38,12 +38,6 @@ Y I I X I I I
 Y I I Z I I I 
 Z I I X I I I 
 Z I I Y I I I 
-I I I I X Y I 
-I I I I X Z I 
-I I I I Y X I 
-I I I I Y Z I 
-I I I I Z X I 
-I I I I I X Z 
 I X Y I I I I 
 I X Z I I I I 
 I Y X I I I I 
@@ -62,3 +56,9 @@ I I Y X I I I
 I I Y Z I I I 
 I I Z X I I I 
 I I Z Y I I I 
+I I I I X Y I 
+I I I I X Z I 
+I I I I Y X I 
+I I I I Y Z I 
+I I I I Z X I 
+I I I I Z Y I 

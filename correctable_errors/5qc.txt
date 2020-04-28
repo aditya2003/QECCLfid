@@ -1,0 +1,16 @@
+I I I I I 
+X I I I I 
+Y I I I I 
+Z I I I I 
+I X I I I 
+I Y I I I 
+I Z I I I 
+I I X I I 
+I I Y I I 
+I I Z I I 
+I I I X I 
+I I I Y I 
+I I I Z I 
+I I I I X 
+I I I I Y 
+I I I I Z 

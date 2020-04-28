@@ -1,7 +1,6 @@
 import numpy as np
 import itertools as it
 from scipy.special import comb
-import qcode as qc
 
 
 def inner_sym(sym1, sym2, d=2):
@@ -65,7 +64,7 @@ def convert_symplectic_to_Pauli(sym):
 def checkmembershipInNormalizer(PauliSym, Q, type="stab"):
     r"""
     Checks if a given PauliSym commutes with all of the stabilizers or logicals depending on the input
-    Input : Pauli In symplectic form
+    Input : Pauli In symplectic form, qcode, Normalizer of "stab" or "logical"
     Example : For XZY, sym = {"sx":[1,0,1],"sz":[0,1,1]}
     Output : True if Pauli is in N(S) or N(L), False otherwise
     """

@@ -62,7 +62,7 @@ def convert_symplectic_to_Pauli(sym):
     return listOfPaulis
 
 
-def checkmembership(PauliSym, Q, type="stab"):
+def checkmembershipInNormalizer(PauliSym, Q, type="stab"):
     r"""
     Checks if a given PauliSym commutes with all of the stabilizers or logicals depending on the input
     Input : Pauli In symplectic form
@@ -77,10 +77,10 @@ def checkmembership(PauliSym, Q, type="stab"):
         print("Invalid type")
 
 
-def FindMaxClique(prodInNS, nNodes):
+def FindMaxClique(prodInNSminusS, nNodes):
     r"""
     Takes a list of all Paulis in N(S) and returns a maximum clique of correctable errors
-    Input : ProdInNS : List of tuples (i,j) such that product of Pauli_i and Pauli_j is in N(S)
+    Input : prodInNSminusS : List of tuples (i,j) such that product of Pauli_i and Pauli_j is in N(S)\S
             nNodes : Total number of errors considered
     Output : One possible maximal list of correctable errors
     """
@@ -88,7 +88,7 @@ def FindMaxClique(prodInNS, nNodes):
     from networkx.algorithms.approximation import clique
 
     G = nx.complete_graph(nNodes)
-    for (i, j) in prodInNS:
+    for (i, j) in prodInNSminusS:
         G.remove_edge(i, j)
     return clique.max_clique(G)
 
@@ -143,17 +143,76 @@ def AdjustToLevel(pi, qcode, levels):
 
 
 def get_syndrome(pauli, Q):
+    r"""
+    Returns the syndrome string for a given pauli
+    """
     syndr = [inner_sym(pauli, S) for S in Q.SSym]
     return "".join([str(elem) for elem in syndr])
 
 
-def ComputeUnCorrProb(pauliProbs, qcode, levels=1):
+def ComputeUnCorrProb(pauliProbs, qcode, levels=1, method=None):
     r"""
-    Generates all Paulis of weight k and k+1
+    Given a list of Pauli probabilities corresponding to a noise process and a list of qcodes,
+    it estimates uncorrectable probability using the chosen method. The default method is
+    calculating correctable errors using minimum weight.
+    Input : list of probabilities from noise process, qcode, number of levels, method = "minwt" or "maxclique"
+    """
+    if method == None:
+        # Can insert fancy selection here later
+        method = "minwt"
+    if method == "minwt":
+        return ComputeUnCorrProbUsingMinWt(pauliProbs, qcode, levels)
+    elif method == "maxclique":
+        return ComputeUnCorrProbUsingClique(pauliProbs, qcode, levels)
+    else:
+        print("Invalid method. Use 'maxclique' or 'minwt'")
+    return None
+
+
+def ComputeUnCorrProbUsingMinWt(pauliProbs, qcode, levels=1):
+    r"""
+    Generates all Paulis of weight 0,1 and 2
     Assigns syndromes with their correspoding lowest weight errors
+    """
+    if qcode.PauliCorrectableIndices is None:
+        k = 1
+        id_error = [{"sx": [0] * qcode.N, "sz": [0] * qcode.N}]
+        PauliWtKandk1 = id_error + GenPauliWtK(qcode, k) + GenPauliWtK(qcode, k + 1)
+        dict_syndr = {}
+        total_syndromes = 2 ** (qcode.N - qcode.K)
+        syndrome_count = 0
+        for pauli in PauliWtKandk1:
+            syndrome = get_syndrome(pauli, qcode)
+            if syndrome not in dict_syndr:
+                dict_syndr[syndrome] = pauli
+                syndrome_count += 1
+                if syndrome_count == total_syndromes:
+                    break
+
+        qcode.Paulis_correctable = list(
+            map(convert_symplectic_to_Pauli, list(dict_syndr.values()))
+        )
+        qcode.PauliCorrectableIndices = list(
+            map(lambda op: qcode.GetPositionInLST(op), qcode.Paulis_correctable)
+        )
+        print("Correctable 1 and 2 qubit errors : {}".format(qcode.Paulis_correctable))
+    if pauliProbs.shape[0] == 4 ** qcode.N:
+        probs = pauliProbs
+    else:
+        probs = {
+            qcode.PauliCorrectableIndices[p]: np.prod(
+                pauliProbs[qcode.Paulis_correctable[p]]
+            )
+            for p in range(len(qcode.PauliCorrectableIndices))
+        }
+    return 1 - AdjustToLevel(
+        sum([probs[p] for p in qcode.PauliCorrectableIndices]), qcode, levels
+    )
 
 
-    ,checks their membership in N(S),
+def ComputeUnCorrProbUsingClique(pauliProbs, qcode, levels=1):
+    r"""
+    Generates all Paulis of weight k and k+1,checks their membership in N(S),
     generates the clique from the set not in N(S) and returns a list of pauli errors
     that are correctable
     """
@@ -161,20 +220,28 @@ def ComputeUnCorrProb(pauliProbs, qcode, levels=1):
         k = 1
         id_error = [{"sx": [0] * qcode.N, "sz": [0] * qcode.N}]
         PauliWtKandk1 = id_error + GenPauliWtK(qcode, k) + GenPauliWtK(qcode, k + 1)
-        dict_syndr = {}
-        for pauli in PauliWtKandk1:
-            syndrome = get_syndrome(pauli, qcode)
-            if syndrome not in dict_syndr:
-                dict_syndr[syndrome] = pauli
-                print("Syndrome : ", syndrome, pauli)
 
+        print("Number of 1 and 2 qubit errors: ", len(PauliWtKandk1))
+        prodInNSminusS = []
+        for i in range(len(PauliWtKandk1)):
+            PauliE = PauliWtKandk1[i]
+            for j in range(i + 1, len(PauliWtKandk1)):
+                PauliF = PauliWtKandk1[j]
+                PauliProdEF = prod_sym(PauliE, PauliF)
+                if checkmembershipInNormalizer(PauliProdEF, qcode, "stab"):
+                    if not checkmembershipInNormalizer(PauliProdEF, qcode, "logical"):
+                        prodInNSminusS.append((i, j))
+        cliqueG = FindMaxClique(prodInNSminusS, len(PauliWtKandk1))
         qcode.Paulis_correctable = list(
-            map(convert_symplectic_to_Pauli, list(dict_syndr.values()))
+            map(
+                convert_symplectic_to_Pauli,
+                list(map(PauliWtKandk1.__getitem__, list(cliqueG))),
+            )
         )
         qcode.PauliCorrectableIndices = list(
-            map(lambda op: qc.GetPositionInLST(qcode, op), qcode.Paulis_correctable)
+            map(lambda op: qcode.GetPositionInLST(op), qcode.Paulis_correctable)
         )
-        print("Correctable 1 and 2 qubit errors : {}".format(qcode.Paulis_correctable))
+        # print("Correctable 1 and 2 qubit errors : {}".format(qcode.Paulis_correctable))
     if pauliProbs.shape[0] == 4 ** qcode.N:
         probs = pauliProbs
     else:
@@ -192,53 +259,3 @@ def ComputeUnCorrProb(pauliProbs, qcode, levels=1):
     return 1 - AdjustToLevel(
         sum([probs[p] for p in qcode.PauliCorrectableIndices]), qcode, levels
     )
-
-
-# def ComputeUnCorrProbUsingClique(pauliProbs, qcode, levels=1):
-#     r"""
-#     Generates all Paulis of weight k and k+1,checks their membership in N(S),
-#     generates the clique from the set not in N(S) and returns a list of pauli errors
-#     that are correctable
-#     """
-#     if qcode.PauliCorrectableIndices is None:
-#         k = 1
-#         id_error = [{"sx": [0] * qcode.N, "sz": [0] * qcode.N}]
-#         PauliWtKandk1 = id_error + GenPauliWtK(qcode, k) + GenPauliWtK(qcode, k + 1)
-#
-#         print("Number of 1 and 2 qubit errors: ", len(PauliWtKandk1))
-#         prodInNS = []
-#         for i in range(len(PauliWtKandk1)):
-#             PauliE = PauliWtKandk1[i]
-#             for j in range(i + 1, len(PauliWtKandk1)):
-#                 PauliF = PauliWtKandk1[j]
-#                 PauliProdEF = prod_sym(PauliE, PauliF)
-#                 if checkmembership(PauliProdEF, qcode, "stab"):
-#                     prodInNS.append((i, j))
-#         cliqueG = FindMaxClique(prodInNS, len(PauliWtKandk1))
-#         qcode.Paulis_correctable = list(
-#             map(
-#                 convert_symplectic_to_Pauli,
-#                 list(map(PauliWtKandk1.__getitem__, list(cliqueG))),
-#             )
-#         )
-#         qcode.PauliCorrectableIndices = list(
-#             map(lambda op: qc.GetPositionInLST(qcode, op), qcode.Paulis_correctable)
-#         )
-#         # print("Correctable 1 and 2 qubit errors : {}".format(qcode.Paulis_correctable))
-#     if pauliProbs.shape[0] == 4 ** qcode.N:
-#         probs = pauliProbs
-#     else:
-#         probs = {
-#             qcode.PauliCorrectableIndices[p]: np.prod(
-#                 pauliProbs[qcode.Paulis_correctable[p]]
-#             )
-#             for p in range(len(qcode.PauliCorrectableIndices))
-#         }
-#     # print(
-#     #     "probs: {}\ntotal: {}\n====".format(
-#     #         probs, sum([probs[p] for p in qcode.PauliCorrectableIndices])
-#     #     )
-#     # )
-#     return 1 - AdjustToLevel(
-#         sum([probs[p] for p in qcode.PauliCorrectableIndices]), qcode, levels
-#     )

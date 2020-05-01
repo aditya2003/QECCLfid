@@ -149,20 +149,31 @@ def get_syndrome(pauli, Q):
     return "".join([str(elem) for elem in syndr])
 
 
-def ComputeUnCorrProb(pauliProbs, qcode, levels=1, method=None):
+def ComputeUnCorrProb(pauliProbsList, qcode, levels=1, method=None):
     r"""
     Given a list of Pauli probabilities corresponding to a noise process and a list of qcodes,
     it estimates uncorrectable probability using the chosen method. The default method is
     calculating correctable errors using minimum weight.
-    Input : list of probabilities from noise process, qcode, number of levels, method = "minwt" or "maxclique"
+    Input : list of probabilities for various noise process, qcode, number of levels, method = "minwt" or "maxclique"
     """
     if method == None:
         # Can insert fancy selection here later
         method = "minwt"
+    uncorrectable_probs = np.zeros(len(pauliProbsList))
     if method == "minwt":
-        return ComputeUnCorrProbUsingMinWt(pauliProbs, qcode, levels)
+        for i in range(len(pauliProbsList)):
+            pauliProbs = pauliProbsList[i]
+            uncorrectable_probs[i] = ComputeUnCorrProbUsingMinWt(
+                pauliProbs, qcode, levels
+            )
+        return uncorrectable_probs
     elif method == "maxclique":
-        return ComputeUnCorrProbUsingClique(pauliProbs, qcode, levels)
+        for i in range(pauliProbsList.shape(0)):
+            pauliProbs = pauliProbsList[i]
+            uncorrectable_probs[i] = ComputeUnCorrProbUsingClique(
+                pauliProbs, qcode, levels
+            )
+        return uncorrectable_probs
     else:
         print("Invalid method. Use 'maxclique' or 'minwt'")
     return None
@@ -194,19 +205,20 @@ def ComputeUnCorrProbUsingMinWt(pauliProbs, qcode, levels=1):
         qcode.PauliCorrectableIndices = list(
             map(lambda op: qcode.GetPositionInLST(op), qcode.Paulis_correctable)
         )
-        print("Correctable 1 and 2 qubit errors : {}".format(qcode.Paulis_correctable))
-    if pauliProbs.shape[0] == 4 ** qcode.N:
-        probs = pauliProbs
-    else:
-        probs = {
-            qcode.PauliCorrectableIndices[p]: np.prod(
-                pauliProbs[qcode.Paulis_correctable[p]]
-            )
-            for p in range(len(qcode.PauliCorrectableIndices))
-        }
-    return 1 - AdjustToLevel(
-        sum([probs[p] for p in qcode.PauliCorrectableIndices]), qcode, levels
-    )
+        # print("Correctable 1 and 2 qubit errors : {}".format(qcode.Paulis_correctable))
+
+        if pauliProbs.shape[0] == 4 ** qcode.N:
+            probs = pauliProbs
+        else:
+            probs = {
+                qcode.PauliCorrectableIndices[p]: np.prod(
+                    pauliProbs[qcode.Paulis_correctable[p]]
+                )
+                for p in range(len(qcode.PauliCorrectableIndices))
+            }
+        return 1 - AdjustToLevel(
+            sum([probs[p] for p in qcode.PauliCorrectableIndices]), qcode, levels
+        )
 
 
 def ComputeUnCorrProbUsingClique(pauliProbs, qcode, levels=1):

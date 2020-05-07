@@ -168,32 +168,34 @@ def ComputeUnCorrProb(pauliProbs, qcode, levels=1, method=None):
     return None
 
 
+def GetErrorProbabilities(pauli_operators, pauliprobs, iscorr):
+    """
+    Compute the probabilities of a set of Pauli operators.
+    """
+    nqubits = pauli_operators.shape[1]
+    if iscorr == 0:
+        # In this case, the noise channel on n qubits is the tensor product of identical copies of a single qubit channel. Hence only one 4-component Pauli probability vector is given.
+        return GetErrorProbabilities(
+            pauli_operators, np.tile(pauliprobs, [nqubits, 1]), 2
+        )
+    if iscorr == 1:
+        return pauliprobs
+    # In this case, the noise channel on n qubits is the tensor product of non-identical copies of a single qubit channel. Hence n 4-component Pauli probability vectors are given.
+    operator_probs = np.zeros(pauli_operators.shape[0], dtype=np.double)
+    for i in range(operator_probs.shape[0]):
+        operator_probs[i] = np.prod(
+            [pauliprobs[q][pauli_operators[i, q]] for q in range(nqubits)]
+        )
+    return operator_probs
+
+
 def ComputeUnCorrProbUsingMinWt(pauliProbs, qcode, levels=1):
     r"""
     Generates all Paulis of weight 0,1 and 2
     Assigns syndromes with their correspoding lowest weight errors
     """
     if qcode.PauliCorrectableIndices is None:
-        k = 1
-        id_error = [{"sx": [0] * qcode.N, "sz": [0] * qcode.N}]
-        PauliWtKandk1 = id_error + GenPauliWtK(qcode, k) + GenPauliWtK(qcode, k + 1)
-        dict_syndr = {}
-        total_syndromes = 2 ** (qcode.N - qcode.K)
-        syndrome_count = 0
-        for pauli in PauliWtKandk1:
-            syndrome = get_syndrome(pauli, qcode)
-            if syndrome not in dict_syndr:
-                dict_syndr[syndrome] = pauli
-                syndrome_count += 1
-                if syndrome_count == total_syndromes:
-                    break
-
-        qcode.Paulis_correctable = list(
-            map(convert_symplectic_to_Pauli, list(dict_syndr.values()))
-        )
-        qcode.PauliCorrectableIndices = list(
-            map(lambda op: qcode.GetPositionInLST(op), qcode.Paulis_correctable)
-        )
+        ComputeCorrectableIndices(qcode, method="minwt")
         # print("Correctable 1 and 2 qubit errors : {}".format(qcode.Paulis_correctable))
 
     if pauliProbs.ndim == 1:
@@ -220,6 +222,54 @@ def ComputeUnCorrProbUsingClique(pauliProbs, qcode, levels=1):
     that are correctable
     """
     if qcode.PauliCorrectableIndices is None:
+        ComputeCorrectableIndices(qcode, method="clique")
+        # print("Correctable 1 and 2 qubit errors : {}".format(qcode.Paulis_correctable))
+    if pauliProbs.ndim == 1:
+        probs = pauliProbs
+    else:
+        probs = {
+            qcode.PauliCorrectableIndices[p]: np.prod(
+                [
+                    pauliProbs[q, qcode.Paulis_correctable[p, q]]
+                    for q in range(pauliProbs.shape[0])
+                ]
+            )
+            for p in range(len(qcode.PauliCorrectableIndices))
+        }
+    return 1 - AdjustToLevel(
+        sum([probs[p] for p in qcode.PauliCorrectableIndices]), qcode, levels
+    )
+
+
+def ComputeCorrectableIndices(qcode, method="minwt"):
+    r"""
+    Compute the indices of correctable errors in a code.
+    """
+    if method == "minwt":
+        k = 1
+        id_error = [{"sx": [0] * qcode.N, "sz": [0] * qcode.N}]
+        PauliWtKandk1 = id_error + GenPauliWtK(qcode, k) + GenPauliWtK(qcode, k + 1)
+        dict_syndr = {}
+        total_syndromes = 2 ** (qcode.N - qcode.K)
+        syndrome_count = 0
+        for pauli in PauliWtKandk1:
+            syndrome = get_syndrome(pauli, qcode)
+            if syndrome not in dict_syndr:
+                dict_syndr[syndrome] = pauli
+                syndrome_count += 1
+                if syndrome_count == total_syndromes:
+                    break
+        degeneracies = [
+            prod_sym(unique_rep, stab)
+            for unique_rep in dict_syndr.values()
+            for stab in qcode.SGroupSym
+        ]
+        qcode.Paulis_correctable = list(map(convert_symplectic_to_Pauli, degeneracies))
+        qcode.PauliCorrectableIndices = list(
+            map(lambda op: qcode.GetPositionInLST(op), qcode.Paulis_correctable)
+        )
+        # print("Correctable 1 and 2 qubit errors : {}".format(qcode.Paulis_correctable))
+    else:
         k = 1
         id_error = [{"sx": [0] * qcode.N, "sz": [0] * qcode.N}]
         PauliWtKandk1 = id_error + GenPauliWtK(qcode, k) + GenPauliWtK(qcode, k + 1)
@@ -244,19 +294,4 @@ def ComputeUnCorrProbUsingClique(pauliProbs, qcode, levels=1):
         qcode.PauliCorrectableIndices = list(
             map(lambda op: qcode.GetPositionInLST(op), qcode.Paulis_correctable)
         )
-        # print("Correctable 1 and 2 qubit errors : {}".format(qcode.Paulis_correctable))
-    if pauliProbs.ndim == 1:
-        probs = pauliProbs
-    else:
-        probs = {
-            qcode.PauliCorrectableIndices[p]: np.prod(
-                [
-                    pauliProbs[q, qcode.Paulis_correctable[p, q]]
-                    for q in range(pauliProbs.shape[0])
-                ]
-            )
-            for p in range(len(qcode.PauliCorrectableIndices))
-        }
-    return 1 - AdjustToLevel(
-        sum([probs[p] for p in qcode.PauliCorrectableIndices]), qcode, levels
-    )
+    return None

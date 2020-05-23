@@ -138,6 +138,7 @@ def AdjustToLevel(pi, qcode, levels):
         for k in range(1, t + 1):
             sum = sum + comb(qcode.N, k) * (pi ** k) * ((1 - pi) ** (qcode.N - k))
         pi = sum
+    # print("pi = {}, levels = {}".format(pi, levels))
     return pi
 
 
@@ -149,7 +150,7 @@ def get_syndrome(pauli, Q):
     return "".join([str(elem) for elem in syndr])
 
 
-def ComputeUnCorrProb(pauliProbs, qcode, levels=1, method=None):
+def ComputeUnCorrProb(pauliProbs, qcode, method=None):
     r"""
     Given a list of Pauli probabilities corresponding to a noise process and a list of qcodes,
     it estimates uncorrectable probability using the chosen method. The default method is
@@ -160,11 +161,32 @@ def ComputeUnCorrProb(pauliProbs, qcode, levels=1, method=None):
         # Can insert fancy selection here later
         method = "minwt"
     if method == "minwt":
-        return ComputeUnCorrProbUsingMinWt(pauliProbs, qcode, levels)
+        return ComputeUnCorrProbUsingMinWt(pauliProbs, qcode)
     elif method == "maxclique":
-        return ComputeUnCorrProbUsingClique(pauliProbs, qcode, levels)
+        return ComputeUnCorrProbUsingClique(pauliProbs, qcode)
     else:
         print("Invalid method. Use 'maxclique' or 'minwt'")
+    return None
+
+
+def GetChiElements(pauli_operators, chimat, iscorr):
+    """
+    Get elements of the Chi matrix corresponding to a set of Pauli operators.
+    """
+    nqubits = pauli_operators.shape[1]
+    if iscorr == 0:
+        return GetErrorProbabilities(
+            pauli_operators, np.tile(chimat, [nqubits, 1, 1]), 2
+        )
+    if iscorr == 1:
+        return pauliprobs
+    # In this case the noise is a tensor product of single qubit chi matrices.
+    chipart = np.zeros(
+        (pauli_operators.shape[0], pauli_operators.shape[0]), dtype=np.complex128
+    )
+    for i in range(operator_probs.shape[0]):
+        for j in range(operator_probs.shape[0]):
+            chipart[i, j] = 0
     return None
 
 
@@ -189,15 +211,13 @@ def GetErrorProbabilities(pauli_operators, pauliprobs, iscorr):
     return operator_probs
 
 
-def ComputeUnCorrProbUsingMinWt(pauliProbs, qcode, levels=1):
+def ComputeUnCorrProbUsingMinWt(pauliProbs, qcode):
     r"""
     Generates all Paulis of weight 0,1 and 2
     Assigns syndromes with their correspoding lowest weight errors
     """
     if qcode.PauliCorrectableIndices is None:
         ComputeCorrectableIndices(qcode, method="minwt")
-        # print("Correctable 1 and 2 qubit errors : {}".format(qcode.Paulis_correctable))
-
     if pauliProbs.ndim == 1:
         probs = pauliProbs
     else:
@@ -210,12 +230,10 @@ def ComputeUnCorrProbUsingMinWt(pauliProbs, qcode, levels=1):
             )
             for p in range(len(qcode.PauliCorrectableIndices))
         }
-    return 1 - AdjustToLevel(
-        sum([probs[p] for p in qcode.PauliCorrectableIndices]), qcode, levels
-    )
+    return 1 - sum([probs[p] for p in qcode.PauliCorrectableIndices])
 
 
-def ComputeUnCorrProbUsingClique(pauliProbs, qcode, levels=1):
+def ComputeUnCorrProbUsingClique(pauliProbs, qcode):
     r"""
     Generates all Paulis of weight k and k+1,checks their membership in N(S),
     generates the clique from the set not in N(S) and returns a list of pauli errors
@@ -236,9 +254,7 @@ def ComputeUnCorrProbUsingClique(pauliProbs, qcode, levels=1):
             )
             for p in range(len(qcode.PauliCorrectableIndices))
         }
-    return 1 - AdjustToLevel(
-        sum([probs[p] for p in qcode.PauliCorrectableIndices]), qcode, levels
-    )
+    return 1 - sum([probs[p] for p in qcode.PauliCorrectableIndices])
 
 
 def ComputeCorrectableIndices(qcode, method="minwt"):
@@ -248,20 +264,21 @@ def ComputeCorrectableIndices(qcode, method="minwt"):
     if method == "minwt":
         k = 1
         id_error = [{"sx": [0] * qcode.N, "sz": [0] * qcode.N}]
-        PauliWtKandk1 = id_error + GenPauliWtK(qcode, k) + GenPauliWtK(qcode, k + 1)
-        dict_syndr = {}
-        total_syndromes = 2 ** (qcode.N - qcode.K)
-        syndrome_count = 0
-        for pauli in PauliWtKandk1:
-            syndrome = get_syndrome(pauli, qcode)
-            if syndrome not in dict_syndr:
-                dict_syndr[syndrome] = pauli
-                syndrome_count += 1
-                if syndrome_count == total_syndromes:
-                    break
+        # PauliWtKandk1 = id_error + GenPauliWtK(qcode, k) + GenPauliWtK(qcode, k + 1)
+        # dict_syndr = {}
+        # total_syndromes = 2 ** (qcode.N - qcode.K)
+        # syndrome_count = 0
+        # for pauli in PauliWtKandk1:
+        #     syndrome = get_syndrome(pauli, qcode)
+        #     if syndrome not in dict_syndr:
+        #         dict_syndr[syndrome] = pauli
+        #         syndrome_count += 1
+        #         if syndrome_count == total_syndromes:
+        #             break
+        minwt_reps = list(map(convert_Pauli_to_symplectic, qcode.lookup[:, 2:]))
         degeneracies = [
             prod_sym(unique_rep, stab)
-            for unique_rep in dict_syndr.values()
+            for unique_rep in minwt_reps
             for stab in qcode.SGroupSym
         ]
         qcode.Paulis_correctable = list(map(convert_symplectic_to_Pauli, degeneracies))
@@ -274,7 +291,7 @@ def ComputeCorrectableIndices(qcode, method="minwt"):
         id_error = [{"sx": [0] * qcode.N, "sz": [0] * qcode.N}]
         PauliWtKandk1 = id_error + GenPauliWtK(qcode, k) + GenPauliWtK(qcode, k + 1)
 
-        print("Number of 1 and 2 qubit errors: ", len(PauliWtKandk1))
+        # print("Number of 1 and 2 qubit errors: ", len(PauliWtKandk1))
         prodInNSminusS = []
         for i in range(len(PauliWtKandk1)):
             PauliE = PauliWtKandk1[i]

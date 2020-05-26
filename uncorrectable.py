@@ -127,21 +127,6 @@ def GenPauliWtK(Q, k):
     return Paulis
 
 
-def AdjustToLevel(pi, qcode, levels):
-    r"""
-    Takes the correctable errors probability at the lowest level
-    and calculates its equivalent for a concatenated code
-    """
-    t = (qcode.D - 1) // 2
-    for i in range(1, levels):
-        sum = pi
-        for k in range(1, t + 1):
-            sum = sum + comb(qcode.N, k) * (pi ** k) * ((1 - pi) ** (qcode.N - k))
-        pi = sum
-    # print("pi = {}, levels = {}".format(pi, levels))
-    return pi
-
-
 def get_syndrome(pauli, Q):
     r"""
     Returns the syndrome string for a given pauli
@@ -262,28 +247,18 @@ def ComputeCorrectableIndices(qcode, method="minwt"):
     Compute the indices of correctable errors in a code.
     """
     if method == "minwt":
-        k = 1
-        id_error = [{"sx": [0] * qcode.N, "sz": [0] * qcode.N}]
-        # PauliWtKandk1 = id_error + GenPauliWtK(qcode, k) + GenPauliWtK(qcode, k + 1)
-        # dict_syndr = {}
-        # total_syndromes = 2 ** (qcode.N - qcode.K)
-        # syndrome_count = 0
-        # for pauli in PauliWtKandk1:
-        #     syndrome = get_syndrome(pauli, qcode)
-        #     if syndrome not in dict_syndr:
-        #         dict_syndr[syndrome] = pauli
-        #         syndrome_count += 1
-        #         if syndrome_count == total_syndromes:
-        #             break
         minwt_reps = list(map(convert_Pauli_to_symplectic, qcode.lookup[:, 2:]))
         degeneracies = [
             prod_sym(unique_rep, stab)
             for unique_rep in minwt_reps
             for stab in qcode.SGroupSym
         ]
-        qcode.Paulis_correctable = list(map(convert_symplectic_to_Pauli, degeneracies))
-        qcode.PauliCorrectableIndices = list(
-            map(lambda op: qcode.GetPositionInLST(op), qcode.Paulis_correctable)
+        qcode.Paulis_correctable = np.array(
+            list(map(convert_symplectic_to_Pauli, degeneracies)), dtype=np.int
+        )
+        qcode.PauliCorrectableIndices = np.array(
+            list(map(lambda op: qcode.GetPositionInLST(op), qcode.Paulis_correctable)),
+            dtype=np.int,
         )
         # print("Correctable 1 and 2 qubit errors : {}".format(qcode.Paulis_correctable))
     else:

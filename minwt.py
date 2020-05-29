@@ -1,5 +1,6 @@
 import numpy as np
 from define.QECCLfid import utils as ut
+from define import qcode as qc
 
 
 def ComputeDecoderDegeneracies(qcode):
@@ -31,6 +32,23 @@ def ComputeDecoderDegeneracies(qcode):
     return None
 
 
+def ComputeResiduals(L_s, pauli_probs, qcode):
+    """
+    Compute decoder degeneracies
+    """
+    ordering = np.array(([0, 3], [1, 2]), dtype=np.int)
+    nstabs = 2 ** (qcode.N - qcode.K)
+    probls = 0
+    for t in range(nstabs):
+        L_t = qcode.lookup[t, 0]
+        pos_L = qc.PauliProduct(
+            np.array([L_t], dtype=np.int), np.array([L_s], dtype=np.int)
+        )[0]
+        indices = pos_L * nstabs * nstabs + np.arange(nstabs) * nstabs + t
+        probls += np.sum(pauli_probs[indices])
+    return probls
+
+
 def ComputeUncorrProbs(probs, qcode, nlevels):
     r"""
     Generates all Paulis of weight 0,1 and 2
@@ -47,13 +65,17 @@ def ComputeUncorrProbs(probs, qcode, nlevels):
         )
     else:
         pauli_probs = probs
-    # print("sum(P) = {}\nP(I) = {}".format(sum(pauli_probs), pauli_probs[0]))
-    nlogs = 4 ** qcode.K
-    nstabs = 2 ** (qcode.N - qcode.K)
-    coset_probs = np.zeros(nlogs, dtype=np.double)
-    for l in range(nlogs):
-        inds = qcode.decoder_degens[l]
-        coset_probs[l] = np.sum(pauli_probs[inds])
+        print(
+            "P\n{}\nsum(P) = {}\nP(I) = {}".format(
+                pauli_probs, np.sum(pauli_probs), pauli_probs[0]
+            )
+        )
+    coset_probs = np.zeros(4, dtype=np.double)
+    for l in range(4):
+        # inds = qcode.decoder_degens[l]
+        # coset_probs[l] = np.sum(pauli_probs[inds])
+        coset_probs[l] = ComputeResiduals(l, pauli_probs, qcode)
+    # Here we can use the details of the level-2 code if they're not the same as the level-1 code.
     correctable_probabilities = np.zeros(nlevels, dtype=np.double)
     for l in range(nlevels):
         if l == 0:
@@ -75,6 +97,9 @@ def ComputeUncorrProbs(probs, qcode, nlevels):
                 correctable_probabilities[1], qcode.N
             )
             # Then we need to account for errors that are mapped to a correctable pattern of logical errors, for the level-2 code to correct.
+            # correctable_probabilities[2] = np.sum(
+            #     np.prod(coset_probs[qcode.Paulis_correctable[0:]], axis=1)
+            # )
             correctable_probabilities[2] += np.sum(
                 np.prod(coset_probs[qcode.Paulis_correctable[1:]], axis=1)
             )

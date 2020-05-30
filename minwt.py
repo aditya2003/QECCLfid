@@ -65,11 +65,11 @@ def ComputeUncorrProbs(probs, qcode, nlevels):
         )
     else:
         pauli_probs = probs
-        print(
-            "P\n{}\nsum(P) = {}\nP(I) = {}".format(
-                pauli_probs, np.sum(pauli_probs), pauli_probs[0]
-            )
-        )
+        # print(
+        #     "P\n{}\nsum(P) = {}\nP(I) = {}".format(
+        #         pauli_probs, np.sum(pauli_probs), pauli_probs[0]
+        #     )
+        # )
     coset_probs = np.zeros(4, dtype=np.double)
     for l in range(4):
         # inds = qcode.decoder_degens[l]

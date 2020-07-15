@@ -80,11 +80,11 @@ def ComputeUncorrProbs(probs, qcode, nlevels):
     for l in range(nlevels):
         if l == 0:
             # Get level-0 contribution -- this is just the probability of I.
-            correctable_probabilities[0] = pauli_probs[0]
+            correctable_probabilities[l] = pauli_probs[0]
         elif l == 1:
             # Get level-1 contribution
             # These are all errors that are corected by the level-1 code.
-            correctable_probabilities[1] = np.sum(
+            correctable_probabilities[l] = np.sum(
                 pauli_probs[qcode.PauliCorrectableIndices]
             )
             # correctable_probabilities[1] = 1 - sum(
@@ -93,16 +93,23 @@ def ComputeUncorrProbs(probs, qcode, nlevels):
         elif l == 2:
             # This is computed in two steps.
             # First we need to account for errors that are completely removed by the level-1 code.
-            correctable_probabilities[2] = np.power(
-                correctable_probabilities[1], qcode.N
+            correctable_probabilities[l] = np.power(
+                correctable_probabilities[l - 1], qcode.N
             )
             # Then we need to account for errors that are mapped to a correctable pattern of logical errors, for the level-2 code to correct.
             # correctable_probabilities[2] = np.sum(
             #     np.prod(coset_probs[qcode.Paulis_correctable[0:]], axis=1)
             # )
-            correctable_probabilities[2] += np.sum(
+            correctable_probabilities[l] += np.sum(
                 np.prod(coset_probs[qcode.Paulis_correctable[1:]], axis=1)
             )
+        elif l == 3:
+            # This is also computed in two steps.
+            # First we need to account for errors are completely removed by the level-2 code.
+            correctable_probabilities[l] = np.power(
+                correctable_probabilities[l - 2], qcode.N
+            )
+            # Then we need to account for errors that are mapped to a correctable pattern of logical errors, for the level-3 code to correct.
         else:
             pass
     # print("uncorrectable_probabilities\n{}".format(1 - correctable_probabilities))

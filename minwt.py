@@ -32,15 +32,17 @@ def ComputeDecoderDegeneracies(qcode):
     return None
 
 
-def ComputeResiduals(L_s, pauli_probs, qcode):
+def ComputeResiduals(L_s, pauli_probs, qcode, lookup=None):
     """
     Compute decoder degeneracies
     """
+    if lookup is None:
+        lookup = qcode.lookup
     ordering = np.array(([0, 3], [1, 2]), dtype=np.int)
     nstabs = 2 ** (qcode.N - qcode.K)
     probls = 0
     for t in range(nstabs):
-        L_t = qcode.lookup[t, 0]
+        L_t = int(lookup[t, 0])
         pos_L = qc.PauliProduct(
             np.array([L_t], dtype=np.int), np.array([L_s], dtype=np.int)
         )[0]

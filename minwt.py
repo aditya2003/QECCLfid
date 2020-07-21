@@ -32,33 +32,34 @@ def ComputeDecoderDegeneracies(qcode):
     return None
 
 
-def ComputeResidualLogicalProbabilities(pauli_probs, qcode, lookup=None):
-    """
-    Given the probability vector for all Paulis, compute the probability
-    of obtaining a residual logical, assuming the decoder acts as given by the lookup.
-    """
-    if lookup is None:
-        lookup = qcode.lookup
-    prob_logicals = np.zeros(4 ** qcode.K, dtype=np.double)
-    nstabs = 2 ** (qcode.N - qcode.K)
-    nlogs = 4 ** qcode.K
-    ordering = np.array([[0, 3], [1, 2]], dtype=np.int8)
-    mult = np.array(
-        [[0, 1, 2, 3], [1, 0, 3, 2], [2, 3, 0, 1], [3, 2, 1, 0]], dtype=np.int8
-    )
-
-    for l in range(nlogs):
-        lgens = np.array(
-            list(map(np.int8, np.binary_repr(l, width=(2 * qcode.K)))), dtype=np.int8
-        )
-        for t in range(nstabs):
-            correction_logical = qcode.lookup[t, 0]
-            product_logical = mult[l][correction_logical]
-            for s in range(nstabs):
-                prob_logicals[product_logical] += pauli_probs[
-                    ordering[lgens[0], lgens[1]] * nstabs * nstabs + s * nstabs + t
-                ]
-    return prob_logicals
+# Compute residuals done differently
+# def ComputeResidualLogicalProbabilities(pauli_probs, qcode, lookup=None):
+#     """
+#     Given the probability vector for all Paulis, compute the probability
+#     of obtaining a residual logical, assuming the decoder acts as given by the lookup.
+#     """
+#     if lookup is None:
+#         lookup = qcode.lookup
+#     prob_logicals = np.zeros(4 ** qcode.K, dtype=np.double)
+#     nstabs = 2 ** (qcode.N - qcode.K)
+#     nlogs = 4 ** qcode.K
+#     ordering = np.array([[0, 3], [1, 2]], dtype=np.int8)
+#     mult = np.array(
+#         [[0, 1, 2, 3], [1, 0, 3, 2], [2, 3, 0, 1], [3, 2, 1, 0]], dtype=np.int8
+#     )
+#
+#     for l in range(nlogs):
+#         lgens = np.array(
+#             list(map(np.int8, np.binary_repr(l, width=(2 * qcode.K)))), dtype=np.int8
+#         )
+#         for t in range(nstabs):
+#             correction_logical = int(lookup[t, 0])
+#             product_logical = mult[ordering[lgens[0], lgens[1]], correction_logical]
+#             for s in range(nstabs):
+#                 prob_logicals[product_logical] += pauli_probs[
+#                     ordering[lgens[0], lgens[1]] * nstabs * nstabs + s * nstabs + t
+#                 ]
+#     return prob_logicals
 
 
 def ComputeResiduals(L_s, pauli_probs, qcode, lookup=None):

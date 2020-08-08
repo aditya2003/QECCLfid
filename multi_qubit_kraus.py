@@ -1,8 +1,11 @@
 import numpy as np
-from scipy.stats import unitary_group
 from collections import deque
 import random
 import scipy as sc
+import sys
+from define import randchans as rc
+from define import qcode as qc
+from define import globalvars as gv
 
 
 def extend_gate(support, mat, extended_support):
@@ -95,17 +98,17 @@ def Dagger(x):
 
 def Kron(*mats):
     """
-        Extend the standard Kronecker product, to a list of matrices, where the Kronecker product is recursively taken from left to right.
-        """
+    Extend the standard Kronecker product, to a list of matrices, where the Kronecker product is recursively taken from left to right.
+    """
     if len(mats) < 2:
         return mats[0]
     return np.kron(mats[0], Kron(*(mats[1:])))
 
 
-def dot(*mats):
+def Dot(*mats):
     """
-        Extend the standard Dot product, to a list of matrices, where the Kronecker product is recursively taken from left to right.
-        """
+    Extend the standard Dot product, to a list of matrices, where the Kronecker product is recursively taken from left to right.
+    """
     if len(mats) < 2:
         return mats[0]
     return np.dot(mats[0], dot(*(mats[1:])))
@@ -113,8 +116,8 @@ def dot(*mats):
 
 def circular_shift(li, start, end, direction="right"):
     r"""
-        Circular shifts a part of the list `li` between start and end indices
-        """
+    Circular shifts a part of the list `li` between start and end indices
+    """
     d = deque(li[start : end + 1])
     if direction == "right":
         d.rotate(1)
@@ -123,7 +126,11 @@ def circular_shift(li, start, end, direction="right"):
     return li[:start] + list(d) + li[end + 1 :]
 
 
-def get_Pauli_tensor(listOfPaulis):
+def get_Pauli_tensor(Pauli):
+    r"""
+    Takes an n-qubit pauli as a list and converts it to the tensor form
+    """
+    listOfPaulis = [gv.Pauli[i] for i in Pauli]
     if listOfPaulis:
         Pj = listOfPaulis[0]
         n_qubits = len(listOfPaulis)
@@ -133,7 +140,7 @@ def get_Pauli_tensor(listOfPaulis):
             i for i in range(1, len(Pj.shape), 2)
         ]
     else:
-        raise ValueError(f"Invalid list of Paulis {listOfPaulis} ")
+        raise ValueError(f"Invalid Pauli {Pauli} ")
     return np.transpose(Pj, indices_Pj)
 
 
@@ -179,11 +186,11 @@ def get_PTMelem_ij(krausdict, Pi, Pjlist, n_qubits):
             )
             Pi = fix_index_after_tensor(Pi, indices_Pi)
         # take dot product with Pj and trace
-        trace_vals = np.zeros(len(Pjlist), dtype=np.complex128)
+        trace_vals = np.zeros(len(Pjlist), dtype=np.double)
+        indices_Pi = list(range(len(Pi.shape) // 2))
+        indices_Pj = list(range(len(Pi.shape) // 2, len(Pi.shape)))
         for i in range(len(Pjlist)):
             Pj = Pjlist[i]
-            indices_Pi = list(range(len(Pi.shape) // 2))
-            indices_Pj = list(range(len(Pi.shape) // 2, len(Pi.shape)))
             Pi_times_Pj = np.tensordot(Pi, Pj, (indices_Pi, indices_Pj))
             # Take trace
             einsum_inds = list(range(len(Pi_times_Pj.shape) // 2)) + list(
@@ -191,3 +198,46 @@ def get_PTMelem_ij(krausdict, Pi, Pjlist, n_qubits):
             )
             trace_vals[i] = np.real(np.einsum(Pi_times_Pj, einsum_inds)) / 2 ** n_qubits
     return trace_vals
+
+
+def get_kraus_unitaries(infid_q, qcode):
+    probs = []
+    kraus_count = 0
+    kraus_dict = {}
+    for n_q in range(1, qcode.N + 1):
+        if n_q == 1:
+            p_q = infid_q * np.power(1 - infid_q, qcode.N - 1)
+        elif n_q == 2:
+            p_q = 0.1 * infid_q * np.power(1 - infid_q, qcode.N - 1)
+        else:
+            p_q = np.power(infid_q, n_q) * np.power(1 - infid_q, qcode.N - n_q)
+        #         print("weight-k unitary : {}, probability : {}".format(n_q,p_q))
+        #         Number of unitaries of weight n_q is max(1,qcode.N-n_q-1)
+        for __ in range(max(1, qcode.N - n_q - 1)):
+            support = tuple(sorted((random.sample(range(qcode.N), n_q))))
+            rand_unitary = rc.RandomUnitary(
+                1 - np.power((1 - infid_q), n_q), 2 ** n_q, method="exp"
+            )
+            kraus_dict[kraus_count] = (support, [rand_unitary * p_q])
+            probs.append(p_q)
+            kraus_count += 1
+    total_probs = sum(probs)
+    #     Renormalize kraus ops
+    for key, (support, krauslist) in kraus_dict.items():
+        for k in range(len(krauslist)):
+            kraus_dict[key][1][k] /= total_probs
+    return kraus_dict
+
+
+def get_process_correlated(infid_q, qcode):
+    nstabs = 2 ** (qcode.N - qcode.K)
+    nlogs = 4 ** qcode.K
+    ops = qc.GetOperatorsForTLSIndex(qcode, range(nstabs * nlogs))
+    ops_tensor = list(map(get_Pauli_tensor, ops))
+    kraus_dict = get_kraus_unitaries(infid_q, qcode)
+    process = np.zeros(nstabs * nstabs * nlogs * nlogs, dtype=np.double)
+    for i in range(len(ops_tensor)):
+        process[i * nstabs * nlogs : (i + 1) * nstabs * nlogs] = get_PTMelem_ij(
+            kraus_dict, ops_tensor[i], ops_tensor, qcode.N
+        )
+    return process

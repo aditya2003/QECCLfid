@@ -160,81 +160,97 @@ def fix_index_after_tensor(tensor, indices_changed):
 def get_PTMelem_ij(krausdict, Pi, Pjlist, n_qubits):
     r"""
     Assumes Paulis Pi,Pj to be a tensor on n_qubits
-    Calculates Tr(Pj Eps(Pi))
+    Calculates Tr(Pj Eps(Pi)) for each Pj in Pjlist
     Kraus dict has the format ("support": list of kraus ops on the support)
     Assumes qubits
-    Assumes kraus ops to be square with dim 2**(n_qubits in support)
+    Assumes kraus ops to be square with dim 2**(number of qubits in support)
     """
+    #     Pres stores the addition of all kraus applications
+    #     Pi_term stores result of individual kraus applications to Pi
+    Pres = np.zeros_like(Pi)
     for key, (support, krausList) in krausdict.items():
         indices = support + tuple(map(lambda x: x + n_qubits, support))
         for kraus in krausList:
             kraus_reshape_dims = [2] * (2 * int(np.log2(kraus.shape[0])))
             indices_Pi = indices[len(indices) // 2 :]
             indices_kraus = range(len(kraus_reshape_dims) // 2)
-            Pi = np.tensordot(
+            Pi_term = np.tensordot(
                 Pi,
                 Dagger(kraus).reshape(kraus_reshape_dims),
                 (indices_Pi, indices_kraus),
             )
-            Pi = fix_index_after_tensor(Pi, indices_Pi)
+            Pi_term = fix_index_after_tensor(Pi_term, indices_Pi)
             indices_Pi = indices[: len(indices) // 2]
             indices_kraus = range(len(kraus_reshape_dims))[
                 len(kraus_reshape_dims) // 2 :
             ]
-            Pi = np.tensordot(
-                Pi, kraus.reshape(kraus_reshape_dims), (indices_Pi, indices_kraus)
+            Pi_term = np.tensordot(
+                Pi_term, kraus.reshape(kraus_reshape_dims), (indices_Pi, indices_kraus)
             )
-            Pi = fix_index_after_tensor(Pi, indices_Pi)
-        # take dot product with Pj and trace
-        trace_vals = np.zeros(len(Pjlist), dtype=np.double)
-        indices_Pi = list(range(len(Pi.shape) // 2))
-        indices_Pj = list(range(len(Pi.shape) // 2, len(Pi.shape)))
-        for i in range(len(Pjlist)):
-            Pj = Pjlist[i]
-            Pi_times_Pj = np.tensordot(Pi, Pj, (indices_Pi, indices_Pj))
-            # Take trace
-            einsum_inds = list(range(len(Pi_times_Pj.shape) // 2)) + list(
-                range(len(Pi_times_Pj.shape) // 2)
-            )
-            trace_vals[i] = np.real(np.einsum(Pi_times_Pj, einsum_inds)) / 2 ** n_qubits
+            Pi_term = fix_index_after_tensor(Pi_term, indices_Pi)
+            Pres += Pi_term
+    # take dot product with Pj and trace
+    trace_vals = np.zeros(len(Pjlist), dtype=np.double)
+    indices_Pi = list(range(len(Pi.shape) // 2))
+    indices_Pj = list(range(len(Pi.shape) // 2, len(Pi.shape)))
+    for i in range(len(Pjlist)):
+        Pj = Pjlist[i]
+        Pres_times_Pj = np.tensordot(Pres, Pj, (indices_Pi, indices_Pj))
+        # Take trace
+        einsum_inds = list(range(len(Pres_times_Pj.shape) // 2)) + list(
+            range(len(Pres_times_Pj.shape) // 2)
+        )
+        trace_vals[i] = np.real(np.einsum(Pres_times_Pj, einsum_inds)) / 2 ** n_qubits
     return trace_vals
 
 
-def get_kraus_unitaries(infid_q, qcode):
-    probs = []
+def get_kraus_unitaries(p_error, rotation_angle, qcode):
+    r"""
+    Sub-routine to prepare the dictionary for error eps = sum of unitary errors
+    Generates kraus as random multi-qubit unitary operators rotated by rotation_angle
+    Probability associated with each weight-k error scales exponentially p_error^k (except weight 2)
+    Returns :
+    dict[key] = (support,krauslist)
+    where key = number associated to the operation applied (not significant)
+    support = tuple describing which qubits the kraus ops act on
+    krauslist = krauss ops acting on support
+    """
+    total_probs = 0
     kraus_count = 0
     kraus_dict = {}
     for n_q in range(1, qcode.N + 1):
         if n_q == 1:
-            p_q = infid_q * np.power(1 - infid_q, qcode.N - 1)
+            p_q = p_error
         elif n_q == 2:
-            p_q = 0.1 * infid_q * np.power(1 - infid_q, qcode.N - 1)
+            p_q = 0.1 * p_error
         else:
-            p_q = np.power(infid_q, n_q) * np.power(1 - infid_q, qcode.N - n_q)
-        #         print("weight-k unitary : {}, probability : {}".format(n_q,p_q))
+            p_q = np.power(p_error, n_q)
         #         Number of unitaries of weight n_q is max(1,qcode.N-n_q-1)
         for __ in range(max(1, qcode.N - n_q - 1)):
             support = tuple(sorted((random.sample(range(qcode.N), n_q))))
-            rand_unitary = rc.RandomUnitary(
-                1 - np.power((1 - infid_q), n_q), 2 ** n_q, method="exp"
-            )
-            kraus_dict[kraus_count] = (support, [rand_unitary * p_q])
-            probs.append(p_q)
+            rand_unitary = rc.RandomUnitary(rotation_angle, 2 ** n_q, method="exp")
+            kraus_dict[kraus_count] = (support, [rand_unitary * np.sqrt(p_q)])
+            total_probs += p_q
             kraus_count += 1
-    total_probs = sum(probs)
     #     Renormalize kraus ops
     for key, (support, krauslist) in kraus_dict.items():
         for k in range(len(krauslist)):
-            kraus_dict[key][1][k] /= total_probs
+            kraus_dict[key][1][k] /= np.sqrt(total_probs)
     return kraus_dict
 
 
-def get_process_correlated(infid_q, qcode):
+def get_process_correlated(p_error, rotation_angle, qcode):
+    r"""
+    Generates LS part of the process matrix for Eps = sum of unitary errors
+    p_error^k is the probability associated to a k-qubit unitary (except weight 2)
+    rotation_angle is the angle used for each U = exp(i*rotation_agnle*H)
+    return linearized Pauli transfer matrix matrix in LS ordering for T=0
+    """
     nstabs = 2 ** (qcode.N - qcode.K)
     nlogs = 4 ** qcode.K
     ops = qc.GetOperatorsForTLSIndex(qcode, range(nstabs * nlogs))
     ops_tensor = list(map(get_Pauli_tensor, ops))
-    kraus_dict = get_kraus_unitaries(infid_q, qcode)
+    kraus_dict = get_kraus_unitaries(p_error, rotation_angle, qcode)
     process = np.zeros(nstabs * nstabs * nlogs * nlogs, dtype=np.double)
     for i in range(len(ops_tensor)):
         process[i * nstabs * nlogs : (i + 1) * nstabs * nlogs] = get_PTMelem_ij(

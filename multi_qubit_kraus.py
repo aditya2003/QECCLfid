@@ -259,7 +259,7 @@ def get_kraus_unitaries(p_error, rotation_angle, qcode, w_thresh=3):
             p_q = np.power(0.1, n_q - 1) * p_error
         else:
             p_q = np.power(p_error, n_q)
-        #         Number of unitaries of weight n_q is max(1,qcode.N-n_q-1)
+        # Number of unitaries of weight n_q is max(1,qcode.N-n_q-1)
         for __ in range(max(1, qcode.N - n_q - 1)):
             support = tuple(sorted((random.sample(range(qcode.N), n_q))))
             rand_unitary = rc.RandomUnitary(
@@ -275,7 +275,7 @@ def get_kraus_unitaries(p_error, rotation_angle, qcode, w_thresh=3):
     return kraus_dict
 
 
-def get_process_correlated(p_error, rotation_angle, qcode, w_thresh=3):
+def get_process_correlated(p_error, rotation_angle, qcode, w_thresh):
     r"""
     Generates LS part of the process matrix for Eps = sum of unitary errors
     p_error^k is the probability associated to a k-qubit unitary (except weight <= w_thresh)
@@ -295,7 +295,7 @@ def get_process_correlated(p_error, rotation_angle, qcode, w_thresh=3):
     return process
 
 
-def get_process_diagLST(p_error, rotation_angle, qcode, w_thresh=3):
+def get_process_diagLST(p_error, rotation_angle, qcode, w_thresh, kraus_dict=None):
     r"""
     Generates diagonal of the process matrix in LST ordering for Eps = sum of unitary errors
     p_error^k is the probability associated to a k-qubit unitary (except weight<= w_thresh)
@@ -304,7 +304,8 @@ def get_process_diagLST(p_error, rotation_angle, qcode, w_thresh=3):
     """
     nstabs = 2 ** (qcode.N - qcode.K)
     nlogs = 4 ** qcode.K
-    kraus_dict = get_kraus_unitaries(p_error, rotation_angle, qcode, w_thresh)
+    if kraus_dict is None:
+        kraus_dict = get_kraus_unitaries(p_error, rotation_angle, qcode, w_thresh)
     diag_process = np.zeros(nstabs * nstabs * nlogs, dtype=np.double)
     ops = qc.GetOperatorsForLSTIndex(qcode, range(nstabs * nstabs * nlogs))
     for i in range(len(diag_process)):
@@ -313,7 +314,7 @@ def get_process_diagLST(p_error, rotation_angle, qcode, w_thresh=3):
     return diag_process
 
 
-def get_chi_diagLST(p_error, rotation_angle, qcode, w_thresh=3):
+def get_chi_diagLST(p_error, rotation_angle, qcode, w_thresh, kraus_dict=None):
     r"""
     Generates diagonal of the chi matrix in LST ordering for Eps = sum of unitary errors
     p_error^k is the probability associated to a k-qubit unitary (except weight <= w_thresh)
@@ -322,7 +323,17 @@ def get_chi_diagLST(p_error, rotation_angle, qcode, w_thresh=3):
     """
     nstabs = 2 ** (qcode.N - qcode.K)
     nlogs = 4 ** qcode.K
-    kraus_dict = get_kraus_unitaries(p_error, rotation_angle, qcode, w_thresh)
+    if kraus_dict is None:
+        kraus_dict = get_kraus_unitaries(p_error, rotation_angle, qcode, w_thresh)
     ops = qc.GetOperatorsForLSTIndex(qcode, range(nstabs * nstabs * nlogs))
     chi = get_Chielem_ii(kraus_dict, ops, qcode.N)
     return chi
+
+
+def get_process_chi(p_error, rotation_angle, qcode, w_thresh=2):
+    nstabs = 2 ** (qcode.N - qcode.K)
+    nlogs = 4 ** qcode.K
+    kraus_dict = get_kraus_unitaries(p_error, rotation_angle, qcode, w_thresh)
+    chi = get_chi_diagLST(p_error, rotation_angle, qcode, w_thresh, kraus_dict)
+    process = get_process_diagLST(p_error, rotation_angle, qcode, w_thresh, kraus_dict)
+    return (process, chi)

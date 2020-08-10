@@ -263,7 +263,7 @@ def get_kraus_unitaries(p_error, rotation_angle, qcode, w_thresh=3):
         for __ in range(max(1, qcode.N - n_q - 1)):
             support = tuple(sorted((random.sample(range(qcode.N), n_q))))
             rand_unitary = rc.RandomUnitary(
-                rotation_angle / n_q, 2 ** n_q, method="exp"
+                rotation_angle / (2 ** n_q), 2 ** n_q, method="exp"
             )
             kraus_dict[kraus_count] = (support, [rand_unitary * np.sqrt(p_q)])
             total_probs += p_q

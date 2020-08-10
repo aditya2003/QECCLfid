@@ -321,7 +321,6 @@ def get_chi_diagLST(p_error, rotation_angle, qcode):
     nstabs = 2 ** (qcode.N - qcode.K)
     nlogs = 4 ** qcode.K
     kraus_dict = get_kraus_unitaries(p_error, rotation_angle, qcode)
-    diag_process = np.zeros(nstabs * nstabs * nlogs, dtype=np.double)
     ops = qc.GetOperatorsForLSTIndex(qcode, range(nstabs * nstabs * nlogs))
     chi = get_Chielem_ii(kraus_dict, ops, qcode.N)
     return chi

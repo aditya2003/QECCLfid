@@ -175,21 +175,31 @@ def get_Chielem_ii(krausdict, Pilist, n_qubits):
         for key, (support, krausList) in krausdict.items():
             indices = support + tuple(map(lambda x: x + n_qubits, support))
             for kraus in krausList:
-                kraus_reshape_dims = [2] * (2 * int(np.log2(kraus.shape[0])))
-                indices_Pi = indices[len(indices) // 2 :]
-                indices_kraus = range(len(kraus_reshape_dims) // 2)
-                #                 Pi_term = np.tensordot(Pi,Dagger(kraus).reshape(kraus_reshape_dims),(indices_Pi,indices_kraus))
-                Pi_term = np.tensordot(
-                    Pi, kraus.reshape(kraus_reshape_dims), (indices_Pi, indices_kraus)
-                )
-                Pi_term = fix_index_after_tensor(Pi_term, indices_Pi)
-                # Take trace and absolute value
-                einsum_inds = list(range(len(Pi_term.shape) // 2)) + list(
-                    range(len(Pi_term.shape) // 2)
-                )
-                chi[i] += (
-                    np.power(np.abs(np.einsum(Pi_term, einsum_inds)), 2) / 4 ** n_qubits
-                )
+                if len(indices) > 0:
+                    kraus_reshape_dims = [2] * (2 * int(np.log2(kraus.shape[0])))
+                    indices_Pi = indices[len(indices) // 2 :]
+                    indices_kraus = range(len(kraus_reshape_dims) // 2)
+                    #                 Pi_term = np.tensordot(Pi,Dagger(kraus).reshape(kraus_reshape_dims),(indices_Pi,indices_kraus))
+                    Pi_term = np.tensordot(
+                        Pi,
+                        kraus.reshape(kraus_reshape_dims),
+                        (indices_Pi, indices_kraus),
+                    )
+                    Pi_term = fix_index_after_tensor(Pi_term, indices_Pi)
+                    # Take trace and absolute value
+                    einsum_inds = list(range(len(Pi_term.shape) // 2)) + list(
+                        range(len(Pi_term.shape) // 2)
+                    )
+                    chi[i] += (
+                        np.power(np.abs(np.einsum(Pi_term, einsum_inds)), 2)
+                        / 4 ** n_qubits
+                    )
+                else:
+                    # Take trace and absolute value
+                    if i == 0:
+                        chi[i] += np.abs(kraus) ** 2
+                    else:
+                        chi[i] += 0
     return chi
 
 
@@ -207,24 +217,29 @@ def get_PTMelem_ij(krausdict, Pi, Pjlist, n_qubits):
     for key, (support, krausList) in krausdict.items():
         indices = support + tuple(map(lambda x: x + n_qubits, support))
         for kraus in krausList:
-            kraus_reshape_dims = [2] * (2 * int(np.log2(kraus.shape[0])))
-            indices_Pi = indices[len(indices) // 2 :]
-            indices_kraus = range(len(kraus_reshape_dims) // 2)
-            Pi_term = np.tensordot(
-                Pi,
-                Dagger(kraus).reshape(kraus_reshape_dims),
-                (indices_Pi, indices_kraus),
-            )
-            Pi_term = fix_index_after_tensor(Pi_term, indices_Pi)
-            indices_Pi = indices[: len(indices) // 2]
-            indices_kraus = range(len(kraus_reshape_dims))[
-                len(kraus_reshape_dims) // 2 :
-            ]
-            Pi_term = np.tensordot(
-                Pi_term, kraus.reshape(kraus_reshape_dims), (indices_Pi, indices_kraus)
-            )
-            Pi_term = fix_index_after_tensor(Pi_term, indices_Pi)
-            Pres += Pi_term
+            if len(indices) > 0:
+                kraus_reshape_dims = [2] * (2 * int(np.log2(kraus.shape[0])))
+                indices_Pi = indices[len(indices) // 2 :]
+                indices_kraus = range(len(kraus_reshape_dims) // 2)
+                Pi_term = np.tensordot(
+                    Pi,
+                    Dagger(kraus).reshape(kraus_reshape_dims),
+                    (indices_Pi, indices_kraus),
+                )
+                Pi_term = fix_index_after_tensor(Pi_term, indices_Pi)
+                indices_Pi = indices[: len(indices) // 2]
+                indices_kraus = range(len(kraus_reshape_dims))[
+                    len(kraus_reshape_dims) // 2 :
+                ]
+                Pi_term = np.tensordot(
+                    Pi_term,
+                    kraus.reshape(kraus_reshape_dims),
+                    (indices_Pi, indices_kraus),
+                )
+                Pi_term = fix_index_after_tensor(Pi_term, indices_Pi)
+                Pres += Pi_term
+            else:
+                Pres = Pi * (np.abs(kraus) ** 2)
     # take dot product with Pj and trace
     trace_vals = np.zeros(len(Pjlist), dtype=np.double)
     indices_Pi = list(range(len(Pi.shape) // 2))
@@ -251,27 +266,38 @@ def get_kraus_unitaries(p_error, rotation_angle, qcode, w_thresh=3):
     support = tuple describing which qubits the kraus ops act on
     krauslist = krauss ops acting on support
     """
-    total_probs = 0
     kraus_count = 0
     kraus_dict = {}
-    for n_q in range(1, qcode.N + 1):
-        if n_q <= w_thresh:
+    norm_coeff = np.zeros(qcode.N + 1, dtype=np.double)
+    for n_q in range(qcode.N + 1):
+        if n_q == 0:
+            p_q = 1 - p_error
+        elif n_q <= w_thresh:
             p_q = np.power(0.1, n_q - 1) * p_error
         else:
             p_q = np.power(p_error, n_q)
         # Number of unitaries of weight n_q is max(1,qcode.N-n_q-1)
-        for __ in range(max(1, qcode.N - n_q - 1)):
+        if n_q == 0:
+            nops_q = 1
+        else:
+            nops_q = max(1, (qcode.N + n_q) // 2)
+        norm_coeff[n_q] += p_q
+        for __ in range(nops_q):
             support = tuple(sorted((random.sample(range(qcode.N), n_q))))
-            rand_unitary = rc.RandomUnitary(
-                rotation_angle / (2 ** n_q), 2 ** n_q, method="exp"
-            )
-            kraus_dict[kraus_count] = (support, [rand_unitary * np.sqrt(p_q)])
-            total_probs += p_q
+            if n_q == 0:
+                rand_unitary = 1.0
+            else:
+                rand_unitary = rc.RandomUnitary(
+                    rotation_angle / (2 ** n_q), 2 ** n_q, method="exp"
+                )
+            kraus_dict[kraus_count] = (support, [rand_unitary * 1 / np.sqrt(nops_q)])
             kraus_count += 1
-    #     Renormalize kraus ops
+
+    norm_coeff /= np.sum(norm_coeff)
+    # Renormalize kraus ops
     for key, (support, krauslist) in kraus_dict.items():
         for k in range(len(krauslist)):
-            kraus_dict[key][1][k] /= np.sqrt(total_probs)
+            kraus_dict[key][1][k] *= np.sqrt(norm_coeff[len(support)])
     return kraus_dict
 
 
@@ -328,6 +354,7 @@ def get_chi_diagLST(p_error, rotation_angle, qcode, w_thresh, kraus_dict=None):
         kraus_dict = get_kraus_unitaries(p_error, rotation_angle, qcode, w_thresh)
     ops = qc.GetOperatorsForLSTIndex(qcode, range(nstabs * nstabs * nlogs))
     chi = get_Chielem_ii(kraus_dict, ops, qcode.N)
+    print("Sum of chi = {},infid = {}".format(np.sum(chi), 1 - chi[0]))
     return chi
 
 

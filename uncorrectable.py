@@ -1,6 +1,7 @@
 import numpy as np
 from define.QECCLfid import minwt as mw
 from define.QECCLfid import clique as cq
+from define.qcode import PrepareSyndromeLookUp
 
 
 def ComputeUnCorrProb(pauli_probs, qcode, nlevels, leading_fraction=0, method=None):
@@ -14,6 +15,8 @@ def ComputeUnCorrProb(pauli_probs, qcode, nlevels, leading_fraction=0, method=No
         # Can insert fancy selection here later
         method = "minwt"
     if method == "minwt":
+        if qcode.lookup is None:
+            PrepareSyndromeLookUp(qcode)
         return mw.ComputeUncorrProbs(pauli_probs, qcode, nlevels, leading_fraction)
     elif method == "maxclique":
         return cq.ComputeUncorrProbs(pauli_probs, qcode)

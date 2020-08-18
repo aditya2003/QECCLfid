@@ -1,6 +1,7 @@
 import numpy as np
 from define.QECCLfid import utils as ut
 from define import qcode as qc
+from define.decoder import CompleteDecoderKnowledge
 
 
 def ComputeDecoderDegeneracies(qcode):

@@ -81,7 +81,7 @@ def ComputeResiduals(L_s, pauli_probs, qcode, lookup=None):
     return probls
 
 
-def ComputeUncorrProbs(probs, qcode, nlevels):
+def ComputeUncorrProbs(probs, qcode, nlevels, leading_fraction):
     r"""
     Generates all Paulis of weight 0,1 and 2
     Assigns syndromes with their correspoding lowest weight errors
@@ -103,6 +103,8 @@ def ComputeUncorrProbs(probs, qcode, nlevels):
         #     )
         # )
     coset_probs = np.zeros(4, dtype=np.double)
+    if leading_fraction > 0 and leading_fraction < 1:
+        pauli_probs = CompleteDecoderKnowledge(leading_fraction, pauli_probs, qcode)
     for l in range(4):
         # inds = qcode.decoder_degens[l]
         # coset_probs[l] = np.sum(pauli_probs[inds])

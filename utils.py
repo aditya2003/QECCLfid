@@ -1,4 +1,15 @@
 import numpy as np
+from functools import reduce
+
+def GetErrorBudget(probs, nPaulis):
+    # Get the total probability of leading non-trivial Pauli decays.
+    if probs.ndim == 1:
+        chan_probs = probs
+    else:
+        chan_probs = reduce(np.kron, probs)
+    budget = np.sum(np.sort(chan_probs[1:])[-nPaulis:])
+    return budget/(1-chan_probs[0])
+
 
 
 def inner_sym(sym1, sym2, d=2):

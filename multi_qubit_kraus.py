@@ -269,7 +269,8 @@ def get_kraus_unitaries(p_error, rotation_angle, qcode, w_thresh=3):
     kraus_count = 0
     kraus_dict = {}
     norm_coeff = np.zeros(qcode.N + 1, dtype=np.double)
-    for n_q in range(qcode.N + 1):
+    # for n_q in range(qcode.N + 1):
+    for n_q in range(1, qcode.N + 1): # Removed identity kraus
         if n_q == 0:
             p_q = 1 - p_error
         elif n_q <= w_thresh:

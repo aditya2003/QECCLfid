@@ -281,8 +281,8 @@ def get_kraus_unitaries(p_error, rotation_angle, qcode, w_thresh=3):
         if n_q == 0:
             nops_q = 1
         else:
-            # nops_q = max(1, (qcode.N + n_q) // 2) # Aditya's version
-            nops_q = sc.special.comb(qcode.N, n_q, exact=True) * n_q
+            nops_q = max(1, (qcode.N + n_q) // 2) # Aditya's version
+            # nops_q = sc.special.comb(qcode.N, n_q, exact=True) * n_q
         norm_coeff[n_q] += p_q
         for __ in range(nops_q):
             support = tuple(sorted((random.sample(range(qcode.N), n_q))))
@@ -290,8 +290,11 @@ def get_kraus_unitaries(p_error, rotation_angle, qcode, w_thresh=3):
                 rand_unitary = 1.0
             else:
                 rand_unitary = rc.RandomUnitary(
-                    rotation_angle/(n_q), 2 ** n_q, method="exp"
-                )
+                    rotation_angle/(2**n_q), 2 ** n_q, method="exp"
+                ) # Aditya version
+                # rand_unitary = rc.RandomUnitary(
+                #     rotation_angle/(n_q), 2 ** n_q, method="exp"
+                # )
             kraus_dict[kraus_count] = (support, [rand_unitary * 1 / np.sqrt(nops_q)])
             kraus_count += 1
 

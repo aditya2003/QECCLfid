@@ -255,7 +255,32 @@ def get_PTMelem_ij(krausdict, Pi, Pjlist, n_qubits):
     return trace_vals
 
 
-def get_kraus_unitaries(p_error, rotation_angle, qcode, w_thresh=3):
+def get_kraus_ising(J, mu, qcode):
+    r"""
+    Sub-routine to prepare the dictionary for errors arising due to Ising type interaction
+    H = - J \sum_{i} Z_i Z_{i+1} - mu \sum_{i} Z_i
+    Returns :
+    dict[key] = (support,krauslist)
+    where key = number associated to the operation applied (not significant)
+    support = tuple describing which qubits the kraus ops act on
+    krauslist = krauss ops acting on support
+    """
+    kraus_dict = {}
+    ZZ = np.kron(gv.Paulis[3],gv.Paulis[3])
+    if qcode.interaction_graph is None:
+        # Asssume nearest neighbour in numerically sorted order
+        qcode.interaction_graph = np.array([(i,i+1) for i in range(qcode.N-1)],dtype=np.int8)
+    Ham = np.zeros(2**qcode.N, dtype = np.double)
+    for (i,j) in qcode.interaction_graph :
+        Ham = Ham + J * extend_gate([i,j], ZZ, range(qcode.N))
+    for i in range(qcode.N):
+        Ham = Ham + mu*extend_gate([i], gv.Paulis[3], range(qcode.N))
+    kraus = linalg.expm(-1j  * Ham)
+    kraus_dict.append(0:(list(range(qcode.N)),[kraus]))
+    return kraus_dict
+
+
+def get_kraus_random(p_error, rotation_angle, qcode, w_thresh=3):
     r"""
     Sub-routine to prepare the dictionary for error eps = sum of unitary errors
     Generates kraus as random multi-qubit unitary operators rotated by rotation_angle
@@ -266,8 +291,9 @@ def get_kraus_unitaries(p_error, rotation_angle, qcode, w_thresh=3):
     support = tuple describing which qubits the kraus ops act on
     krauslist = krauss ops acting on support
     """
-    kraus_count = 0
     kraus_dict = {}
+
+    kraus_count = 0
     norm_coeff = np.zeros(qcode.N + 1, dtype=np.double)
     # for n_q in range(qcode.N + 1):
     for n_q in range(1, qcode.N + 1): # Removed identity kraus
@@ -306,7 +332,7 @@ def get_kraus_unitaries(p_error, rotation_angle, qcode, w_thresh=3):
     return kraus_dict
 
 
-def get_process_correlated(p_error, rotation_angle, qcode, w_thresh, kraus_dict=None):
+def get_process_correlated(qcode, kraus_dict):
     r"""
     Generates LS part of the process matrix for Eps = sum of unitary errors
     p_error^k is the probability associated to a k-qubit unitary (except weight <= w_thresh)
@@ -317,8 +343,6 @@ def get_process_correlated(p_error, rotation_angle, qcode, w_thresh, kraus_dict=
     nlogs = 4 ** qcode.K
     ops = qc.GetOperatorsForTLSIndex(qcode, range(nstabs * nlogs))
     ops_tensor = list(map(get_Pauli_tensor, ops))
-    if kraus_dict is None:
-        kraus_dict = get_kraus_unitaries(p_error, rotation_angle, qcode, w_thresh)
     process = np.zeros(nstabs * nstabs * nlogs * nlogs, dtype=np.double)
     for i in range(len(ops_tensor)):
         process[i * nstabs * nlogs : (i + 1) * nstabs * nlogs] = get_PTMelem_ij(
@@ -327,7 +351,7 @@ def get_process_correlated(p_error, rotation_angle, qcode, w_thresh, kraus_dict=
     return process
 
 
-def get_process_diagLST(p_error, rotation_angle, qcode, w_thresh, kraus_dict=None):
+def get_process_diagLST(qcode, kraus_dict):
     r"""
     Generates diagonal of the process matrix in LST ordering for Eps = sum of unitary errors
     p_error^k is the probability associated to a k-qubit unitary (except weight<= w_thresh)
@@ -336,8 +360,6 @@ def get_process_diagLST(p_error, rotation_angle, qcode, w_thresh, kraus_dict=Non
     """
     nstabs = 2 ** (qcode.N - qcode.K)
     nlogs = 4 ** qcode.K
-    if kraus_dict is None:
-        kraus_dict = get_kraus_unitaries(p_error, rotation_angle, qcode, w_thresh)
     diag_process = np.zeros(nstabs * nstabs * nlogs, dtype=np.double)
     ops = qc.GetOperatorsForLSTIndex(qcode, range(nstabs * nstabs * nlogs))
     for i in range(len(diag_process)):
@@ -346,7 +368,7 @@ def get_process_diagLST(p_error, rotation_angle, qcode, w_thresh, kraus_dict=Non
     return diag_process
 
 
-def get_chi_diagLST(p_error, rotation_angle, qcode, w_thresh, kraus_dict=None):
+def get_chi_diagLST(qcode, kraus_dict):
     r"""
     Generates diagonal of the chi matrix in LST ordering for Eps = sum of unitary errors
     p_error^k is the probability associated to a k-qubit unitary (except weight <= w_thresh)
@@ -355,20 +377,21 @@ def get_chi_diagLST(p_error, rotation_angle, qcode, w_thresh, kraus_dict=None):
     """
     nstabs = 2 ** (qcode.N - qcode.K)
     nlogs = 4 ** qcode.K
-    if kraus_dict is None:
-        kraus_dict = get_kraus_unitaries(p_error, rotation_angle, qcode, w_thresh)
     ops = qc.GetOperatorsForLSTIndex(qcode, range(nstabs * nstabs * nlogs))
     chi = get_Chielem_ii(kraus_dict, ops, qcode.N)
     print("Sum of chi = {},infid = {}".format(np.sum(chi), 1 - chi[0]))
     return chi
 
 
-def get_process_chi(p_error, rotation_angle, qcode, w_thresh=2):
+def get_process_chi(qcode, method = "random", *params):
     nstabs = 2 ** (qcode.N - qcode.K)
     nlogs = 4 ** qcode.K
-    kraus_dict = get_kraus_unitaries(p_error, rotation_angle, qcode, w_thresh)
-    chi = get_chi_diagLST(p_error, rotation_angle, qcode, w_thresh, kraus_dict)
-    process = get_process_correlated(
-        p_error, rotation_angle, qcode, w_thresh, kraus_dict
-    )
+    if method == "random":
+        p_error,rotation_angle,w_thresh = params[:3]
+        kraus_dict = get_kraus_random(p_error, rotation_angle, qcode, w_thresh)
+    elif method == "ising":
+        J, mu = params[:2]
+        kraus_dict = get_kraus_ising(J, mu, qcode)
+    chi = get_chi_diagLST(qcode, kraus_dict)
+    process = get_process_correlated(qcode, kraus_dict)
     return (process, chi)

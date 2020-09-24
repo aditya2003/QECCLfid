@@ -84,8 +84,7 @@ def ComputeResiduals(L_s, pauli_probs, qcode, lookup=None):
 
 def ComputeUncorrProbs(probs, qcode, nlevels, leading_fraction):
     r"""
-    Generates all Paulis of weight 0,1 and 2
-    Assigns syndromes with their correspoding lowest weight errors
+    Computes uncorr
     """
     # print("Probs = {}".format(probs))
     if qcode.PauliCorrectableIndices is None:
@@ -106,10 +105,8 @@ def ComputeUncorrProbs(probs, qcode, nlevels, leading_fraction):
     coset_probs = np.zeros(4, dtype=np.double)
     if leading_fraction > 0 and leading_fraction < 1:
         pauli_probs = CompleteDecoderKnowledge(leading_fraction, pauli_probs, qcode)
-    for l in range(4):
-        # inds = qcode.decoder_degens[l]
-        # coset_probs[l] = np.sum(pauli_probs[inds])
-        coset_probs[l] = ComputeResiduals(l, pauli_probs, qcode)
+    for log in range(4):
+        coset_probs[log] = ComputeResiduals(log, pauli_probs, qcode)
     # Here we can use the details of the level-2 code if they're not the same as the level-1 code.
     correctable_probabilities = np.zeros(nlevels, dtype=np.double)
     for l in range(nlevels):
@@ -142,9 +139,20 @@ def ComputeUncorrProbs(probs, qcode, nlevels, leading_fraction):
             # This is also computed in two steps.
             # First we need to account for errors are completely removed by the level-2 code.
             correctable_probabilities[l] = np.power(
-                correctable_probabilities[l - 2], qcode.N
+                correctable_probabilities[l - 1], qcode.N
             )
             # Then we need to account for errors that are mapped to a correctable pattern of logical errors, for the level-3 code to correct.
+            # Update coset probs recursively
+            pauli_probs = np.prod(
+                np.tile(coset_probs, [qcode.N, 1])[range(qcode.N), qcode.PauliOperatorsLST[:, range(qcode.N)]], axis=1
+            )
+            for log in range(4):
+                coset_probs[log] = ComputeResiduals(log, pauli_probs, qcode)
+
+            correctable_probabilities[l] += np.sum(
+                np.prod(coset_probs[qcode.Paulis_correctable[1:]], axis=1)
+            )
+
         else:
             pass
     # print("uncorrectable_probabilities\n{}".format(1 - correctable_probabilities))

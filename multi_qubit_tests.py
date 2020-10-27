@@ -1,3 +1,7 @@
+import numpy as np
+from define.QECCLfid.utils import extend_gate, Dot, Dagger
+from define.QECCLfid.ptm import get_PTMelem_ij, get_Pauli_tensor
+
 def random_input_PTelem_ij(dkraus, nkraus, jlistlength, n_qubits=5):
     pauli_list = [
         np.eye(2),
@@ -37,12 +41,12 @@ def test_get_PTMelem_ij(krausdict, Pi, Pjlist, n_qubits):
             extended_kraus = extend_gate(
                 np.array(support), np.array(kraus), np.array(list(range(n_qubits)))
             )
-            state = dot(extended_kraus, state, Dagger(extended_kraus))
+            state = Dot(extended_kraus, state, Dagger(extended_kraus))
         # take dot product with Pj and trace
     trace_vals = np.zeros(len(Pjlist), dtype=np.complex128)
     for i in range(len(Pjlist)):
         Pj = Pjlist[i].reshape(2 ** n_qubits, 2 ** n_qubits)
-        trace_vals[i] = np.real(np.trace(dot(Pj, state))) / 2 ** n_qubits
+        trace_vals[i] = np.real(np.trace(np.dot(Pj, state))) / 2 ** n_qubits
     trace_vals2 = get_PTMelem_ij(krausdict, Pi, Pjlist, n_qubits)
     return np.allclose(trace_vals, trace_vals2)
 

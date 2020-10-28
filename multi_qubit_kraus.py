@@ -60,7 +60,8 @@ def get_Chielem_ii(krausdict, Pilist, n_qubits):
 def get_kraus_ising(J, mu, qcode):
 	r"""
 	Sub-routine to prepare the dictionary for errors arising due to Ising type interaction
-	H = - J \sum_{i} Z_i Z_{i+1} - mu \sum_{i} Z_i
+	https://en.wikipedia.org/wiki/Transverse-field_Ising_model
+	H = - J \sum_{i} Z_i Z_{i+1} - mu \sum_{i} X_i
 	Returns :
 	dict[key] = (support,krauslist)
 	where key = number associated to the operation applied (not significant)
@@ -70,13 +71,14 @@ def get_kraus_ising(J, mu, qcode):
 	ZZ = np.kron(gv.Pauli[3], gv.Pauli[3])
 	if qcode.interaction_graph is None:
 		# Asssume nearest neighbour in numerically sorted order
-		qcode.interaction_graph = np.array([(i,i+1) for i in range(qcode.N-1)],dtype=np.int8)
+		qcode.interaction_graph = np.array([(i,(i+1)%qcode.N) for i in range(qcode.N)],dtype=np.int8)
+
 	Ham = np.zeros(2**qcode.N, dtype = np.double)
 	for (i,j) in qcode.interaction_graph :
 		Ham = Ham + J * extend_gate([i,j], ZZ, np.arange(qcode.N, dtype=np.int))
 	if mu > 0:
 		for i in range(qcode.N):
-			Ham = Ham + mu * extend_gate([i], gv.Pauli[3], np.arange(qcode.N, dtype=np.int))
+			Ham = Ham + mu * extend_gate([i], gv.Pauli[1], np.arange(qcode.N, dtype=np.int))
 	kraus = linalg.expm(-1j * Ham)
 	# print("Unitarity of Kraus\n{}".format(np.linalg.norm(np.dot(kraus, kraus.conj().T) - np.eye(kraus.shape[0]))))
 	kraus_dict = {0:(tuple(range(qcode.N)), [kraus])}

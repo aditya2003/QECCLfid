@@ -34,7 +34,7 @@ def fix_index_after_tensor(tensor, indices_changed):
 	return np.transpose(tensor, perm_list)
 
 
-def get_PTMelem_ij(krausdict, Pi, Pjlist, n_qubits):
+def get_PTMelem_ij(krausdict, Pi, Pjlist, n_qubits,phasei=None,phasej=None):
 	r"""
 	Assumes Paulis Pi,Pj to be a tensor on n_qubits
 	Calculates Tr(Pj Eps(Pi)) for each Pj in Pjlist
@@ -44,6 +44,10 @@ def get_PTMelem_ij(krausdict, Pi, Pjlist, n_qubits):
 	"""
 	#     Pres stores the addition of all kraus applications
 	#     Pi_term stores result of individual kraus applications to Pi
+	if phasei is None:
+		phasei = 1
+	if phasej is None:
+		phasej = np.ones(len(Pjlist))
 	Pres = np.zeros_like(Pi)
 	for key, (support, krausList) in krausdict.items():
 		indices = support + tuple(map(lambda x: x + n_qubits, support))
@@ -82,7 +86,7 @@ def get_PTMelem_ij(krausdict, Pi, Pjlist, n_qubits):
 		einsum_inds = list(range(len(Pres_times_Pj.shape) // 2)) + list(
 			range(len(Pres_times_Pj.shape) // 2)
 		)
-		raw_trace = np.einsum(Pres_times_Pj, einsum_inds)
+		raw_trace = np.einsum(Pres_times_Pj, einsum_inds)*phasei*phasej[i]
 		# if np.abs(np.imag(raw_trace)) > 1E-15:
 		# 	print("raw_trace {}: {}".format(i, raw_trace))
 		trace_vals[i] = np.real(raw_trace) / 2 ** n_qubits

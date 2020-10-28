@@ -77,13 +77,8 @@ def get_kraus_ising(J, mu, qcode):
 	if mu > 0:
 		for i in range(qcode.N):
 			Ham = Ham + mu * extend_gate([i], gv.Pauli[3], np.arange(qcode.N, dtype=np.int))
-	# Ham = np.random.rand(2**qcode.N, 2**qcode.N) + 1j * np.random.rand(2**qcode.N, 2**qcode.N)
-	# Ham = Ham + Ham.conj().T
-	# Ham = Ham/np.linalg.norm(Ham)
-	# print("||H|| = {}".format(np.linalg.norm(Ham)))
-	# kraus = rc.RandomUnitary(J, 2**qcode.N, "exp")
 	kraus = linalg.expm(-1j * Ham)
-	print("Unitarity of Kraus\n{}".format(np.linalg.norm(np.dot(kraus, kraus.conj().T) - np.eye(kraus.shape[0]))))
+	# print("Unitarity of Kraus\n{}".format(np.linalg.norm(np.dot(kraus, kraus.conj().T) - np.eye(kraus.shape[0]))))
 	kraus_dict = {0:(tuple(range(qcode.N)), [kraus])}
 	return kraus_dict
 
@@ -103,7 +98,8 @@ def get_kraus_random(p_error, rotation_angle, qcode, w_thresh=3):
 
 	kraus_count = 0
 	norm_coeff = np.zeros(qcode.N + 1, dtype=np.double)
-	for n_q in range(qcode.N, qcode.N + 1):
+	# for n_q in range(qcode.N, qcode.N + 1): # For debugging.
+	for n_q in range(qcode.N + 1):
 		if n_q == 0:
 			p_q = 1 - p_error
 		elif n_q <= w_thresh:
@@ -114,8 +110,8 @@ def get_kraus_random(p_error, rotation_angle, qcode, w_thresh=3):
 		if n_q == 0:
 			nops_q = 1
 		else:
-			nops_q = 1 # For debugging.
-			# nops_q = max(1, (qcode.N + n_q) // 2) # Aditya's version
+			# nops_q = 1 # For debugging.
+			nops_q = max(1, (qcode.N + n_q) // 2) # Aditya's version
 			# nops_q = sc.special.comb(qcode.N, n_q, exact=True) * n_q
 		norm_coeff[n_q] += p_q
 		for __ in range(nops_q):
@@ -124,11 +120,8 @@ def get_kraus_random(p_error, rotation_angle, qcode, w_thresh=3):
 				rand_unitary = 1.0
 			else:
 				rand_unitary = rc.RandomUnitary(
-					rotation_angle, 2 ** n_q, method="exp"
-				) # Aditya version
-				# rand_unitary = rc.RandomUnitary(
-				#     rotation_angle/(n_q), 2 ** n_q, method="exp"
-				# )
+				    rotation_angle/(2**n_q), 2 ** n_q, method="exp"
+				)
 			kraus_dict[kraus_count] = (support, [rand_unitary * 1 / np.sqrt(nops_q)])
 			kraus_count += 1
 
@@ -151,13 +144,12 @@ def get_process_correlated(qcode, kraus_dict):
 	"""
 	nstabs = 2 ** (qcode.N - qcode.K)
 	nlogs = 4 ** qcode.K
-	ops = qc.GetOperatorsForTLSIndex(qcode, range(nstabs * nlogs))
+	(ops,phases) = qc.GetOperatorsForTLSIndex(qcode, range(nstabs * nlogs))
 	ops_tensor = list(map(get_Pauli_tensor, ops))
 	process = np.zeros(nstabs * nstabs * nlogs * nlogs, dtype=np.double)
 	for i in range(len(ops_tensor)):
 		process[i * nstabs * nlogs : (i + 1) * nstabs * nlogs] = get_PTMelem_ij(
-			kraus_dict, ops_tensor[i], ops_tensor, qcode.N
-		)
+			kraus_dict, ops_tensor[i], ops_tensor, qcode.N,phases[i],phases)
 		# print("Test for {}\n{}".format(i, test_get_PTMelem_ij(kraus_dict, ops_tensor[i], ops_tensor, qcode.N)))
 	return process
 
@@ -172,9 +164,9 @@ def get_process_diagLST(qcode, kraus_dict):
 	nstabs = 2 ** (qcode.N - qcode.K)
 	nlogs = 4 ** qcode.K
 	diag_process = np.zeros(nstabs * nstabs * nlogs, dtype=np.double)
-	ops = qc.GetOperatorsForLSTIndex(qcode, range(nstabs * nstabs * nlogs))
+	(ops,phases) = qc.GetOperatorsForLSTIndex(qcode, range(nstabs * nstabs * nlogs))
 	for i in range(len(diag_process)):
-		op_tensor = get_Pauli_tensor(ops[i])
+		op_tensor = get_Pauli_tensor(ops[i])*phases[i]
 		diag_process[i] = get_PTMelem_ij(kraus_dict, op_tensor, [op_tensor], qcode.N)[0]
 	return diag_process
 
@@ -188,7 +180,7 @@ def get_chi_diagLST(qcode, kraus_dict):
 	"""
 	nstabs = 2 ** (qcode.N - qcode.K)
 	nlogs = 4 ** qcode.K
-	ops = qc.GetOperatorsForLSTIndex(qcode, range(nstabs * nstabs * nlogs))
+	(ops,__) = qc.GetOperatorsForLSTIndex(qcode, range(nstabs * nstabs * nlogs))
 	chi = get_Chielem_ii(kraus_dict, ops, qcode.N)
 	print("Sum of chi = {}, infid = {}\nElements of chi\n{}".format(np.sum(chi), 1 - chi[0], np.sort(chi)[::-1]))
 	return chi

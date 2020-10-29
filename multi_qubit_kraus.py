@@ -57,7 +57,7 @@ def get_Chielem_ii(krausdict, Pilist, n_qubits):
 	return chi
 
 
-def get_kraus_ising(J, mu, qcode):
+def get_kraus_ising(J, mu, time, qcode):
 	r"""
 	Sub-routine to prepare the dictionary for errors arising due to Ising type interaction
 	https://en.wikipedia.org/wiki/Transverse-field_Ising_model
@@ -79,7 +79,7 @@ def get_kraus_ising(J, mu, qcode):
 	if mu > 0:
 		for i in range(qcode.N):
 			Ham = Ham + mu * extend_gate([i], gv.Pauli[1], np.arange(qcode.N, dtype=np.int))
-	kraus = linalg.expm(-1j * Ham)
+	kraus = linalg.expm(-1j * time * Ham)
 	# print("Unitarity of Kraus\n{}".format(np.linalg.norm(np.dot(kraus, kraus.conj().T) - np.eye(kraus.shape[0]))))
 	kraus_dict = {0:(tuple(range(qcode.N)), [kraus])}
 	return kraus_dict
@@ -194,8 +194,8 @@ def get_process_chi(qcode, method = "random", *params):
 		p_error,rotation_angle,w_thresh = params[:3]
 		kraus_dict = get_kraus_random(p_error, rotation_angle, qcode, w_thresh)
 	elif method == "ising":
-		J, mu = params[:2]
-		kraus_dict = get_kraus_ising(J, mu, qcode)
+		J, mu, time = params[:3]
+		kraus_dict = get_kraus_ising(J, mu, time, qcode)
 	chi = get_chi_diagLST(qcode, kraus_dict)
 	process = get_process_correlated(qcode, kraus_dict)
 

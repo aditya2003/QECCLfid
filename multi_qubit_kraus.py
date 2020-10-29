@@ -70,8 +70,14 @@ def get_kraus_ising(J, mu, time, qcode):
 	"""
 	ZZ = np.kron(gv.Pauli[3], gv.Pauli[3])
 	if qcode.interaction_graph is None:
-		# Asssume nearest neighbour in numerically sorted order
-		qcode.interaction_graph = np.array([(i,(i+1)%qcode.N) for i in range(qcode.N)],dtype=np.int8)
+		if qcode.name == "Steane":
+			# Color code triangle graph
+			connections = [(0,5),(0,1),(1,6),(5,6),(4,5),(3,4),(3,6),(2,3),(1,2)]
+			connection_rev = [(y,x) for (x,y) in connections]
+			qcode.interaction_graph = np.array(connections + connection_rev)
+		else:
+			# Asssume nearest neighbour in numerically sorted order
+			qcode.interaction_graph = np.array([(i,(i+1)%qcode.N) for i in range(qcode.N)],dtype=np.int8)
 
 	Ham = np.zeros(2**qcode.N, dtype = np.double)
 	for (i,j) in qcode.interaction_graph :

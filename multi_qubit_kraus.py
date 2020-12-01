@@ -85,7 +85,7 @@ def get_kraus_ising(J, mu, time, qcode):
 	if mu > 0:
 		for i in range(qcode.N):
 			Ham = Ham + mu * extend_gate([i], gv.Pauli[1], np.arange(qcode.N, dtype=np.int))
-	kraus = linalg.expm(-1j * time * Ham)
+	kraus = linalg.expm(1j * time * Ham)
 	# print("Unitarity of Kraus\n{}".format(np.linalg.norm(np.dot(kraus, kraus.conj().T) - np.eye(kraus.shape[0]))))
 	kraus_dict = {0:(tuple(range(qcode.N)), [kraus])}
 	return kraus_dict

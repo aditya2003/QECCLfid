@@ -2,6 +2,17 @@ import numpy as np
 from collections import deque
 from functools import reduce
 
+def SamplePoisson(mean, cutoff=None):
+	# Sample a number from a Poisson distribution.
+	# If the random variable takes a value above a cutoff, sample again until it returns a value below the cutoff.
+	if (cutoff == None):
+		rv_val = np.random.poisson(lam = mean)
+	else:
+		rv_val = cutoff + 1
+		while (rv_val > cutoff):
+			rv_val = np.random.poisson(lam = mean)
+	return rv_val
+
 def extend_gate(support, mat, extended_support):
 	r"""
 	Extend a gate supported on some qubits in support, to a set of qubit labels, by padding identities.

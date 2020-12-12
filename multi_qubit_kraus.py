@@ -1,15 +1,8 @@
 import numpy as np
-from scipy import linalg as linalg
-import random
-import scipy as sc
-import sys
-from define.QECCLfid.multi_qubit_tests import test_get_PTMelem_ij
-from define.QECCLfid.utils import extend_gate, Dot, Kron, Dagger, circular_shift
+# from define.QECCLfid.multi_qubit_tests import test_get_PTMelem_ij # only for debugging
+from define.QECCLfid.utils import Dot, Kron, Dagger, circular_shift
 from define.QECCLfid.ptm import get_PTMelem_ij, get_Pauli_tensor, fix_index_after_tensor
-from define import randchans as rc
 from define import qcode as qc
-from define import globalvars as gv
-
 
 def get_Chielem_ii(krausdict, Pilist, n_qubits):
 	r"""
@@ -55,92 +48,6 @@ def get_Chielem_ii(krausdict, Pilist, n_qubits):
 					else:
 						chi[i] += 0
 	return chi
-
-
-def get_kraus_ising(J, mu, time, qcode):
-	r"""
-	Sub-routine to prepare the dictionary for errors arising due to Ising type interaction
-	https://en.wikipedia.org/wiki/Transverse-field_Ising_model
-	H = - J \sum_{i} Z_i Z_{i+1} - mu \sum_{i} X_i
-	Returns :
-	dict[key] = (support,krauslist)
-	where key = number associated to the operation applied (not significant)
-	support = tuple describing which qubits the kraus ops act on
-	krauslist = krauss ops acting on support
-	"""
-	ZZ = np.kron(gv.Pauli[3], gv.Pauli[3])
-	if qcode.interaction_graph is None:
-		if qcode.name == "Steane":
-			# Color code triangle graph
-			connections = [(0,5),(0,1),(1,6),(5,6),(4,5),(3,4),(3,6),(2,3),(1,2)]
-			connection_rev = [(y,x) for (x,y) in connections]
-			qcode.interaction_graph = np.array(connections + connection_rev)
-		else:
-			# Asssume nearest neighbour in numerically sorted order
-			qcode.interaction_graph = np.array([(i,(i+1)%qcode.N) for i in range(qcode.N)],dtype=np.int8)
-
-	Ham = np.zeros(2**qcode.N, dtype = np.double)
-	for (i,j) in qcode.interaction_graph :
-		Ham = Ham + J * extend_gate([i,j], ZZ, np.arange(qcode.N, dtype=np.int))
-	if mu > 0:
-		for i in range(qcode.N):
-			Ham = Ham + mu * extend_gate([i], gv.Pauli[1], np.arange(qcode.N, dtype=np.int))
-	kraus = linalg.expm(-1j * time * Ham)
-	# print("Unitarity of Kraus\n{}".format(np.linalg.norm(np.dot(kraus, kraus.conj().T) - np.eye(kraus.shape[0]))))
-	kraus_dict = {0:(tuple(range(qcode.N)), [kraus])}
-	return kraus_dict
-
-
-def get_kraus_random(p_error, rotation_angle, qcode, w_thresh=3):
-	r"""
-	Sub-routine to prepare the dictionary for error eps = sum of unitary errors
-	Generates kraus as random multi-qubit unitary operators rotated by rotation_angle
-	Probability associated with each weight-k error scales exponentially p_error^k (except weights <= w_thresh)
-	Returns :
-	dict[key] = (support,krauslist)
-	where key = number associated to the operation applied (not significant)
-	support = tuple describing which qubits the kraus ops act on
-	krauslist = krauss ops acting on support
-	"""
-	kraus_dict = {}
-
-	kraus_count = 0
-	norm_coeff = np.zeros(qcode.N + 1, dtype=np.double)
-	# for n_q in range(qcode.N, qcode.N + 1): # For debugging.
-	for n_q in range(qcode.N + 1):
-		if n_q == 0:
-			p_q = 1 - p_error
-		elif n_q <= w_thresh:
-			p_q = np.power(0.1, n_q - 1) * p_error
-		else:
-			p_q = np.power(p_error, n_q)
-		# Number of unitaries of weight n_q is max(1,qcode.N-n_q-1)
-		if n_q == 0:
-			nops_q = 1
-		else:
-			# nops_q = 1 # For debugging.
-			nops_q = max(1, (qcode.N + n_q) // 2) # Aditya's version
-			# nops_q = sc.special.comb(qcode.N, n_q, exact=True) * n_q
-		norm_coeff[n_q] += p_q
-		for __ in range(nops_q):
-			support = tuple(sorted((random.sample(range(qcode.N), n_q))))
-			if n_q == 0:
-				rand_unitary = 1.0
-			else:
-				rand_unitary = rc.RandomUnitary(
-				    rotation_angle/(2**n_q), 2 ** n_q, method="exp"
-				)
-			kraus_dict[kraus_count] = (support, [rand_unitary * 1 / np.sqrt(nops_q)])
-			kraus_count += 1
-
-	norm_coeff /= np.sum(norm_coeff)
-	# print("norm_coeff = {}".format(norm_coeff))
-	# Renormalize kraus ops
-	for key, (support, krauslist) in kraus_dict.items():
-		for k in range(len(krauslist)):
-			# print("k = {}".format(k))
-			kraus_dict[key][1][k] *= np.sqrt(norm_coeff[len(support)])
-	return kraus_dict
 
 
 def get_process_correlated(qcode, kraus_dict):
@@ -190,27 +97,5 @@ def get_chi_diagLST(qcode, kraus_dict):
 	nlogs = 4 ** qcode.K
 	(ops,__) = qc.GetOperatorsForLSTIndex(qcode, range(nstabs * nstabs * nlogs))
 	chi = get_Chielem_ii(kraus_dict, ops, qcode.N)
-	print("Sum of chi = {}, infid = {}\nElements of chi\n{}".format(np.sum(chi), 1 - chi[0], np.sort(chi)[::-1]))
+	# print("Sum of chi = {}, infid = {}\nElements of chi\n{}".format(np.sum(chi), 1 - chi[0], np.sort(chi)[::-1]))
 	return chi
-
-def get_process_chi(qcode, method = "random", *params):
-	nstabs = 2 ** (qcode.N - qcode.K)
-	nlogs = 4 ** qcode.K
-	if method == "random":
-		p_error,rotation_angle,w_thresh = params[:3]
-		kraus_dict = get_kraus_random(p_error, rotation_angle, qcode, w_thresh)
-	elif method == "ising":
-		J, mu, time = params[:3]
-		kraus_dict = get_kraus_ising(J, mu, time, qcode)
-	chi = get_chi_diagLST(qcode, kraus_dict)
-	process = get_process_correlated(qcode, kraus_dict)
-
-	# Check if the i,j element of the channel is j,i element of the adjoint channel.
-	# for key, (support, krauslist) in kraus_dict.items():
-	# 	for k in range(len(krauslist)):
-	# 		kraus_dict[key][1][k] = Dagger(kraus_dict[key][1][k])
-	# process_adj = get_process_correlated(qcode, kraus_dict)
-	# print("process - process_adj: {}".format(np.allclose(process.reshape(256, 256), process_adj.reshape(256, 256).T)))
-
-	print("Process[0] = {}".format(process[0]))
-	return (process, chi)

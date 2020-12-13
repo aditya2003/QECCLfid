@@ -1,3 +1,4 @@
+from timeit import default_timer as timer
 from define.QECCLfid.sum_unitaries import SumUnitaries
 from define.QECCLfid.ising import Ising
 from define.QECCLfid.sum_cptps import SumCptps
@@ -17,8 +18,13 @@ def get_process_chi(qcode, method = "sum_unitaries", *params):
 		kraus_dict = SumCptps(angle, qcode, cutoff = int(cutoff), n_maps = int(n_maps))
 	else:
 		pass
+	start = timer()
 	chi = get_chi_diagLST(qcode, kraus_dict)
+	runtime = timer() - start
+	print("get_chi_diagLST took %d seconds." % (runtime))
 	process = get_process_correlated(qcode, kraus_dict)
+	runtime = timer() - runtime
+	print("get_process_correlated took %d seconds." % (runtime))
 	# Check if the i,j element of the channel is j,i element of the adjoint channel.
 	# for key, (support, krauslist) in kraus_dict.items():
 	# 	for k in range(len(krauslist)):

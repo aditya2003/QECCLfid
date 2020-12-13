@@ -39,12 +39,11 @@ def SumCptps(rotation_angle, qcode, cutoff = 3, n_maps = 3):
 	kraus_dict = {i:None for i in range(n_maps)}
 	supports = []
 	# We want to ensure that \sum_k (K^dag K) = I. So we need to divide the Kraus operators by the number of Kraus maps in the corresponding channel.
-	cutoff = 3 # Cutoff number of qubits for poissson distribution
 	cptp_map_count = 0
 	# nonidentity_maps = 0
 	for __ in range(n_maps):
 		# n_q = SamplePoisson(mean = 1, cutoff=cutoff)
-		n_q = 4
+		n_q = 2
 		support = tuple(sorted((random.sample(range(qcode.N), n_q))))
 		supports.append(support)
 		# print("support of size {}\n{}".format(n_q, support))

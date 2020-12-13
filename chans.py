@@ -31,6 +31,6 @@ def get_process_chi(qcode, method = "sum_unitaries", *params):
 	# 		kraus_dict[key][1][k] = Dagger(kraus_dict[key][1][k])
 	# process_adj = get_process_correlated(qcode, kraus_dict)
 	# print("process - process_adj: {}".format(np.allclose(process.reshape(256, 256), process_adj.reshape(256, 256).T)))
-	# print("Process[0] = {}".format(process[0]))
+	print("Process[0] = {}".format(process[0]))
 	print("\033[2mInfidelity = %.4e.\033[0m" % (1 - chi[0]))
 	return (process, chi)

@@ -35,15 +35,15 @@ def SumCptps(rotation_angle, qcode, cutoff = 3, n_maps = 3):
 	support = tuple describing which qubits the kraus ops act on
 	krauslist = krauss ops acting on support
 	"""
-	# print("Sum of CPTP maps:\ncutoff = {}, n_maps = {}".format(cutoff, n_maps))
+	print("Sum of CPTP maps:\ncutoff = {}, n_maps = {}".format(cutoff, n_maps))
 	kraus_dict = {i:None for i in range(n_maps)}
 	supports = []
 	# We want to ensure that \sum_k (K^dag K) = I. So we need to divide the Kraus operators by the number of Kraus maps in the corresponding channel.
 	cptp_map_count = 0
 	# nonidentity_maps = 0
 	for __ in range(n_maps):
-		# n_q = SamplePoisson(mean = 1, cutoff=cutoff)
-		n_q = 2
+		n_q = SamplePoisson(mean = 1, cutoff=cutoff)
+		# n_q = 2
 		support = tuple(sorted((random.sample(range(qcode.N), n_q))))
 		supports.append(support)
 		# print("support of size {}\n{}".format(n_q, support))
@@ -54,15 +54,14 @@ def SumCptps(rotation_angle, qcode, cutoff = 3, n_maps = 3):
 			rand_unitary = RandomUnitary(rotation_angle/(2**(3*n_q)), 2**(3*n_q))
 			kraus = StineToKraus(rand_unitary)
 			KrausTest(kraus)
-			kraus_dict[cptp_map_count] = (support, kraus/np.sqrt(n_maps))
+			kraus_dict[cptp_map_count] = (support, kraus)
 			# nonidentity_maps += 1
-		# print("U on {} qubits\n{}".format(n_q, rand_unitary))
 		cptp_map_count += 1
 	
 	# Multiplying kraus by their respective probabilities
-	# for key, (support, krauslist) in kraus_dict.items():
-	# 	for k in range(len(krauslist)):
-	# 		kraus_dict[key][1][k] /= np.sqrt(n_maps)
+	for key, (support, krauslist) in kraus_dict.items():
+		for k in range(len(krauslist)):
+			kraus_dict[key][1][k] /= np.sqrt(n_maps)
 	print("Random channel generated with the following interactions\n{}.".format(supports))
 	return kraus_dict
 
@@ -70,6 +69,7 @@ def KrausTest(kraus):
 	# Given a set of Kraus operators {K_i}, check if \sum_i [ (K_i)^dag K_i ] = I.
 	total = np.zeros((kraus.shape[1], kraus.shape[2]), dtype = np.complex128)
 	for k in range(kraus.shape[0]):
+		# print("||K_{} - diag(K_{})||_2 = {}".format(k, k, np.linalg.norm(kraus[k, :, :] - np.diag(np.diag(kraus[k, :, :])))))
 		total = total + np.dot(HermitianConjugate(kraus[k, :, :]), kraus[k, :, :])
 	success = 0
 	if np.allclose(total, np.eye(kraus.shape[1], dtype=np.complex128)):

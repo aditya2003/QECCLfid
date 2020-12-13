@@ -16,13 +16,13 @@ def StineToKraus(U):
 	krauss = np.zeros((4**nq, 2**nq, 2**nq), dtype=np.complex128)
 	for r in range(2**nq):
 		for c in range(2**nq):
-			krauss[:, r, c] = U[(r - 1) * 4**nq + (np.arange(4**nq, dtype = np.int) - 1), (c - 1) * 4**nq]
+			krauss[:, r, c] = U[r * 4**nq + np.arange(4**nq, dtype = np.int), c * 4**nq]
 	return krauss
 
 def SumCptps(rotation_angle, qcode, cutoff = 3, n_maps = 3):
 	r"""
 	Sub-routine to prepare the dictionary for error eps = sum of cptp maps
-	Generates kraus by using stine to kraus
+	Generates Kraus by using Stine to Kraus
 	of random multi-qubit unitary operators rotated by rotation_angle/2**|support|
 	Probability associated with each weight-k error scales exponentially p_error^k (except weights <= w_thresh)
 	Input :
@@ -35,34 +35,48 @@ def SumCptps(rotation_angle, qcode, cutoff = 3, n_maps = 3):
 	support = tuple describing which qubits the kraus ops act on
 	krauslist = krauss ops acting on support
 	"""
-	print("Sum of CPTP maps:\ncutoff = {}, n_maps = {}".format(cutoff, n_maps))
-	kraus_dict = {}
-	prob_maps = np.array([1/n_maps]*n_maps) # Probabilites associated to the above CPTP maps
+	# print("Sum of CPTP maps:\ncutoff = {}, n_maps = {}".format(cutoff, n_maps))
+	kraus_dict = {i:None for i in range(n_maps)}
+	supports = []
+	# We want to ensure that \sum_k (K^dag K) = I. So we need to divide the Kraus operators by the number of Kraus maps in the corresponding channel.
 	cutoff = 3 # Cutoff number of qubits for poissson distribution
 	cptp_map_count = 0
+	# nonidentity_maps = 0
 	for __ in range(n_maps):
-		n_q = SamplePoisson(mean = 1, cutoff=cutoff)
+		# n_q = SamplePoisson(mean = 1, cutoff=cutoff)
+		n_q = 4
 		support = tuple(sorted((random.sample(range(qcode.N), n_q))))
-		
-		print("support of size {}\n{}".format(n_q, support))
-		
+		supports.append(support)
+		# print("support of size {}\n{}".format(n_q, support))
 		if n_q == 0:
 			rand_unitary = 1.0
 			kraus_dict[cptp_map_count] = (support,[rand_unitary])
 		else:
-			rand_unitary = RandomUnitary(
-				rotation_angle/(2**(3*n_q)), 2**(3*n_q)
-			)
-			kraus_dict[cptp_map_count] = (support, StineToKraus(rand_unitary))
-		
+			rand_unitary = RandomUnitary(rotation_angle/(2**(3*n_q)), 2**(3*n_q))
+			kraus = StineToKraus(rand_unitary)
+			KrausTest(kraus)
+			kraus_dict[cptp_map_count] = (support, kraus/np.sqrt(n_maps))
+			# nonidentity_maps += 1
 		# print("U on {} qubits\n{}".format(n_q, rand_unitary))
-
 		cptp_map_count += 1
 	
 	# Multiplying kraus by their respective probabilities
-	for key, (support, krauslist) in kraus_dict.items():
-		for k in range(len(krauslist)):
-			# print("k = {}".format(k))
-			kraus_dict[key][1][k] *= np.sqrt(prob_maps[key])
-	print("Kruas dictionary prepared.")
+	# for key, (support, krauslist) in kraus_dict.items():
+	# 	for k in range(len(krauslist)):
+	# 		kraus_dict[key][1][k] /= np.sqrt(n_maps)
+	print("Random channel generated with the following interactions\n{}.".format(supports))
 	return kraus_dict
+
+def KrausTest(kraus):
+	# Given a set of Kraus operators {K_i}, check if \sum_i [ (K_i)^dag K_i ] = I.
+	total = np.zeros((kraus.shape[1], kraus.shape[2]), dtype = np.complex128)
+	for k in range(kraus.shape[0]):
+		total = total + np.dot(HermitianConjugate(kraus[k, :, :]), kraus[k, :, :])
+	success = 0
+	if np.allclose(total, np.eye(kraus.shape[1], dtype=np.complex128)):
+		success = 1
+		print("Kraus test passed.")
+	else:
+		print("sum_i [ (K_i)^dag K_i ]\n{}".format(total))
+		print("Kraus test failed.")
+	return success

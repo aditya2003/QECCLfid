@@ -1,6 +1,8 @@
 import random
 import numpy as np
 from define.randchans import RandomUnitary
+from define.randchans import RandomCPTP # Only for debugging purposes
+from define.chanreps import ConvertRepresentations # Only for debugging purposes
 from define.QECCLfid.utils import SamplePoisson
 
 def HermitianConjugate(M):
@@ -36,28 +38,32 @@ def SumCptps(rotation_angle, qcode, cutoff = 3, n_maps = 3):
 	krauslist = krauss ops acting on support
 	"""
 	print("Sum of CPTP maps:\ncutoff = {}, n_maps = {}".format(cutoff, n_maps))
-	kraus_dict = {i:None for i in range(n_maps)}
+	kraus_dict = {m:None for m in range(n_maps)}
 	supports = []
 	# We want to ensure that \sum_k (K^dag K) = I. So we need to divide the Kraus operators by the number of Kraus maps in the corresponding channel.
 	cptp_map_count = 0
 	# nonidentity_maps = 0
-	for __ in range(n_maps):
-		n_q = SamplePoisson(mean = 1, cutoff=cutoff)
-		# n_q = 2
-		support = tuple(sorted((random.sample(range(qcode.N), n_q))))
+	for m in range(n_maps):
+		# n_q = SamplePoisson(mean = 1, cutoff=cutoff)
+		n_q = 1
+		# support = tuple(sorted((random.sample(range(qcode.N), n_q))))
+		support = tuple([m])
 		supports.append(support)
 		# print("support of size {}\n{}".format(n_q, support))
 		if n_q == 0:
 			rand_unitary = 1.0
-			kraus_dict[cptp_map_count] = (support,[rand_unitary])
+			kraus_dict[m] = (support,[rand_unitary])
 		else:
-			rand_unitary = RandomUnitary(rotation_angle/(2**(3*n_q)), 2**(3*n_q))
-			kraus = StineToKraus(rand_unitary)
+			rand_unitary = RandomUnitary(rotation_angle/8**n_q, 8**n_q)
+			# kraus = StineToKraus(rand_unitary)
+			# For debugging purposes, we create an independent random CPTP map
+			kraus = RandomCPTP(rotation_angle, 0)
 			KrausTest(kraus)
-			kraus_dict[cptp_map_count] = (support, kraus)
-			# nonidentity_maps += 1
-		cptp_map_count += 1
-	
+			# Compute the PTM corresponding to the Kraus channel to see how Pauli-like it is.
+			ptm = ConvertRepresentations(kraus, "krauss", "process")
+			print("{}). PTM\n{}".format(m + 1, ptm))
+			kraus_dict[m] = (support, kraus)
+
 	# Multiplying kraus by their respective probabilities
 	for key, (support, krauslist) in kraus_dict.items():
 		for k in range(len(krauslist)):

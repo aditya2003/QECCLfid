@@ -98,7 +98,7 @@ def PTM_Element(krausdict, Pi, Pjlist, n_qubits,phasei=None,phasej=None):
 				Pi_term = fix_index_after_tensor(Pi_term, indices_Pi)
 				Pres += Pi_term
 			else:
-				Pres = Pi * (np.abs(kraus) ** 2)
+				Pres += Pi * (np.abs(kraus) ** 2)
 	# take dot product with Pj and trace
 	trace_vals = np.zeros(len(Pjlist), dtype=np.double)
 	indices_Pi = list(range(len(Pi.shape) // 2))
@@ -114,7 +114,7 @@ def PTM_Element(krausdict, Pi, Pjlist, n_qubits,phasei=None,phasej=None):
 		# if np.abs(np.imag(raw_trace)) > 1E-15:
 		# 	print("raw_trace {}: {}".format(i, raw_trace))
 		trace_vals[i] = np.real(raw_trace) / 2 ** n_qubits
-	print("trace_vals = {}".format(np.count_nonzero(trace_vals)))
+	# print("trace_vals = {}".format(np.count_nonzero(trace_vals)))
 	return trace_vals
 
 
@@ -145,7 +145,7 @@ def PTM_Element_bugs(krausdict, Pi, Pjlist, n_qubits,phasei=None,phasej=None):
 	indices_Pi = list(range(len(Pi.shape) // 2))
 	indices_Pj = list(range(len(Pi.shape) // 2, len(Pi.shape)))
 	trace_vals = np.array([np.real(get_trace(Pres, Pjlist[i], indices_Pi, indices_Pj, phase_A=phasei, phase_B=phasej[i]))/(2**n_qubits) for i in range(len(Pjlist))], dtype=np.double)
-	print("trace_vals = {}".format(np.count_nonzero(trace_vals)))
+	# print("trace_vals = {}".format(np.count_nonzero(trace_vals)))
 	return trace_vals
 
 

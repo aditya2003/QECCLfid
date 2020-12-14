@@ -20,8 +20,8 @@ def get_process_chi(qcode, method = "sum_unitaries", *params):
 	else:
 		pass
 	start = timer()
-	# chi = get_chi_diagLST(qcode, kraus_dict)
-	chi = None
+	chi = get_chi_diagLST(qcode, kraus_dict)
+	# chi = None
 	runtime = timer() - start
 	print("get_chi_diagLST took %d seconds." % (runtime))
 	process = get_process_correlated(qcode, kraus_dict)

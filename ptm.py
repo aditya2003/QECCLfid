@@ -33,8 +33,32 @@ def fix_index_after_tensor(tensor, indices_changed):
 		perm_list = circular_shift(perm_list, index, n - n_changed + i + 1, "right")
 	return np.transpose(tensor, perm_list)
 
+def get_kraus_conj(kraus, Pi, indices):
+	# Compute the conjugation of a Pauli with a given Kraus operator.
+	# Given K and P, compute K P K^dag.
+	kraus_reshape_dims = [2] * (2 * int(np.log2(kraus.shape[0])))
+	indices_Pi = indices[len(indices) // 2 :]
+	indices_kraus = range(len(kraus_reshape_dims) // 2)
+	Pi_int = np.tensordot(
+		Pi,
+		Dagger(kraus).reshape(kraus_reshape_dims),
+		(indices_Pi, indices_kraus),
+	)
+	Pi_int = fix_index_after_tensor(Pi_int, indices_Pi)
+	indices_Pi = indices[: len(indices) // 2]
+	indices_kraus = range(len(kraus_reshape_dims))[
+		len(kraus_reshape_dims) // 2 :
+	]
+	Pi_int = np.tensordot(
+		Pi_int,
+		kraus.reshape(kraus_reshape_dims),
+		(indices_Pi, indices_kraus),
+	)
+	Pi_int = fix_index_after_tensor(Pi_int, indices_Pi)
+	return Pi_int
 
-def get_PTMelem_ij(krausdict, Pi, Pjlist, n_qubits,phasei=None,phasej=None):
+
+def PTM_Element(krausdict, Pi, Pjlist, n_qubits,phasei=None,phasej=None):
 	r"""
 	Assumes Paulis Pi,Pj to be a tensor on n_qubits
 	Calculates Tr(Pj Eps(Pi)) for each Pj in Pjlist
@@ -74,7 +98,7 @@ def get_PTMelem_ij(krausdict, Pi, Pjlist, n_qubits,phasei=None,phasej=None):
 				Pi_term = fix_index_after_tensor(Pi_term, indices_Pi)
 				Pres += Pi_term
 			else:
-				Pres = Pi * (np.abs(kraus) ** 2)
+				Pres += Pi * (np.abs(kraus) ** 2)
 	# take dot product with Pj and trace
 	trace_vals = np.zeros(len(Pjlist), dtype=np.double)
 	indices_Pi = list(range(len(Pi.shape) // 2))
@@ -90,4 +114,47 @@ def get_PTMelem_ij(krausdict, Pi, Pjlist, n_qubits,phasei=None,phasej=None):
 		# if np.abs(np.imag(raw_trace)) > 1E-15:
 		# 	print("raw_trace {}: {}".format(i, raw_trace))
 		trace_vals[i] = np.real(raw_trace) / 2 ** n_qubits
+	# print("trace_vals = {}".format(np.count_nonzero(trace_vals)))
 	return trace_vals
+
+
+
+def PTM_Element_bugs(krausdict, Pi, Pjlist, n_qubits,phasei=None,phasej=None):
+	r"""
+	Assumes Paulis Pi,Pj to be a tensor on n_qubits
+	Calculates Tr(Pj Eps(Pi)) for each Pj in Pjlist
+	Kraus dict has the format ("support": list of kraus ops on the support)
+	Assumes qubits
+	Assumes kraus ops to be square with dim 2**(number of qubits in support)
+	"""
+	#     Pres stores the addition of all kraus applications
+	#     Pi_term stores result of individual kraus applications to Pi
+	if phasei is None:
+		phasei = 1
+	if phasej is None:
+		phasej = np.ones(len(Pjlist))
+	Pres = np.zeros_like(Pi)
+	for key, (support, krausList) in krausdict.items():
+		indices = support + tuple(map(lambda x: x + n_qubits, support))
+		if len(indices) > 0:
+			Pres += np.sum([get_kraus_conj(kraus, Pi, indices) for kraus in krausList], axis=0)
+		else:
+			Pres += Pi * (np.abs(krausList[0]) ** 2)
+	# take dot product with Pj and trace
+	trace_vals = np.zeros(len(Pjlist), dtype=np.double)
+	indices_Pi = list(range(len(Pi.shape) // 2))
+	indices_Pj = list(range(len(Pi.shape) // 2, len(Pi.shape)))
+	trace_vals = np.array([np.real(get_trace(Pres, Pjlist[i], indices_Pi, indices_Pj, phase_A=phasei, phase_B=phasej[i]))/(2**n_qubits) for i in range(len(Pjlist))], dtype=np.double)
+	# print("trace_vals = {}".format(np.count_nonzero(trace_vals)))
+	return trace_vals
+
+
+def get_trace(A, B, indices_A, indices_B, phase_A=1, phase_B=1):
+	# Compute the Trace of [ A . B ] for A and B of similar dimensions.
+	A_times_B = np.tensordot(A, B, (indices_A, indices_B))
+	# Take trace
+	einsum_inds = list(range(len(A_times_B.shape) // 2)) + list(
+		range(len(A_times_B.shape) // 2)
+	)
+	trace = np.einsum(A_times_B, einsum_inds) * phase_A * phase_B
+	return trace

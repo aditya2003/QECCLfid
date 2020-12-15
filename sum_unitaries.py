@@ -1,3 +1,4 @@
+import random
 import numpy as np
 # import scipy as sc
 from define.QECCLfid.utils import extend_gate

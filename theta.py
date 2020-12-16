@@ -74,3 +74,34 @@ def KraussToTheta(kraus):
 				coeff += TraceDot(Pi, K) * TraceDot(Pj, Kdag)
 			theta += coeff * PioPjT
 	return theta
+
+
+def SupportToLabel(support, characters = None):
+	# Convert a list of qubit indices to labels for a tensor.
+	# Each qubit index corresponds to a pair of labels, indicating the row and column indices of the 2 x 2 matrix which acts non-trivially on that qubit.
+	# Each number in the support is mapped to a pair of alphabets in the characters list, as: x -> (characters[2x], characters[2x + 1]).
+	# Eg. (x, y, z) ---> (C[2x] C[2y] C[2z] , C[2x + 1] C[2y + 1] C[2z + 1])
+	start = 0
+	if characters == None:
+		characters = string.printable
+		start = 10
+	label = ['0' for __ in range(2 * len(support))]
+	nq = len(support)
+	for s in range(nq):
+		label[s] = characters[start + 2 * support[s]]
+		label[nq + s] = characters[start + 2 * support[s]]
+	return label
+
+def ContractThetaNetwork(theta_dict):
+	# Compute the Theta matrix of a composition of channels.
+	# The individual channels are provided a list where each one is a pair: (s, O) where s is the support and O is the theta matrix.
+	# We will use einsum to contract the tensor network of channels.
+	supports = np.array([sup for (sup, op) in theta_dict], dtype = np.int).flatten()
+	labels = ",".join(["".join(SupportToLabel(sup)) for (sup, op) in theta_dict])
+	(__, order) = np.unique(supports, return_indices=True)
+	composed_support = supports[np.argsort(order)]
+	composed_label = "".join(SupportToLabel(composed_support))
+	contraction_scheme = "%s->%s" % (labels, composed_label)
+	theta_ops = [op for (__, op) in theta_dict]
+	composed = OptimalEinsum(contraction_scheme, theta_ops)
+	return composed

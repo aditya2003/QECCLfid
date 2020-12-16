@@ -21,20 +21,19 @@ def get_process_chi(qcode, method = "sum_unitaries", *params):
 		pass
 	start = timer()
 	chi = get_chi_diagLST(qcode, kraus_dict)
-	# chi = None
 	runtime = timer() - start
-	print("get_chi_diagLST took %d seconds." % (runtime))
+	print("Chi matrix was constructed in %d seconds." % (runtime))
+	print("\033[2mInfidelity = %.4e.\033[0m" % (1 - chi[0]))
 	process = get_process_correlated(qcode, kraus_dict)
 	runtime = timer() - runtime
-	print("get_process_correlated took %d seconds." % (runtime))
+	print("PTM was constructed in %d seconds." % (runtime))
 	# Check if the i,j element of the channel is j,i element of the adjoint channel.
 	# for key, (support, krauslist) in kraus_dict.items():
 	# 	for k in range(len(krauslist)):
 	# 		kraus_dict[key][1][k] = Dagger(kraus_dict[key][1][k])
 	# process_adj = get_process_correlated(qcode, kraus_dict)
 	# print("process - process_adj: {}".format(np.allclose(process.reshape(256, 256), process_adj.reshape(256, 256).T)))
-	print("Process[0] = {}".format(process[0]))
-	PTM = process.reshape((nlogs * nstabs, nlogs * nstabs))
-	print("||PTM - Diag(PTM)||_2 = {}".format(np.linalg.norm(PTM - np.diag(np.diag(PTM)))))
-	print("\033[2mInfidelity = %.4e.\033[0m" % (1 - chi[0]))
+	# print("Process[0] = {}".format(process[0]))
+	# PTM = process.reshape((nlogs * nstabs, nlogs * nstabs))
+	# print("||PTM - Diag(PTM)||_2 = {}".format(np.linalg.norm(PTM - np.diag(np.diag(PTM)))))
 	return (process, chi)

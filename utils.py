@@ -2,6 +2,34 @@ import numpy as np
 from collections import deque
 from functools import reduce
 
+def PauliTensor(pauli_op):
+    # Convert a Pauli in operator form to a tensor.
+    # The tensor product of A B .. Z is given by simply putting the rows indices of A, B, ..., Z together, followed by their column indices.
+    # Each qubit index q can be assigned a pair of labels for the row and columns of the Pauli matrix on q: C[2q], C[2q + 1].
+    # Pauli matrices
+    characters = string.printable[10:]
+    # replace the following line with the variable from globalvars.py
+    Pauli = np.array([[[1, 0], [0, 1]], [[0, 1], [1, 0]], [[0, -1j], [1j, 0]], [[1, 0], [0, -1]]], dtype=np.complex128)
+    nq = pauli_op.shape[0]
+    labels = ",".join(["%s%s" % (characters[2 * q], characters[2 * q + 1]) for q in range(nq)])
+    ops = [Pauli[pauli_op[q], :, :] for q in range(nq)]
+    kn_indices = ["%s" % (characters[2 * q]) for q in range(nq)]
+    kn_indices += ["%s" % (characters[2 * q + 1]) for q in range(nq)]
+    kn_label = "".join(kn_indices)
+    scheme = "%s->%s" % (labels, kn_label)
+    pauli_tensor = OptimalEinsum(scheme, ops)
+    return pauli_tensor
+    
+
+def GetNQubitPauli(ind, nq):
+    # Compute the n-qubit Pauli that is at position 'i' in an ordering based on [I, X, Y, Z].
+    # We will express the input number in base 4^n - 1.
+    pauli = np.zeros(nq, dtype = np.int)
+    for i in range(nq):
+        pauli[i] = ind % 4
+        ind = int(ind//4)
+    return pauli
+
 def SamplePoisson(mean, cutoff=None):
 	# Sample a number from a Poisson distribution.
 	# If the random variable takes a value above a cutoff, sample again until it returns a value below the cutoff.
@@ -246,3 +274,19 @@ def GetErrorProbabilities(pauli_operators, pauliprobs, iscorr):
 			[pauliprobs[q][pauli_operators[i, q]] for q in range(nqubits)]
 		)
 	return operator_probs
+
+
+if __name__ == '__main__':
+	# Testing GetNQubitPauli
+	GetNQubitPauli(172, 4)
+
+	# Testing PauliTensor
+	N = 3
+	pauli_op = np.random.randint(0, high=4, size=(N,))
+	print("Pauli operator: {}".format(pauli_op))
+	tn_pauli = PauliTensor(pauli_op)
+	Pauli = np.array([[[1, 0], [0, 1]], [[0, 1], [1, 0]], [[0, -1j], [1j, 0]], [[1, 0], [0, -1]]], dtype=np.complex128)
+	np_pauli = Kron(*Pauli[pauli_op, :, :])
+	print("PauliTensor - Numpy = {}".format(np.allclose(tn_pauli.reshape(2**N, 2**N), np_pauli)))
+
+	

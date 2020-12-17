@@ -22,11 +22,13 @@ def get_process_chi(qcode, method = "sum_unitaries", *params):
 	start = timer()
 	chi = get_chi_diagLST(qcode, kraus_dict)
 	runtime = timer() - start
+
 	print("Chi matrix was constructed in %d seconds." % (runtime))
 	print("\033[2mInfidelity = %.4e.\033[0m" % (1 - chi[0]))
-	process = get_process_correlated(qcode, kraus_dict)
-	runtime = timer() - runtime
-	print("PTM was constructed in %d seconds." % (runtime))
+	process = None # for debudding
+	# process = get_process_correlated(qcode, kraus_dict)
+	# runtime = timer() - runtime
+	# print("PTM was constructed in %d seconds." % (runtime))
 	# Check if the i,j element of the channel is j,i element of the adjoint channel.
 	# for key, (support, krauslist) in kraus_dict.items():
 	# 	for k in range(len(krauslist)):

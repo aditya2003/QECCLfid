@@ -1,6 +1,8 @@
 import numpy as np
 from collections import deque
 from functools import reduce
+from define.QECCLfid.contract import OptimalEinsum
+import string
 
 def PauliTensor(pauli_op):
     # Convert a Pauli in operator form to a tensor.
@@ -19,7 +21,7 @@ def PauliTensor(pauli_op):
     scheme = "%s->%s" % (labels, kn_label)
     pauli_tensor = OptimalEinsum(scheme, ops)
     return pauli_tensor
-    
+
 
 def GetNQubitPauli(ind, nq):
     # Compute the n-qubit Pauli that is at position 'i' in an ordering based on [I, X, Y, Z].
@@ -288,5 +290,3 @@ if __name__ == '__main__':
 	Pauli = np.array([[[1, 0], [0, 1]], [[0, 1], [1, 0]], [[0, -1j], [1j, 0]], [[1, 0], [0, -1]]], dtype=np.complex128)
 	np_pauli = Kron(*Pauli[pauli_op, :, :])
 	print("PauliTensor - Numpy = {}".format(np.allclose(tn_pauli.reshape(2**N, 2**N), np_pauli)))
-
-	

@@ -1,3 +1,9 @@
+import numpy as np
+from define.QECCLfid.utils import GetNQubitPauli, PauliTensor
+from define.QECCLfid.tensor import TensorTranspose, TensorKron, TensorTrace, TraceDot
+from define.QECCLfid.contract import ContractTensorNetwork
+from timeit import default_timer as timer
+
 def ThetaToChiElement(pauli_op_i, pauli_op_j, theta, supp_theta):
     # Convert from the Theta representation to the Chi representation.
     # The "Theta" matrix T of a CPTP map whose chi-matrix is X is defined as:
@@ -5,21 +11,26 @@ def ThetaToChiElement(pauli_op_i, pauli_op_j, theta, supp_theta):
     # So we find that
     # Chi_ij = Tr[ (P_i o (P_j)^T) T]
     # We will store T as a Tensor with dimension = (2 * number of qubits) and bond dimension = 4.
+    global time
+    start = timer()
     nq = pauli_op_i.size
     print("nq = {}".format(nq))
     Pi = PauliTensor(pauli_op_i)
-    print("Pi shape = {}".format(Pi.shape))
+    # print("Pi shape = {}".format(Pi.shape))
     Pj = PauliTensor(pauli_op_j)
-    print("Pj shape = {}".format(Pj.shape))
+    # print("Pj shape = {}".format(Pj.shape))
     PjT = TensorTranspose(Pj)
-    print("PjT shape = {}".format(PjT.shape))
+    # print("PjT shape = {}".format(PjT.shape))
     PioPjT = np.reshape(TensorKron(Pi, PjT), tuple([4, 4] * nq))
-    print("PioPjT shape = {}".format(PioPjT.shape))
+    # print("PioPjT shape = {}".format(PioPjT.shape))
     theta_reshaped = theta.reshape(*[4,4] * len(supp_theta))
-    print("theta_reshaped shape = {}".format(theta_reshaped.shape))
-    (__, PioPjT_theta) = ContractThetaNetwork([(tuple(list(range(nq))), PioPjT), (supp_theta, theta_reshaped)])[0]
-    print("PioPjT_theta shape = {}.".format(PioPjT_theta.shape))
-    chi_elem = TensorTrace(PioPjT_theta)
+    # print("theta_reshaped shape = {}".format(theta_reshaped.shape))
+    stop = timer() - start
+    print("Prep time for contract took {} seconds".format(stop-start))
+    (__, PioPjT_theta) = ContractTensorNetwork([(tuple(list(range(nq))), PioPjT), (supp_theta, theta_reshaped)])[0]
+    # print("PioPjT_theta shape = {}.".format(PioPjT_theta.shape))
+    chi_elem = TensorTrace(PioPjT_theta)/4**nq
+    print("Chi element of Pauli op {} = {}".format(pauli_op_i,chi_elem))
     return chi_elem
 
 def KraussToTheta(kraus):

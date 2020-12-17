@@ -39,15 +39,17 @@ def SumCptps(rotation_angle, qcode, cutoff = 3, n_maps = 3):
 	kraus_dict = {m:None for m in range(n_maps)}
 	supports = []
 	for m in range(n_maps):
-		n_q = SamplePoisson(mean = 1, cutoff=cutoff)
-		support = tuple(sorted((random.sample(range(qcode.N), n_q))))
+		# n_q = SamplePoisson(mean = 1, cutoff=cutoff)
+		n_q = 2 # for debugging only
+		# support = tuple(sorted((random.sample(range(qcode.N), n_q))))
+		support = (1,3) # for debugging only
 		supports.append(support)
 		if n_q == 0:
 			rand_unitary = 1.0
 			kraus_dict[m] = (support,[rand_unitary])
 		else:
 			rand_unitary = RandomUnitary(rotation_angle/8**n_q, 8**n_q)
-			kraus = StineToKraus(rand_unitary)			
+			kraus = StineToKraus(rand_unitary)
 			KrausTest(kraus)
 			kraus_dict[m] = (support, kraus)
 	print("Random channel generated with the following interactions\n{}.".format(supports))

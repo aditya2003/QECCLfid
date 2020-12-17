@@ -1,5 +1,7 @@
 import numpy as np
 from define.QECCLfid.ptm import fix_index_after_tensor, get_Pauli_tensor
+from define.QECCLfid.theta import KraussToTheta,ThetaToChiElement
+from define.QECCLfid.contract import ContractTensorNetwork
 
 def get_chi_kraus(kraus, Pi, indices_Pi, n_qubits):
 	# Compute the addition to the Chi element from a given Kraus operator.
@@ -34,15 +36,11 @@ def Chi_Element_Diag(krausdict, Pilist, n_qubits):
 	"""
 	#     Pres stores the addition of all kraus applications
 	#     Pi_term stores result of individual kraus applications to Pi
-	chi = np.zeros(len(Pilist), dtype=np.double)
-	for i in range(len(Pilist)):
-		Pi = get_Pauli_tensor(Pilist[i])
-		for key, (support, krausList) in krausdict.items():
-			indices = support + tuple(map(lambda x: x + n_qubits, support))
-			indices_Pi = indices[len(indices) // 2 :]
-			if (len(indices) > 0):
-				chi[i] += np.sum([get_chi_kraus(kraus, Pi, indices_Pi, n_qubits) for kraus in krausList])
-			else:
-				if i == 0:
-					chi[i] += np.abs(krausList[0]) ** 2
+	thetadict = []
+	for key, (support, krauslist) in krausdict.items():
+		print("Shape of Kraus list : {}".format(np.array(krauslist).shape))
+		thetadict.append((support,KraussToTheta(np.array(krauslist))))
+	(supp_theta,theta_contracted) = ContractTensorNetwork(thetadict)[0]
+	chi_diag = [np.real(ThetaToChiElement(np.array(Pauli_i), np.array(Pauli_i), theta_contracted, supp_theta)) for Pauli_i in Pilist]
+	print(chi_diag)
 	return chi

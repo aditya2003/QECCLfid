@@ -1,4 +1,6 @@
 import numpy as np
+import string
+from define.QECCLfid.contract import OptimalEinsum
 
 def TensorTranspose(tensor):
     # Transpose the tensor, in other words, exchange its row and column indices.
@@ -9,6 +11,20 @@ def TensorTranspose(tensor):
     tp_indices = np.concatenate((cols, rows))
     return np.transpose(tensor, tp_indices)
 
+def TraceDot(tn1, tn2):
+    # Compute the trace of the dot product of two tensors A and B.
+    # If the indices of A are i_0 i_1, ..., i_(2n-1) and that of B are j_0 j_1 ... j_(2n-1)
+    # then want to contract the indices i_(2k) with j_(2k+1), for all k in [0, n-1].
+    # While calling np.einsum, we need to ensure that the row index of A is equal to the column index of B.
+    # Additionally to ensure that we have a trace, we need to match the row and column indices of the product.
+    tn1_rows = [string.printable[10 + i] for i in range(tn1.ndim//2)]
+    tn1_cols = [string.printable[10 + i] for i in range(tn1.ndim//2, tn1.ndim)]
+    # The column indices of tn1 should match row indices of tn2
+    # So, tn1_cols = tn2_rows.
+    # the row and column indices of the product must match
+    # So, tn1_rows = tn2_cols.
+    scheme = ("%s%s,%s%s->" % ("".join(tn1_rows), "".join(tn1_cols), "".join(tn1_cols), "".join(tn1_rows)))
+    return OptimalEinsum(scheme, [tn1, tn2], opt = "greedy")
 
 def TensorKron(tn1, tn2):
     # Compute the Kronecker product of two tensors A and B.
@@ -32,42 +48,6 @@ def TensorKron(tn1, tn2):
     kron_inds += ["%s" % (tn2_cols[i]) for i in range(tn1.ndim//2)]
     scheme = ("%s%s,%s%s->%s" % ("".join(tn1_rows), "".join(tn1_cols), "".join(tn2_rows), "".join(tn2_cols), "".join(kron_inds)))
     return OptimalEinsum(scheme, [tn1, tn2], opt = "greedy")
-
-
-def SupportToLabel(supports, characters = None):
-    # Convert a list of qubit indices to labels for a tensor.
-    # Each qubit index corresponds to a pair of labels, indicating the row and column indices of the 2 x 2 matrix which acts non-trivially on that qubit.
-    # Each number in the support is mapped to a pair of alphabets in the characters list, as: x -> (characters[2x], characters[2x + 1]).
-    # Eg. (x, y, z) ---> (C[2x] C[2y] C[2z] , C[2x + 1] C[2y + 1] C[2z + 1])
-    if characters == None:
-        characters = [c for c in string.ascii_lowercase] + [c for c in string.ascii_uppercase]
-    #print("characters\n{}".format(characters))
-    #print("support\n{}".format(supports))
-    labels = [[[-1, -1] for q in interac] for interac in supports]
-    #print("labels\n{}".format(labels))
-    unique_qubits = np.unique([q for sup in supports for q in sup])
-    #print("unique qubits\n{}".format(unique_qubits))
-    free_index = {q:[-1, -1] for q in unique_qubits}
-    for i in range(len(supports)):
-            sup = supports[i]
-            #print("Support: {}".format(sup))
-            for j in range(len(sup)):
-                    #print("Qubit: {}".format(sup[j]))
-                    q = sup[j]
-                    if (free_index[q][0] == -1):
-                        free_index[q][0] = characters.pop()
-                        free_index[q][1] = characters.pop()
-                        #print("Assigning {} and {} to qubit {} of map {}\n".format(free_index[q][0],free_index[q][1],q,i))
-                        labels[i][j][0] = free_index[q][0]
-                        labels[i][j][1] = free_index[q][1]
-                    else:
-                        labels[i][j][0] = free_index[q][1]
-                        free_index[q][1] = characters.pop()
-                        labels[i][j][1] = free_index[q][1]
-                        #print("Assigning {} and {} to qubit {} of map {}\n".format(labels[i][j][0],labels[i][j][1],q,i))
-                    #print("labels\n{}\nfree index\n{}".format(labels, free_index))
-    #print("labels\n{}\nfree index\n{}".format(labels, free_index))
-    return (labels, free_index)
 
 
 def TensorTrace(tensor, indices = "all", characters = None):

@@ -1,6 +1,6 @@
-import pprofile
+# import pprofile
 import numpy as np
-import tensorflow as tf
+# import tensorflow as tf
 # from define.QECCLfid.multi_qubit_tests import test_get_PTMelem_ij # only for debugging
 from define.QECCLfid.utils import Dot, Kron, Dagger, circular_shift
 from define.QECCLfid.ptm import PTM_Element, get_Pauli_tensor

@@ -1,9 +1,9 @@
 import numpy as np
-from timeit import default_timer as timer
-from define.QECCLfid.sum_unitaries import SumUnitaries
 from define.QECCLfid.ising import Ising
+from timeit import default_timer as timer
 from define.QECCLfid.sum_cptps import SumCptps
-from define.QECCLfid.multi_qubit_kraus import get_process_correlated, get_chi_diagLST
+from define.QECCLfid.sum_unitaries import SumUnitaries
+from define.QECCLfid.multi_qubit_kraus import get_process_correlated, get_chi_diagLST, NoiseReconstruction
 
 def get_process_chi(qcode, method = "sum_unitaries", *params):
 	nstabs = 2 ** (qcode.N - qcode.K)
@@ -20,7 +20,7 @@ def get_process_chi(qcode, method = "sum_unitaries", *params):
 	else:
 		pass
 	start = timer()
-	chi = get_chi_diagLST(qcode, kraus_dict)
+	chi = NoiseReconstruction(qcode, kraus_dict)
 	runtime = timer() - start
 
 	print("Chi matrix was constructed in %d seconds." % (runtime))

@@ -1,4 +1,6 @@
 import numpy as np
+import ctypes as ct
+import multiprocessing as mp
 from define.QECCLfid.ptm import fix_index_after_tensor, get_Pauli_tensor
 from define.QECCLfid.theta import KraussToTheta,ThetaToChiElement
 from define.QECCLfid.contract import ContractTensorNetwork
@@ -24,7 +26,16 @@ def get_chi_kraus(kraus, Pi, indices_Pi, n_qubits):
 	)
 	return contrib
 
-def Chi_Element_Diag(krausdict, Pilist, n_qubits):
+
+def PartialDiagChi(paulis, theta, supp_theta, start, stop, chi_diag_mp):
+	# Compute the diagonal Chi matrix elements corresponding to the given Pauli operators.
+	# Note that the diagonal elements of the Chi matrix are probabilities.
+	for i in range(start, stop):
+		chi_diag_mp[i] = np.real(ThetaToChiElement(paulis[i, :], paulis[i, :], theta, supp_theta))
+	return None
+
+
+def Chi_Element_Diag(krausdict, paulis, n_qubits, n_cores=None):
 	r"""
 	Calculates the diagonal entry in chi matrix corresponding to each Pauli in Pilist
 	Assumes each Pauli in list of Paulis Pilist to be a tensor on n_qubits
@@ -39,8 +50,27 @@ def Chi_Element_Diag(krausdict, Pilist, n_qubits):
 	thetadict = []
 	for key, (support, krauslist) in krausdict.items():
 		print("Shape of Kraus list : {}".format(np.array(krauslist).shape))
-		thetadict.append((support,KraussToTheta(np.array(krauslist))))
-	(supp_theta,theta_contracted) = ContractTensorNetwork(thetadict)[0]
-	chi_diag = [np.real(ThetaToChiElement(np.array(Pauli_i), np.array(Pauli_i), theta_contracted, supp_theta)) for Pauli_i in Pilist]
-	print(chi_diag)
-	return chi
+		thetadict.append((support, KraussToTheta(np.array(krauslist))))
+	(supp_theta, theta_contracted) = ContractTensorNetwork(thetadict)[0]
+
+	# We want to parallelize the computation of chi matrix entries.
+	n_errors = paulis.shape[0]
+	chi_diag_mp = mp.Array(ct.c_double, n_errors)
+	n_cores = 2 # for debugging purposes only.
+	if n_cores is None:
+		n_cores = mpu.cpu_count()
+	chunk = int(np.ceil(n_errors / np.float(n_cores)))
+	
+	print("Chunk size: {}".format(chunk))
+
+	processes = []
+	for p in range(n_cores):
+		processes.append(mp.Process(target=PartialDiagChi, args=(paulis, theta_contracted, supp_theta, p * chunk, min((p + 1) * chunk, n_errors), chi_diag_mp)))
+	for i in range(n_cores):
+		processes[i].start()
+	for i in range(n_cores):
+		processes[i].join()
+
+	chi_diag = np.array(chi_diag_mp, dtype = np.double)
+	print("Pauli error probabilities:\n{}".format(chi_diag))
+	return chi_diag

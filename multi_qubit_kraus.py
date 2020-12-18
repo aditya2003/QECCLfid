@@ -1,11 +1,10 @@
-# import pprofile
 import numpy as np
-# import tensorflow as tf
-# from define.QECCLfid.multi_qubit_tests import test_get_PTMelem_ij # only for debugging
-from define.QECCLfid.utils import Dot, Kron, Dagger, circular_shift
-from define.QECCLfid.ptm import PTM_Element, get_Pauli_tensor
+from scipy.special import comb
+from define.qcode import GetOperatorsForTLSIndex, GetOperatorsForLSTIndex, PrepareSyndromeLookUp
 from define.QECCLfid.chi import Chi_Element_Diag
-from define import qcode as qc
+from define.QECCLfid.ptm import PTM_Element, get_Pauli_tensor
+from define.QECCLfid.utils import Dot, Kron, Dagger, circular_shift
+
 
 def get_process_correlated(qcode, kraus_dict):
 	r"""
@@ -16,7 +15,7 @@ def get_process_correlated(qcode, kraus_dict):
 	"""
 	nstabs = 2 ** (qcode.N - qcode.K)
 	nlogs = 4 ** qcode.K
-	(ops, phases) = qc.GetOperatorsForTLSIndex(qcode, range(nstabs * nlogs))
+	(ops, phases) = GetOperatorsForTLSIndex(qcode, range(nstabs * nlogs))
 	ops_tensor = list(map(get_Pauli_tensor, ops))
 	process = np.zeros(nstabs * nstabs * nlogs * nlogs, dtype=np.double)
 	for i in range(len(ops_tensor)):
@@ -37,7 +36,7 @@ def get_process_diagLST(qcode, kraus_dict):
 	nstabs = 2 ** (qcode.N - qcode.K)
 	nlogs = 4 ** qcode.K
 	diag_process = np.zeros(nstabs * nstabs * nlogs, dtype=np.double)
-	(ops, phases) = qc.GetOperatorsForLSTIndex(qcode, range(nstabs * nstabs * nlogs))
+	(ops, phases) = GetOperatorsForLSTIndex(qcode, range(nstabs * nstabs * nlogs))
 	for i in range(len(diag_process)):
 		op_tensor = get_Pauli_tensor(ops[i]) * phases[i]
 		diag_process[i] = PTM_Element(kraus_dict, op_tensor, [op_tensor], qcode.N)[0]
@@ -53,14 +52,14 @@ def get_chi_diagLST(qcode, kraus_dict):
 	"""
 	nstabs = 2 ** (qcode.N - qcode.K)
 	nlogs = 4 ** qcode.K
-	(ops, __) = qc.GetOperatorsForLSTIndex(qcode, range(nstabs * nstabs * nlogs))
+	(ops, __) = GetOperatorsForLSTIndex(qcode, range(nstabs * nstabs * nlogs))
 	# chi = get_Chielem_ii(kraus_dict, ops, qcode.N)
 	# chi = get_Chielem_broadcast(kraus_dict, ops, qcode.N)
 	chi = Chi_Element_Diag(kraus_dict, ops, qcode.N)
 	print("Sum of chi = {}, infid = {}\nElements of chi\n{}".format(np.sum(chi), 1 - chi[0], np.sort(chi)[::-1]))
 	return chi
 
-def NoiseReconstruction(qcode, kraus_dict, alpha):
+def NoiseReconstruction(qcode, kraus_dict, max_weight=None):
 	r"""
 	Compute the diagonal elements of the Chi matrix, i.e., Pauli error probabilities.
 	We don't want all the diagonal entries; only a fraction "x" of these.
@@ -69,12 +68,22 @@ def NoiseReconstruction(qcode, kraus_dict, alpha):
 	
 	chi matrix in LST ordering.
 	"""
-	nstabs = 2 ** (qcode.N - qcode.K)
-	nlogs = 4 ** qcode.K
-	(ops, __) = qc.GetOperatorsForLSTIndex(qcode, range(nstabs * nstabs * nlogs))
+	if max_weight is None:
+		max_weight = qcode.N//2 + 1
+	if qcode.group_by_weight is None:
+		PrepareSyndromeLookUp(qcode)
+	# for w in range(max_weight):
+	# 	print("qcode.group_by_weight[{}]\n{}".format(w, qcode.group_by_weight[w]))
+	n_errors_weight = [qcode.group_by_weight[w].size for w in range(max_weight + 1)]
+	nrops = np.zeros((np.sum(n_errors_weight, dtype = np.int), qcode.N), dtype = np.int8)
+	filled = 0
+	for w in range(max_weight):
+		(ops, __) = GetOperatorsForLSTIndex(qcode, qcode.group_by_weight[w])
+		nrops[filled : (filled + n_errors_weight[w]), :] = ops[:, :]
+		filled += n_errors_weight[w]
 	# chi = get_Chielem_ii(kraus_dict, ops, qcode.N)
 	# chi = get_Chielem_broadcast(kraus_dict, ops, qcode.N)
-	chi = Chi_Element_Diag(kraus_dict, ops, qcode.N)
+	chi = Chi_Element_Diag(kraus_dict, nrops, qcode.N)
 	print("Sum of chi = {}, infid = {}\nElements of chi\n{}".format(np.sum(chi), 1 - chi[0], np.sort(chi)[::-1]))
 	return chi
 

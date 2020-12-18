@@ -11,7 +11,6 @@ def ThetaToChiElement(pauli_op_i, pauli_op_j, theta, supp_theta):
     # So we find that
     # Chi_ij = Tr[ (P_i o (P_j)^T) T]
     # We will store T as a Tensor with dimension = (2 * number of qubits) and bond dimension = 4.
-    global time
     start = timer()
     nq = pauli_op_i.size
     print("nq = {}".format(nq))
@@ -25,11 +24,12 @@ def ThetaToChiElement(pauli_op_i, pauli_op_j, theta, supp_theta):
     # print("PioPjT shape = {}".format(PioPjT.shape))
     theta_reshaped = theta.reshape(*[4,4] * len(supp_theta))
     # print("theta_reshaped shape = {}".format(theta_reshaped.shape))
-    stop = timer() - start
-    print("Prep time for contract took {} seconds".format(stop-start))
+    stop = timer()
+    print("Prep time for contract took {} seconds".format(stop - start))
     (__, PioPjT_theta) = ContractTensorNetwork([(tuple(list(range(nq))), PioPjT), (supp_theta, theta_reshaped)])[0]
     # print("PioPjT_theta shape = {}.".format(PioPjT_theta.shape))
     chi_elem = TensorTrace(PioPjT_theta)/4**nq
+    print("ContractTensorNetwork took {} seconds".format(timer() - stop))
     print("Chi element of Pauli op {} = {}".format(pauli_op_i,chi_elem))
     return chi_elem
 

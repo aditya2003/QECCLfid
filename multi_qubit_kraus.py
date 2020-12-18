@@ -48,8 +48,8 @@ def get_chi_diagLST(qcode, kraus_dict):
 	r"""
 	Generates diagonal of the chi matrix in LST ordering for Eps = sum of unitary errors
 	p_error^k is the probability associated to a k-qubit unitary (except weight <= w_thresh)
-	rotation_angle is the angle used for each U = exp(i*rotation_agnle*H)
-	return linearized diagonal of the chi matrix in LST ordering
+	rotation_angle is the angle used for each U = exp(i*rotation_angle*H)
+	return linearized diagonal of the chi matrix in LST ordering.
 	"""
 	nstabs = 2 ** (qcode.N - qcode.K)
 	nlogs = 4 ** qcode.K
@@ -59,3 +59,22 @@ def get_chi_diagLST(qcode, kraus_dict):
 	chi = Chi_Element_Diag(kraus_dict, ops, qcode.N)
 	print("Sum of chi = {}, infid = {}\nElements of chi\n{}".format(np.sum(chi), 1 - chi[0], np.sort(chi)[::-1]))
 	return chi
+
+def NoiseReconstruction(qcode, kraus_dict, alpha):
+	r"""
+	Compute the diagonal elements of the Chi matrix, i.e., Pauli error probabilities.
+	We don't want all the diagonal entries; only a fraction "x" of these.
+	For a given fraction "x", we will choose x * 4^N errors, picking the low weight ones before one of a higher weight.
+	Amongst errors of the same weight, we will simply choose a random
+	
+	chi matrix in LST ordering.
+	"""
+	nstabs = 2 ** (qcode.N - qcode.K)
+	nlogs = 4 ** qcode.K
+	(ops, __) = qc.GetOperatorsForLSTIndex(qcode, range(nstabs * nstabs * nlogs))
+	# chi = get_Chielem_ii(kraus_dict, ops, qcode.N)
+	# chi = get_Chielem_broadcast(kraus_dict, ops, qcode.N)
+	chi = Chi_Element_Diag(kraus_dict, ops, qcode.N)
+	print("Sum of chi = {}, infid = {}\nElements of chi\n{}".format(np.sum(chi), 1 - chi[0], np.sort(chi)[::-1]))
+	return chi
+

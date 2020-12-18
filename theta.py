@@ -35,7 +35,7 @@ def ThetaToChiElement(pauli_op_i, pauli_op_j, theta, supp_theta):
 	Pi = [((q,), PauliTensor(pauli_op_i[np.newaxis, q])) for q in range(nq)]
 	Pj = [((q,), TensorTranspose(PauliTensor(pauli_op_j[np.newaxis, q]))) for q in range(nq)]
 	# The below is missing a sign for Y^T = -Y.
-	PioPjT = [((q,), PauliTensor(np.concatenate((pauli_op_i[np.newaxis, q], pauli_op_j[np.newaxis, q])))) for q in range(nq)]
+	PioPjT = [((q,), np.reshape(PauliTensor(np.concatenate((pauli_op_i[np.newaxis, q], pauli_op_j[np.newaxis, q]))), [4, 4])) for q in range(nq)]
 	print("Pi\n{}\nPj\n{}\nPioPjT\n{}".format(Pi, Pj, [op.shape for (sup, op) in PioPjT]))
 	(__, chi_elem) = ContractTensorNetwork(ops + PioPjT, end_trace=1)/4**nq
 	print("Chi element of Pauli op {} = {}".format(pauli_op_i, chi_elem))

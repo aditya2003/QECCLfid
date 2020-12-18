@@ -1,16 +1,23 @@
 import string
 import numpy as np
-#import tensorflow as tf
+import tensorflow as tf
+from timeit import default_timer as timer
 
 
-def OptimalEinsum(scheme, ops, opt = "greedy"):
+def OptimalEinsum(scheme, ops, opt = "greedy", verbose=0):
 	# Contract a tensor network using einsum supplemented with its optimization tools.
 	ops_args = ", ".join([("ops[%d]" % d) for d in range(len(ops))])
 	#print("Calling np.einsum({}, {})\nwhere shapes are\n{}.".format(scheme, ops_args, [op.shape for op in ops]))
+	start = timer()
 	path = eval("np.einsum_path(\'%s\', %s, optimize=\'%s\')" % (scheme, ops_args, opt))
-	#print("Contraction process\n{}: {}\n{}".format(path[0][0], path[0][1:], path[1]))
+	if verbose == 1:
+		print("Contraction process\n{}: {}\n{}".format(path[0][0], path[0][1:], path[1]))
 	prod = np.einsum(scheme, *ops, optimize=path[0])
-	# prod = tf.einsum(scheme, *[tf.convert_to_tensor(op) for op in ops], optimize=opt)
+	# tfops = [tf.convert_to_tensor(op) for op in ops]
+	# prod = tf.einsum(scheme, *tfops, optimize=opt)
+	end = timer()
+	if verbose == 1:
+		print("Einsum({}, {})\nwhere shapes are\n{}\ntook {} seconds.".format(scheme, ops_args, [op.shape for op in ops], int(end - start)))
 	return prod
 
 
@@ -50,40 +57,43 @@ def SupportToLabel(supports, characters = None):
 	return (labels, free_index)
 
 
-def ContractTensorNetwork(theta_dict, MAX = 10):
+def ContractTensorNetwork(theta_dict, end_trace=0):
 	# Compute the Theta matrix of a composition of channels.
 	# The individual channels are provided a list where each one is a pair: (s, O) where s is the support and O is the theta matrix.
 	# We will use einsum to contract the tensor network of channels.
 	supports = [list(sup) for (sup, op) in theta_dict]
-	if (len(supports) > MAX):
-		partial_network = theta_dict[:MAX]
-		partial_contraction = ContractThetaNetwork(partial_network)
-		remaining_network = theta_dict[MAX:]
-		remaining_contraction = ContractThetaNetwork(remaining_network)
-		return ContractThetaNetwork(partial_contraction + remaining_contraction)
 	(contraction_labels, free_labels) = SupportToLabel(supports)
-	#print("contraction_labels = {}".format(contraction_labels))
+	print("contraction_labels = {}".format(contraction_labels))
 	row_labels = ["".join([q[0] for q in interac]) for interac in contraction_labels]
-	#print("row_contraction_labels = {}".format(row_labels))
+	print("row_contraction_labels = {}".format(row_labels))
 	col_labels = ["".join([q[1] for q in interac]) for interac in contraction_labels]
-	#print("col_contraction_labels = {}".format(col_labels))
-	left = ["%s%s" % (row_labels[i], col_labels[i]) for i in range(len(contraction_labels))]
-	#print("left = {}".format(left))
-	contraction_scheme = "%s" % (",".join(left))
-	#print("contraction_scheme = {}".format(contraction_scheme))
+	print("col_contraction_labels = {}".format(col_labels))
+	left = ",".join(["%s%s" % (row_labels[i], col_labels[i]) for i in range(len(contraction_labels))])
+	print("left = {}".format(left))
 	free_row_labels = [free_labels[q][0] for q in free_labels]
 	#print("free_row_labels = {}".format(free_row_labels))
 	free_col_labels = [free_labels[q][1] for q in free_labels]
 	#print("free_col_labels = {}".format(free_col_labels))
-	contracted_labels = "%s%s" % ("".join(free_row_labels), "".join(free_col_labels))
-	#print("contracted_labels = {}".format(contracted_labels))
-	scheme = "%s->%s" % (contraction_scheme, contracted_labels)
-	#print("Contraction scheme = {}".format(scheme))
+	
+	if end_trace == 1:
+		# If the last operation is a trace, we need to contract the free row and column indices.
+		# So we should make sure that the i-th free row index = i-th free column index.
+		while len(free_row_labels) > 0:
+			r_lab = free_row_labels.pop()
+			c_lab = free_col_labels.pop()
+			left = left.replace(c_lab, r_lab)
+		right = ""
+		composed_support = []
+	else:
+		right = "%s%s" % ("".join(free_row_labels), "".join(free_col_labels))
+		composed_support = np.unique([q for (sup, op) in theta_dict for q in sup])
+	#print("right = {}".format(right))
+	scheme = "%s->%s" % (left, right)
+	print("Contraction scheme = {}".format(scheme))
 	theta_ops = [op for (__, op) in theta_dict]
-	composed = OptimalEinsum(scheme, theta_ops)
-	composed_support = np.unique([q for (sup, op) in theta_dict for q in sup])
-	composed_dict = [(composed_support, composed)]
-	return composed_dict
+	composed = OptimalEinsum(scheme, theta_ops, opt="greedy", verbose=1)
+	#composed_dict = [(composed_support, composed)]
+	return (composed_support, composed)
 
 
 if __name__ == '__main__':

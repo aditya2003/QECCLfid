@@ -72,15 +72,16 @@ def NoiseReconstruction(qcode, kraus_dict, max_weight=None):
 		max_weight = qcode.N//2 + 1
 	if qcode.group_by_weight is None:
 		PrepareSyndromeLookUp(qcode)
-	# for w in range(max_weight):
+	# for w in range(max_weight + 1):
 	# 	print("qcode.group_by_weight[{}]\n{}".format(w, qcode.group_by_weight[w]))
+	
 	n_errors_weight = [qcode.group_by_weight[w].size for w in range(max_weight + 1)]
 	nrops = np.zeros((np.sum(n_errors_weight, dtype = np.int), qcode.N), dtype = np.int8)
 	filled = 0
-	for w in range(max_weight):
-		(ops, __) = GetOperatorsForLSTIndex(qcode, qcode.group_by_weight[w])
-		nrops[filled : (filled + n_errors_weight[w]), :] = ops[:, :]
+	for w in range(max_weight + 1):
+		(nrops[filled : (filled + n_errors_weight[w]), :], __) = GetOperatorsForLSTIndex(qcode, qcode.group_by_weight[w])
 		filled += n_errors_weight[w]
+	# print("NR ops\n{}".format(nrops[:100]))
 	# chi = get_Chielem_ii(kraus_dict, ops, qcode.N)
 	# chi = get_Chielem_broadcast(kraus_dict, ops, qcode.N)
 	chi = Chi_Element_Diag(kraus_dict, nrops, qcode.N)

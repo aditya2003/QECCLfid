@@ -129,8 +129,8 @@ def KraussToTheta(kraus):
 				# chi_ij += TraceDot(Pi, K) * TraceDot(Pj, Kdag)
 			chi_ij /= 4**nq
 			if (i == j):
-				# print("Chi[%d, %d] = %g + i %g" % (i, j, np.real(chi_ij), np.imag(chi_ij)))
-				if ((np.real(chi_ij) < 0) or (np.abs(np.imag(chi_ij)) > 1E-15)):
+				if ((np.real(chi_ij) <= -1E-15) or (np.abs(np.imag(chi_ij)) >= 1E-15)):
+					print("Chi[%d, %d] = %g + i %g" % (i, j, np.real(chi_ij), np.imag(chi_ij)))
 					exit(0)
 				else:
 					probs += np.real(chi_ij)

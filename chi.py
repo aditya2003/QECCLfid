@@ -48,7 +48,7 @@ def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 		thetadict[key] = (support, KraussToTheta(np.array(krauslist)).reshape([4, 4]*nq))
 		# print("support = {} and Theta matrix shape = {}".format(support, thetadict[key][1].shape))
 	(supp_theta, theta_contracted) = ContractTensorNetwork(thetadict)
-	# print("theta_contracted supported on {} has shape: {}.".format(supp_theta, theta_contracted.shape))
+	print("theta_contracted supported on {} has shape: {}.".format(supp_theta, theta_contracted.shape))
 	theta_contracted_reshaped = theta_contracted.reshape([2, 2, 2, 2]*len(supp_theta))
 	# (supp_theta, theta_contracted) = thetadict[0] # only for debugging purposes.
 

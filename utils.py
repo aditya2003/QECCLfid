@@ -12,7 +12,7 @@ def PauliTensor(pauli_op):
     characters = string.printable[10:]
     # replace the following line with the variable from globalvars.py
     Pauli = np.array([[[1, 0], [0, 1]], [[0, 1], [1, 0]], [[0, -1j], [1j, 0]], [[1, 0], [0, -1]]], dtype=np.complex128)
-    nq = pauli_op.shape[0]
+    nq = len(pauli_op)
     labels = ",".join(["%s%s" % (characters[2 * q], characters[2 * q + 1]) for q in range(nq)])
     ops = [Pauli[pauli_op[q], :, :] for q in range(nq)]
     kn_indices = ["%s" % (characters[2 * q]) for q in range(nq)]

@@ -1,3 +1,6 @@
+import numpy as np
+from define.QECCLfid.ptm import get_Pauli_tensor, fix_index_after_tensor
+
 def StineToKraus(U):
     # Compute the Krauss operators for the input quantum channel, which is represented in the Stinespring dialation
     # The Krauss operator T_k is given by: <a|T_k|b> = <a e_k|U|b e_0> , where {|e_i>} is a basis for the environment and |a>, |b> are basis vectors of the system

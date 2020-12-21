@@ -56,7 +56,8 @@ def Chi_Element_Diag(krausdict, paulis, n_qubits, n_cores=None):
 	for key, (support, krauslist) in krausdict.items():
 		print("Shape of Kraus list : {}".format(np.array(krauslist).shape))
 		thetadict.append((support, KraussToTheta(np.array(krauslist))))
-	(supp_theta, theta_contracted) = ContractTensorNetwork(thetadict)
+	# (supp_theta, theta_contracted) = ContractTensorNetwork(thetadict)
+	(supp_theta, theta_contracted) = thetadict[0] # only for debugging purposes.
 
 	# We want to parallelize the computation of chi matrix entries.
 	n_errors = paulis.shape[0]

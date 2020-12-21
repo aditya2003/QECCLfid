@@ -4,7 +4,8 @@ from define.qcode import GetOperatorsForTLSIndex, GetOperatorsForLSTIndex, Prepa
 from define.QECCLfid.chi import Chi_Element_Diag
 from define.QECCLfid.ptm import PTM_Element, get_Pauli_tensor
 from define.QECCLfid.utils import Dot, Kron, Dagger, circular_shift
-
+# for debugging
+from define.QECCLfid.backup import get_Chielem_ii
 
 def get_process_correlated(qcode, kraus_dict):
 	r"""
@@ -52,10 +53,11 @@ def get_chi_diagLST(qcode, kraus_dict):
 	"""
 	nstabs = 2 ** (qcode.N - qcode.K)
 	nlogs = 4 ** qcode.K
-	(ops, __) = GetOperatorsForLSTIndex(qcode, range(nstabs * nstabs * nlogs))
-	# chi = get_Chielem_ii(kraus_dict, ops, qcode.N)
+	# (ops, __) = GetOperatorsForLSTIndex(qcode, range(nstabs * nstabs * nlogs))
+	ops = [[0, 0, 0, 1, 0, 0, 0]] # only for debugging.
+	chi = get_Chielem_ii(kraus_dict, ops, qcode.N)
 	# chi = get_Chielem_broadcast(kraus_dict, ops, qcode.N)
-	chi = Chi_Element_Diag(kraus_dict, ops, qcode.N)
+	# chi = Chi_Element_Diag(kraus_dict, ops, qcode.N)
 	print("Sum of chi = {}, infid = {}\nElements of chi\n{}".format(np.sum(chi), 1 - chi[0], np.sort(chi)[::-1]))
 	return chi
 
@@ -68,22 +70,18 @@ def NoiseReconstruction(qcode, kraus_dict, max_weight=None):
 	
 	chi matrix in LST ordering.
 	"""
-	if max_weight is None:
-		max_weight = qcode.N//2 + 1
-	if qcode.group_by_weight is None:
-		PrepareSyndromeLookUp(qcode)
-	# for w in range(max_weight + 1):
-	# 	print("qcode.group_by_weight[{}]\n{}".format(w, qcode.group_by_weight[w]))
+	# if max_weight is None:
+	# 	max_weight = qcode.N//2 + 1
+	# if qcode.group_by_weight is None:
+	# 	PrepareSyndromeLookUp(qcode)
 	
-	n_errors_weight = [qcode.group_by_weight[w].size for w in range(max_weight + 1)]
-	nrops = np.zeros((np.sum(n_errors_weight, dtype = np.int), qcode.N), dtype = np.int8)
-	filled = 0
-	for w in range(max_weight + 1):
-		(nrops[filled : (filled + n_errors_weight[w]), :], __) = GetOperatorsForLSTIndex(qcode, qcode.group_by_weight[w])
-		filled += n_errors_weight[w]
-	# print("NR ops\n{}".format(nrops[:100]))
-	# chi = get_Chielem_ii(kraus_dict, ops, qcode.N)
-	# chi = get_Chielem_broadcast(kraus_dict, ops, qcode.N)
+	# n_errors_weight = [qcode.group_by_weight[w].size for w in range(max_weight + 1)]
+	# nrops = np.zeros((np.sum(n_errors_weight, dtype = np.int), qcode.N), dtype = np.int8)
+	# filled = 0
+	# for w in range(max_weight + 1):
+	# 	(nrops[filled : (filled + n_errors_weight[w]), :], __) = GetOperatorsForLSTIndex(qcode, qcode.group_by_weight[w])
+	# 	filled += n_errors_weight[w]
+	nrops = np.array([[0, 0, 0, 1, 0, 0, 0]], dtype = np.int8) # only for debugging.
 	chi = Chi_Element_Diag(kraus_dict, nrops, qcode.N)
 	print("Sum of chi = {}, infid = {}\nElements of chi\n{}".format(np.sum(chi), 1 - chi[0], np.sort(chi)[::-1]))
 	return chi

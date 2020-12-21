@@ -20,7 +20,11 @@ def get_process_chi(qcode, method = "sum_unitaries", *params):
 	else:
 		pass
 	start = timer()
+	print("NEW")
 	chi = NoiseReconstruction(qcode, kraus_dict)
+	# for debugging, compare with old version.
+	print("OLD")
+	chi = get_chi_diagLST(qcode, kraus_dict)
 	runtime = timer() - start
 
 	print("Chi matrix was constructed in %d seconds." % (runtime))

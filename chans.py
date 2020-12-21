@@ -19,15 +19,16 @@ def get_process_chi(qcode, method = "sum_unitaries", *params):
 		kraus_dict = SumCptps(angle, qcode, cutoff = int(cutoff), n_maps = int(n_maps))
 	else:
 		pass
-	start = timer()
+	click = timer()
 	print("NEW")
 	chi = NoiseReconstruction(qcode, kraus_dict)
+	print("Done in %d seconds." % (timer() - click))
+	click = timer()
 	# for debugging, compare with old version.
 	print("OLD")
 	chi = get_chi_diagLST(qcode, kraus_dict)
-	runtime = timer() - start
-
-	print("Chi matrix was constructed in %d seconds." % (runtime))
+	print("Done in %d seconds." % (timer() - click))
+	
 	print("\033[2mInfidelity = %.4e.\033[0m" % (1 - chi[0]))
 	process = None # for debudding
 	# process = get_process_correlated(qcode, kraus_dict)

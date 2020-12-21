@@ -29,18 +29,7 @@ def get_chi_kraus(kraus, Pi, indices_Pi, n_qubits):
 	return contrib
 
 
-def PartialDiagChi(coreid, paulis, theta, supp_theta, start, stop, chi_diag_mp):
-	# Compute the diagonal Chi matrix elements corresponding to the given Pauli operators.
-	# Note that the diagonal elements of the Chi matrix are probabilities.
-	print("Core: {}\nPauli operators from {} to {}.".format(coreid, start, stop))
-	for i in range(start, stop):
-		# print("Core {} paulis[{}]\n{}".format(coreid, i, paulis[i, :]))
-		# time.sleep(1)
-		chi_diag_mp[i] = np.real(ThetaToChiElement(paulis[i, :], paulis[i, :], theta, supp_theta))
-	return None
-
-
-def Chi_Element_Diag(krausdict, paulis, n_qubits, n_cores=None):
+def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 	r"""
 	Calculates the diagonal entry in chi matrix corresponding to each Pauli in Pilist
 	Assumes each Pauli in list of Paulis Pilist to be a tensor on n_qubits
@@ -52,31 +41,20 @@ def Chi_Element_Diag(krausdict, paulis, n_qubits, n_cores=None):
 	"""
 	#     Pres stores the addition of all kraus applications
 	#     Pi_term stores result of individual kraus applications to Pi
-	thetadict = []
+	thetadict = [None for __ in krausdict]
 	for key, (support, krauslist) in krausdict.items():
-		print("Shape of Kraus list : {}".format(np.array(krauslist).shape))
-		thetadict.append((support, KraussToTheta(np.array(krauslist))))
-	# (supp_theta, theta_contracted) = ContractTensorNetwork(thetadict)
-	(supp_theta, theta_contracted) = thetadict[0] # only for debugging purposes.
+		nq = len(support)
+		# print("Shape of Kraus list : {}".format(np.array(krauslist).shape))
+		thetadict[key] = (support, KraussToTheta(np.array(krauslist)).reshape([4, 4]*nq))
+		# print("support = {} and Theta matrix shape = {}".format(support, thetadict[key][1].shape))
+	(supp_theta, theta_contracted) = ContractTensorNetwork(thetadict)
+	# print("theta_contracted supported on {} has shape: {}.".format(supp_theta, theta_contracted.shape))
+	theta_contracted_reshaped = theta_contracted.reshape([2, 2, 2, 2]*len(supp_theta))
+	# (supp_theta, theta_contracted) = thetadict[0] # only for debugging purposes.
 
-	# We want to parallelize the computation of chi matrix entries.
-	n_errors = paulis.shape[0]
-	chi_diag_mp = mp.Array(ct.c_double, n_errors)
-	n_cores = 1 # for debugging purposes only.
-	if n_cores is None:
-		n_cores = mp.cpu_count()
-	chunk = int(np.ceil(n_errors / np.float(n_cores)))
-	
-	print("Chunk size: {}".format(chunk))
+	chi_diag = np.zeros(paulis.shape[0], dtype = np.double)
+	for i in range(paulis.shape[0]):
+		chi_diag[i] = np.real(ThetaToChiElement(paulis[i, :], paulis[i, :], theta_contracted_reshaped, supp_theta))
 
-	processes = []
-	for p in range(n_cores):
-		processes.append(mp.Process(target=PartialDiagChi, args=(p, paulis, theta_contracted, supp_theta, p * chunk, min((p + 1) * chunk, n_errors), chi_diag_mp)))
-	for p in range(n_cores):
-		processes[p].start()
-	for p in range(n_cores):
-		processes[p].join()
-
-	chi_diag = np.array(chi_diag_mp, dtype = np.double)
 	print("Pauli error probabilities:\n{}".format(chi_diag))
 	return chi_diag

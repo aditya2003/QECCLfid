@@ -40,9 +40,9 @@ def SumCptps(rotation_angle, qcode, cutoff = 3, n_maps = 3):
 	supports = []
 	for m in range(n_maps):
 		# n_q = SamplePoisson(mean = 1, cutoff=cutoff)
-		n_q = 2 # for debugging only
-		# support = tuple(sorted((random.sample(range(qcode.N), n_q))))
-		support = (1,3) # for debugging only
+		n_q = 3 # for debugging only
+		support = tuple(sorted((random.sample(range(qcode.N), n_q))))
+		# support = (1,3) # for debugging only
 		supports.append(support)
 		if n_q == 0:
 			rand_unitary = 1.0

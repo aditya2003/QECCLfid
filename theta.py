@@ -27,11 +27,14 @@ def ThetaToChiElement(pauli_op_i, pauli_op_j, theta, supp_theta):
 	#PioPjT = np.reshape(TensorKron(Pi, PjT), tuple([4, 4] * nq))
 	#print("TensorKron took {} seconds".format(timer() - click))
 	# print("PioPjT shape = {}".format(PioPjT.shape))
-	theta_reshaped = theta.reshape(*[4, 4] * len(supp_theta))
-	# print("theta_reshaped shape = {}".format(theta_reshaped.shape))
-	print("pauli_i\n{}\npauli_j\n{}".format(pauli_op_i, pauli_op_j))
+	# supp_theta_tensor = np.concatenate((np.array(list(supp_theta), dtype = np.int), nq + np.array(list(supp_theta), dtype = np.int)))
+	supp_theta_tensor = [q for q in supp_theta] + [(nq + q) for q in supp_theta]
+	# theta_reshaped = theta.reshape([2, 2, 2, 2] * len(supp_theta))
+	# print("theta_reshaped supported on {} has shape {}.".format(supp_theta_tensor, theta_reshaped.shape))
+	# exit(0);
+	# print("pauli_i\n{}\npauli_j\n{}".format(pauli_op_i, pauli_op_j))
 	click = timer()
-	ops = [(supp_theta, theta_reshaped)]
+	ops = [(supp_theta_tensor, theta)]
 	
 	"""
 	Pj = list(map(lambda op: TensorTranspose(PauliTensor(op)), pauli_op_j[:, np.newaxis]))
@@ -41,14 +44,21 @@ def ThetaToChiElement(pauli_op_i, pauli_op_j, theta, supp_theta):
 	for i in range(nq):
 		PjToPi[i] = ((i,), np.kron(paulis[2*i], paulis[2*i + 1]))
 	"""
-	Pi = PauliTensor(pauli_op_i)
-	Pj = PauliTensor(pauli_op_j)
-	PjT = TensorTranspose(Pj)
-	PjToPi = [(tuple(list(range(nq))), np.reshape(TensorKron(PjT, Pi), tuple([4, 4] * nq)))]
+	# Pi = PauliTensor(pauli_op_i)
+	# Pj = PauliTensor(pauli_op_j)
+	# PjT = TensorTranspose(Pj)
+	# PjToPi = [(tuple(list(range(nq))), np.reshape(TensorKron(PjT, Pi), tuple([4, 4] * nq)))]
 
-	(__, chi_elem) = ContractTensorNetwork(ops + PjToPi, end_trace=1)
+	Pj = [((q,), PauliTensor(pauli_op_j[q, np.newaxis])) for q in range(nq)]
+	PjT = [((q,), (-1)**(int(pauli_op_j[q] == 2)) * PauliTensor(pauli_op_j[q, np.newaxis])) for q in range(nq)]
+	Pi = [((nq + q,), PauliTensor(pauli_op_i[q, np.newaxis])) for q in range(nq)]
+
+	# (__, PjToPi) = ContractTensorNetwork(PjT + Pi, end_trace=0)
+	# PjToPi_tensor = [(tuple(list(range(nq))), PjToPi.reshape([4, 4] * nq))]
+
+	(__, chi_elem) = ContractTensorNetwork(ops + PjT + Pi, end_trace=1)
 	chi_elem /= 4**nq
-	print("Chi element of Pauli op {} = {}".format(pauli_op_i, chi_elem))
+	# print("Chi element of Pauli op {} = {}".format(pauli_op_i, chi_elem))
 	if (np.real(chi_elem) < 0):
 		exit(0)
 	return chi_elem
@@ -65,43 +75,70 @@ def KraussToTheta(kraus):
 	# T = \sum_(ij) [ \sum_k [ Tr(P_i K_k) Tr((K_k)^\dag P_j)] ] (P_i o (P_j)^T) ]
 	# We will store T as a Tensor with dimension = (2 * number of qubits) and bond dimension = 4.
 	nq = int(np.log2(kraus.shape[1]))
-	theta = np.zeros(tuple([4, 4]*nq), dtype = np.complex128)
+	theta = np.zeros(tuple([2, 2, 2, 2]*nq), dtype = np.complex128)
 	probs = 0
+	# Preparing the Pauli operators.
+	click = timer()
+	pauli_tensors = np.zeros(tuple([4**nq] + [2, 2]*nq), dtype = np.complex128)
+	print("Shape of pauli_tensors: {}".format(pauli_tensors.shape))
+	for i in range(4**nq):
+		pauli_op_i = GetNQubitPauli(i, nq)
+		Pi = [((q,), PauliTensor(pauli_op_i[q, np.newaxis])) for q in range(nq)]
+		(__, pauli_tensors[i]) = ContractTensorNetwork(Pi)
+	print("Preparing Pauli tensors took {} seconds.".format(timer() - click))
+	click = timer()
 	for i in range(4**nq):
 		#print("Pi: {}".format(GetNQubitPauli(i, nq)))
+		#pauli_op_i = GetNQubitPauli(i, nq)
+		#Pi = [((nq + q,), PauliTensor(pauli_op_i[q, np.newaxis])) for q in range(nq)]
+		#Pi_tensor = [ContractTensorNetwork(Pi)]
+		Pi_tensor = [(tuple([(nq + q) for q in range(nq)]), pauli_tensors[i])]
 		for j in range(4**nq):
 			#print("Pj: {}".format(GetNQubitPauli(j, nq)))
-			Pi = PauliTensor(GetNQubitPauli(i, nq))
-			Pj = PauliTensor(GetNQubitPauli(j, nq))
-			PjT = TensorTranspose(Pj)
-			PjToPi = np.reshape(TensorKron(PjT, Pi), tuple([4, 4] * nq))
-
-			Pi = [PauliTensor(pauli_op_i[q, :, np.newaxis]) for q in range(nq)]
-			Pj = [PauliTensor(pauli_op_j[q, :, np.newaxis]) for q in range(nq)]
-			PjT = [TensorTranspose(Pj[q]) for q in range(nq)]
+			# Pi = PauliTensor(GetNQubitPauli(i, nq))
+			# Pj = PauliTensor(GetNQubitPauli(j, nq))
+			# PjT = TensorTranspose(Pj)
+			# PjToPi = np.reshape(TensorKron(PjT, Pi), tuple([4, 4] * nq))
+			pauli_op_j = GetNQubitPauli(j, nq)
+			#Pj = [((q,), PauliTensor(pauli_op_j[q, np.newaxis])) for q in range(nq)]
+			#Pj_tensor = [ContractTensorNetwork(Pj)]
+			Pj_tensor = [(tuple(list(range(nq))), pauli_tensors[j])]
+			transpose_sign = (-1) ** np.count_nonzero(pauli_op_j == 2)
+			PjT_tensor = [(tuple(list(range(nq))), transpose_sign * pauli_tensors[j])]
+			#PjT = [((q,), (-1)**(int(pauli_op_j[q] == 2)) * PauliTensor(pauli_op_j[q, np.newaxis])) for q in range(nq)]
 			
-			#print("Pi.shape = {}\nPi\n{}".format(Pi.shape, Pi))
-			#print("Pj.shape = {}\nPj\n{}".format(Pj.shape, Pj))
+			# print("Pi\n{}".format(Pi))
+			# print("PjT\n{}".format(PjT))
 			chi_ij = 0 + 0 * 1j
 			for k in range(kraus.shape[0]):
-				K = np.reshape(kraus[k, :, :], tuple([2, 2]*nq))
-				Kdag = np.conj(TensorTranspose(K))
-				#print("K.shape = {}\nK\n{}".format(K.shape, K))
+				# K = np.reshape(kraus[k, :, :], tuple([2, 2]*nq))
+				# Kdag = np.conj(TensorTranspose(K))
+				supp_K = tuple(list(nq + np.arange(nq, dtype = np.int)))
+				K = [(supp_K, np.reshape(kraus[k, :, :], tuple([2, 2]*nq)))]
+				# print("K\n{}".format(K))
+				supp_Kdag = tuple(list(np.arange(nq, dtype = np.int)))
+				Kdag = [(supp_Kdag, np.reshape(np.conj(kraus[k, :, :].T), tuple([2, 2]*nq)))]
+				# print("Kdag\n{}".format(Kdag))
+				(__, tr_Pi_K) = ContractTensorNetwork(K + Pi_tensor, end_trace=1)
+				(__, tr_Pj_Kdag) = ContractTensorNetwork(Kdag + Pj_tensor, end_trace=1)
+				chi_ij += tr_Pi_K * tr_Pj_Kdag
 				#print("TraceDot(K, Pi) = {}".format(TraceDot(K, Pi)))
 				#print("Kdag.shape = {}\nKdag\n{}".format(Kdag.shape, Kdag))
 				#print("Pj.shape = {}\nPj\n{}".format(Pj.shape, Pj))
 				#print("TraceDot(Kdag, Pj) = {}".format(TraceDot(K, Pj)))
-				chi_ij += TraceDot(Pi, K) * TraceDot(Pj, Kdag)
+				# chi_ij += TraceDot(Pi, K) * TraceDot(Pj, Kdag)
 			chi_ij /= 4**nq
 			if (i == j):
-				print("Chi[%d, %d] = %g + i %g" % (i, j, np.real(chi_ij), np.imag(chi_ij)))
+				# print("Chi[%d, %d] = %g + i %g" % (i, j, np.real(chi_ij), np.imag(chi_ij)))
 				if ((np.real(chi_ij) < 0) or (np.abs(np.imag(chi_ij)) > 1E-15)):
 					exit(0)
 				else:
 					probs += np.real(chi_ij)
+			(__, PjToPi) = ContractTensorNetwork(PjT_tensor + Pi_tensor, end_trace=0)
 			theta += chi_ij * PjToPi
-		print("----")
-	#print("Sum of chi = {}.".format(probs))
+		# print("----")
+	print("Sum of chi = {}.".format(probs))
+	print("Theta matrix was computed in {} seconds.".format(timer() - click))
 	return theta
 
 

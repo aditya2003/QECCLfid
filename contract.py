@@ -60,7 +60,11 @@ def ContractTensorNetwork(theta_dict, end_trace=0):
 	# Compute the Theta matrix of a composition of channels.
 	# The individual channels are provided a list where each one is a pair: (s, O) where s is the support and O is the theta matrix.
 	# We will use einsum to contract the tensor network of channels.
+	# print("Function: ContractTensorNetwork")
 	supports = [list(sup) for (sup, op) in theta_dict]
+
+	# print("supports\n{}".format(supports))
+
 	(contraction_labels, free_labels) = SupportToLabel(supports)
 	# print("contraction_labels = {}".format(contraction_labels))
 	row_labels = ["".join([q[0] for q in interac]) for interac in contraction_labels]
@@ -77,10 +81,10 @@ def ContractTensorNetwork(theta_dict, end_trace=0):
 	if end_trace == 1:
 		# If the last operation is a trace, we need to contract the free row and column indices.
 		# So we should make sure that the i-th free row index = i-th free column index.
-		print("left before end trace\n{}-->{}|{}".format(left, "".join(free_row_labels), "".join(free_col_labels)))
+		# print("left before end trace\n{}-->{}|{}".format(left, "".join(free_row_labels), "".join(free_col_labels)))
 		for (r_lab, c_lab) in zip(free_row_labels, free_col_labels):
 			left = left.replace(c_lab, r_lab)
-		print("left after end trace = {}".format(left))
+		# print("left after end trace = {}".format(left))
 		right = ""
 		composed_support = []
 	else:

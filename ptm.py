@@ -57,6 +57,30 @@ def get_kraus_conj(kraus, Pi, indices):
 	Pi_int = fix_index_after_tensor(Pi_int, indices_Pi)
 	return Pi_int
 
+def ApplyChannel(kraus, pauli):
+	# Compute the conjugation of a Pauli with a given Kraus operator.
+	# Given K and P, compute K P K^dag.
+	kraus_reshape_dims = [2] * (2 * int(np.log2(kraus.shape[0])))
+	indices_Pi = indices[len(indices) // 2 :]
+	indices_kraus = range(len(kraus_reshape_dims) // 2)
+	Pi_int = np.tensordot(
+		Pi,
+		Dagger(kraus).reshape(kraus_reshape_dims),
+		(indices_Pi, indices_kraus),
+	)
+	Pi_int = fix_index_after_tensor(Pi_int, indices_Pi)
+	indices_Pi = indices[: len(indices) // 2]
+	indices_kraus = range(len(kraus_reshape_dims))[
+		len(kraus_reshape_dims) // 2 :
+	]
+	Pi_int = np.tensordot(
+		Pi_int,
+		kraus.reshape(kraus_reshape_dims),
+		(indices_Pi, indices_kraus),
+	)
+	Pi_int = fix_index_after_tensor(Pi_int, indices_Pi)
+	return Pi_int
+
 
 def PTM_Element(krausdict, Pi, Pjlist, n_qubits,phasei=None,phasej=None):
 	r"""

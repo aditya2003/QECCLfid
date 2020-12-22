@@ -37,13 +37,11 @@ def SumCptps(rotation_angle, qcode, cutoff = 3, n_maps = 3):
 	"""
 	# print("Sum of CPTP maps:\ncutoff = {}, n_maps = {}".format(cutoff, n_maps))
 	kraus_dict = {m:None for m in range(n_maps)}
-	supports = []
+	n_nontrivial_maps = 0
 	for m in range(n_maps):
-		# n_q = SamplePoisson(mean = 1, cutoff=cutoff)
-		n_q = 3 # for debugging only
+		n_q = SamplePoisson(mean = 1, cutoff=cutoff)
+		# n_q = 2 # for debugging only
 		support = tuple(sorted((random.sample(range(qcode.N), n_q))))
-		# support = (1,3) # for debugging only
-		supports.append(support)
 		if n_q == 0:
 			rand_unitary = 1.0
 			kraus_dict[m] = (support,[rand_unitary])
@@ -52,8 +50,21 @@ def SumCptps(rotation_angle, qcode, cutoff = 3, n_maps = 3):
 			kraus = StineToKraus(rand_unitary)
 			KrausTest(kraus)
 			kraus_dict[m] = (support, kraus)
-	print("Random channel generated with the following interactions\n{}.".format(supports))
-	return kraus_dict
+			n_nontrivial_maps += 1
+
+	# Remove identity channels
+	non_trivial_channels = {m:None for m in range(n_nontrivial_maps)}
+	supports = [None for __ in range(n_nontrivial_maps)]
+	n_nontrivial_maps = 0
+	for m in range(n_maps):
+		(support, kraus) = kraus_dict[m]
+		if len(support) > 0:
+			non_trivial_channels[n_nontrivial_maps] = (support, kraus)
+			supports[n_nontrivial_maps] = support
+			n_nontrivial_maps += 1
+
+	print("Random channel generated with the following {} interactions\n{}.".format(n_nontrivial_maps, supports))
+	return non_trivial_channels
 
 def KrausTest(kraus):
 	# Given a set of Kraus operators {K_i}, check if \sum_i [ (K_i)^dag K_i ] = I.

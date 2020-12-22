@@ -29,6 +29,18 @@ def get_chi_kraus(kraus, Pi, indices_Pi, n_qubits):
 	return contrib
 
 
+def Chi_Element_Diag_Partial(start, end, theta_channels, krausdict, paulis):
+	# Compute the theta matrix for a subset of Kraus maps.
+	nq = paulis.shape[1]
+	for m in range(start, end):
+		(support, kraus) = krausdict[m]
+		theta_support = tuple([q for q in support] + [(nq + q) for q in support])
+		theta = KraussToTheta(np.array(kraus))
+		theta_channels.put((m, theta_support, theta))
+	return None
+
+
+
 def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 	r"""
 	Calculates the diagonal entry in chi matrix corresponding to each Pauli in Pilist
@@ -41,6 +53,31 @@ def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 	"""
 	#     Pres stores the addition of all kraus applications
 	#     Pi_term stores result of individual kraus applications to Pi
+	if n_cores is None:
+		n_cores = mp.cpu_count()
+	n_maps = len(list(krausdict.keys()))
+	chunk = int(np.ceil(n_maps/n_cores))
+	theta_channels = mp.Queue()
+	processes = []
+	
+	for p in range(n_cores):
+		start = p * chunk
+		end = min((p + 1) * chunk, n_maps)
+		processes.append(mp.Process(target = Chi_Element_Diag_Partial, args = (start, end, theta_channels, krausdict, paulis)))
+	
+	for p in range(n_cores):
+		processes[p].start()
+	
+	for p in range(n_cores):
+		processes[p].join()
+	
+	# Gather the results
+	theta_dict = [None for __ in krausdict]
+	while not theta_channels.empty():
+		(map_index, theta_support, theta) = theta_channels.get()
+		theta_dict[map_index] = (theta_support, theta)
+
+	"""
 	nq = paulis.shape[1]
 	theta_dict = [None for __ in krausdict]
 	for m in krausdict:
@@ -48,6 +85,8 @@ def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 		# print("Shape of Kraus list : {}".format(np.array(kraus).shape))
 		theta_dict[m] = (tuple([q for q in support] + [(nq + q) for q in support]), KraussToTheta(np.array(kraus)))
 		# print("support = {} and Theta matrix shape = {}".format(support, theta_dict[m][1].shape))
+	"""
+
 	(supp_theta, theta_contracted) = ContractTensorNetwork(theta_dict)
 	print("theta_contracted supported on {} has shape: {}.".format(supp_theta, theta_contracted.shape))
 	theta_contracted_reshaped = theta_contracted

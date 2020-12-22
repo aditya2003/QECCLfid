@@ -28,7 +28,9 @@ def ThetaToChiElement(pauli_op_i, pauli_op_j, theta, supp_theta):
 	#print("TensorKron took {} seconds".format(timer() - click))
 	# print("PioPjT shape = {}".format(PioPjT.shape))
 	# supp_theta_tensor = np.concatenate((np.array(list(supp_theta), dtype = np.int), nq + np.array(list(supp_theta), dtype = np.int)))
-	supp_theta_tensor = [q for q in supp_theta] + [(nq + q) for q in supp_theta]
+	# theta_tensor = theta.reshape([2, 2, 2, 2]*len(supp_theta))
+	# supp_theta_tensor = [q for q in supp_theta] + [(nq + q) for q in supp_theta]
+	supp_theta_tensor = supp_theta
 	# theta_reshaped = theta.reshape([2, 2, 2, 2] * len(supp_theta))
 	# print("theta_reshaped supported on {} has shape {}.".format(supp_theta_tensor, theta_reshaped.shape))
 	# exit(0);
@@ -60,7 +62,7 @@ def ThetaToChiElement(pauli_op_i, pauli_op_j, theta, supp_theta):
 	chi_elem /= 4**nq
 	# print("Chi element of Pauli op {} = {}".format(pauli_op_i, chi_elem))
 	if ((np.real(chi_elem) <= -1E-15) or (np.abs(np.imag(chi_elem)) >= 1E-15)):
-		print("Chi[%d, %d] = %g + i %g" % (i, j, np.real(chi_elem), np.imag(chi_elem)))
+		print("Chi = %g + i %g" % (np.real(chi_elem), np.imag(chi_elem)))
 		exit(0)
 	return chi_elem
 

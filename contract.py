@@ -56,12 +56,12 @@ def SupportToLabel(supports, characters = None):
 	return (labels, free_index)
 
 
-def ContractTensorNetwork(theta_dict, end_trace=0):
+def ContractTensorNetwork(network, end_trace=0):
 	# Compute the Theta matrix of a composition of channels.
 	# The individual channels are provided a list where each one is a pair: (s, O) where s is the support and O is the theta matrix.
 	# We will use einsum to contract the tensor network of channels.
 	# print("Function: ContractTensorNetwork")
-	supports = [list(sup) for (sup, op) in theta_dict]
+	supports = [list(sup) for (sup, op) in network]
 
 	# print("supports\n{}".format(supports))
 
@@ -89,11 +89,11 @@ def ContractTensorNetwork(theta_dict, end_trace=0):
 		composed_support = []
 	else:
 		right = "%s%s" % ("".join(free_row_labels), "".join(free_col_labels))
-		composed_support = np.unique([q for (sup, op) in theta_dict for q in sup])
+		composed_support = np.unique([q for (sup, op) in network for q in sup])
 	#print("right = {}".format(right))
 	scheme = "%s->%s" % (left, right)
 	# print("Contraction scheme = {}".format(scheme))
-	theta_ops = [op for (__, op) in theta_dict]
+	theta_ops = [op for (__, op) in network]
 	composed = OptimalEinsum(scheme, theta_ops, opt="greedy", verbose=0)
 	#composed_dict = [(composed_support, composed)]
 	return (composed_support, composed)

@@ -29,22 +29,35 @@ def get_process_chi(qcode, method = "sum_unitaries", *params):
 	chi = None
 	click = timer()
 	ptm = ConstructPTM(qcode, kraus_dict)
-	print("Done in %d seconds." % (timer() - click))
+	print("PTM was constructed in %d seconds." % (timer() - click))
 	click = timer()
 	# for debugging, compare with old version.
 	# print("OLD")
 	# chi = get_chi_diagLST(qcode, kraus_dict)
 	# print("Done in %d seconds." % (timer() - click))
 	# print("\033[2mInfidelity = %.4e.\033[0m" % (1 - chi[0]))
-	ptm = get_process_correlated(qcode, kraus_dict)
-	print("PTM was constructed in %d seconds." % (timer() - click))
+	print("====")
+	print("OLD")
+	click = timer()
+	ptm_old = get_process_correlated(qcode, kraus_dict).reshape(256, 256)
+	print("Old PTM was constructed in %d seconds." % (timer() - click))
+	print("||PTM - Diag(PTM)||_2 = {}".format(np.linalg.norm(ptm_old - np.diag(np.diag(ptm_old)))))
 	# Check if the i,j element of the channel is j,i element of the adjoint channel.
 	for key, (support, krauslist) in kraus_dict.items():
 		for k in range(len(krauslist)):
 			kraus_dict[key][1][k] = Dagger(kraus_dict[key][1][k])
-	ptm_adj = get_process_correlated(qcode, kraus_dict)
-	print("ptm - ptm_adj: {}".format(np.linalg.norm(ptm.reshape(256, 256) - ptm_adj.reshape(256, 256).T)))
-	print("Process[0] = {}".format(ptm[0]))
-	PTM = ptm.reshape((nlogs * nstabs, nlogs * nstabs))
-	print("||PTM - Diag(PTM)||_2 = {}".format(np.linalg.norm(PTM - np.diag(np.diag(PTM)))))
+	click = timer()
+	ptm_adj_old = get_process_correlated(qcode, kraus_dict).reshape(256, 256)
+	print("Old adjoint PTM was constructed in %d seconds." % (timer() - click))
+	print("ptm_old - ptm_adj_old: {}".format(np.linalg.norm(ptm_old - ptm_adj_old.T)))
+	click = timer()
+	print("====")
+
+	click = timer()
+	ptm_adj = ConstructPTM(qcode, kraus_dict)
+	print("Adjoint PTM was constructed in %d seconds." % (timer() - click))
+	print("ptm - ptm_adj: {}".format(np.linalg.norm(ptm - ptm_adj.T)))
+	print("Process[0, 0] = {}".format(ptm[0, 0]))
+	print("||PTM - Diag(PTM)||_2 = {}".format(np.linalg.norm(ptm - np.diag(np.diag(ptm)))))
+	exit(0) # for debugging only
 	return (ptm, chi)

@@ -4,33 +4,38 @@ from functools import reduce
 from define.QECCLfid.contract import OptimalEinsum
 import string
 
+def ConvertToDecimal(digits, base):
+	# Convert a number represented in a given base to its decimal form (base 10).
+	decimal = np.sum(digits[::-1] * np.power(base, np.arange(digits.size, dtype = np.int), dtype = np.int))
+	return decimal
+
 def PauliTensor(pauli_op):
-    # Convert a Pauli in operator form to a tensor.
-    # The tensor product of A B .. Z is given by simply putting the rows indices of A, B, ..., Z together, followed by their column indices.
-    # Each qubit index q can be assigned a pair of labels for the row and columns of the Pauli matrix on q: C[2q], C[2q + 1].
-    # Pauli matrices
-    characters = string.printable[10:]
-    # replace the following line with the variable from globalvars.py
-    Pauli = np.array([[[1, 0], [0, 1]], [[0, 1], [1, 0]], [[0, -1j], [1j, 0]], [[1, 0], [0, -1]]], dtype=np.complex128)
-    nq = len(pauli_op)
-    labels = ",".join(["%s%s" % (characters[2 * q], characters[2 * q + 1]) for q in range(nq)])
-    ops = [Pauli[pauli_op[q], :, :] for q in range(nq)]
-    kn_indices = ["%s" % (characters[2 * q]) for q in range(nq)]
-    kn_indices += ["%s" % (characters[2 * q + 1]) for q in range(nq)]
-    kn_label = "".join(kn_indices)
-    scheme = "%s->%s" % (labels, kn_label)
-    pauli_tensor = OptimalEinsum(scheme, ops)
-    return pauli_tensor
+	# Convert a Pauli in operator form to a tensor.
+	# The tensor product of A B .. Z is given by simply putting the rows indices of A, B, ..., Z together, followed by their column indices.
+	# Each qubit index q can be assigned a pair of labels for the row and columns of the Pauli matrix on q: C[2q], C[2q + 1].
+	# Pauli matrices
+	characters = string.printable[10:]
+	# replace the following line with the variable from globalvars.py
+	Pauli = np.array([[[1, 0], [0, 1]], [[0, 1], [1, 0]], [[0, -1j], [1j, 0]], [[1, 0], [0, -1]]], dtype=np.complex128)
+	nq = len(pauli_op)
+	labels = ",".join(["%s%s" % (characters[2 * q], characters[2 * q + 1]) for q in range(nq)])
+	ops = [Pauli[pauli_op[q], :, :] for q in range(nq)]
+	kn_indices = ["%s" % (characters[2 * q]) for q in range(nq)]
+	kn_indices += ["%s" % (characters[2 * q + 1]) for q in range(nq)]
+	kn_label = "".join(kn_indices)
+	scheme = "%s->%s" % (labels, kn_label)
+	pauli_tensor = OptimalEinsum(scheme, ops)
+	return pauli_tensor
 
 
 def GetNQubitPauli(ind, nq):
-    # Compute the n-qubit Pauli that is at position 'i' in an ordering based on [I, X, Y, Z].
-    # We will express the input number in base 4^n - 1.
-    pauli = np.zeros(nq, dtype = np.int)
-    for i in range(nq):
-        pauli[i] = ind % 4
-        ind = int(ind//4)
-    return pauli
+	# Compute the n-qubit Pauli that is at position 'i' in an ordering based on [I, X, Y, Z].
+	# We will express the input number in base 4^n - 1.
+	pauli = np.zeros(nq, dtype = np.int)
+	for i in range(nq):
+		pauli[i] = ind % 4
+		ind = int(ind//4)
+	return pauli[::-1]
 
 def SamplePoisson(mean, cutoff=None):
 	# Sample a number from a Poisson distribution.

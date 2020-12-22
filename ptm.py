@@ -2,6 +2,7 @@ import numpy as np
 from define.QECCLfid.contract import ContractTensorNetwork
 from define.QECCLfid.utils import Dagger, circular_shift, GetNQubitPauli, PauliTensor
 from define import globalvars as gv
+import copy
 
 
 def get_Pauli_tensor(Pauli):
@@ -157,7 +158,7 @@ def PTM_Element(krausdict, Pi, Pjlist, n_qubits,phasei=None,phasej=None):
 			Pres = np.sum([get_kraus_conj(kraus, Pi, indices) for kraus in krausList], axis=0)
 		else:
 			Pres = Pi * np.sum([np.power(np.abs(kraus), 2) for kraus in krausList], axis=0)
-		Pi = Pres
+		Pi = copy.deepcopy(Pres)
 	# take dot product with Pj and trace
 	trace_vals = np.zeros(len(Pjlist), dtype=np.double)
 	indices_Pi = list(range(len(Pi.shape) // 2))

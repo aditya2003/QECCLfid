@@ -2,7 +2,7 @@ import numpy as np
 from scipy.special import comb
 from define.qcode import GetOperatorsForTLSIndex, GetOperatorsForLSTIndex, PrepareSyndromeLookUp
 from define.QECCLfid.chi import Chi_Element_Diag
-from define.QECCLfid.ptm import PTM_Element, get_Pauli_tensor
+from define.QECCLfid.ptm import PTM_Element, get_Pauli_tensor, ExtractPTMElement
 from define.QECCLfid.utils import Dot, Kron, Dagger, circular_shift
 # for debugging
 from define.QECCLfid.backup import get_Chielem_ii
@@ -54,7 +54,6 @@ def get_chi_diagLST(qcode, kraus_dict):
 	nstabs = 2 ** (qcode.N - qcode.K)
 	nlogs = 4 ** qcode.K
 	(ops, __) = GetOperatorsForLSTIndex(qcode, range(nstabs * nstabs * nlogs))
-	# ops = [[0, 0, 0, 1, 0, 0, 0]] # only for debugging.
 	chi = get_Chielem_ii(kraus_dict, ops, qcode.N)
 	# chi = get_Chielem_broadcast(kraus_dict, ops, qcode.N)
 	# chi = Chi_Element_Diag(kraus_dict, ops, qcode.N)

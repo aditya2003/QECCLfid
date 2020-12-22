@@ -79,7 +79,6 @@ def KraussToTheta(kraus):
 	# We will store T as a Tensor with dimension = (2 * number of qubits) and bond dimension = 4.
 	nq = int(np.log2(kraus.shape[1]))
 	theta = np.zeros(tuple([2, 2, 2, 2]*nq), dtype = np.complex128)
-	probs = 0
 	# Preparing the Pauli operators.
 	click = timer()
 	pauli_tensors = np.zeros(tuple([4**nq] + [2, 2]*nq), dtype = np.complex128)
@@ -90,6 +89,7 @@ def KraussToTheta(kraus):
 		(__, pauli_tensors[i]) = ContractTensorNetwork(Pi)
 	print("Preparing Pauli tensors took {} seconds.".format(timer() - click))
 	click = timer()
+	probs = 0
 	for i in range(4**nq):
 		#print("Pi: {}".format(GetNQubitPauli(i, nq)))
 		#pauli_op_i = GetNQubitPauli(i, nq)

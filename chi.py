@@ -51,8 +51,6 @@ def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 	Assumes qubits
 	Assumes kraus ops to be square with dim 2**(number of qubits in support)
 	"""
-	#     Pres stores the addition of all kraus applications
-	#     Pi_term stores result of individual kraus applications to Pi
 	if n_cores is None:
 		n_cores = mp.cpu_count()
 	n_maps = len(list(krausdict.keys()))

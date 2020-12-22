@@ -5,6 +5,8 @@ from timeit import default_timer as timer
 from define.QECCLfid.sum_cptps import SumCptps
 from define.QECCLfid.sum_unitaries import SumUnitaries
 from define.QECCLfid.multi_qubit_kraus import get_process_correlated, get_chi_diagLST, NoiseReconstruction
+from define.QECCLfid.ptm import ConstructPTM
+
 
 def get_process_chi(qcode, method = "sum_unitaries", *params):
 	nstabs = 2 ** (qcode.N - qcode.K)
@@ -20,27 +22,29 @@ def get_process_chi(qcode, method = "sum_unitaries", *params):
 		kraus_dict = SumCptps(angle, qcode, cutoff = int(cutoff), n_maps = int(n_maps))
 	else:
 		pass
-	click = timer()
+	# click = timer()
 	# print("NEW")
-	chi = NoiseReconstruction(qcode, kraus_dict)
+	# chi = NoiseReconstruction(qcode, kraus_dict)
+	# print("Done in %d seconds." % (timer() - click))
+	chi = None
+	click = timer()
+	ptm = ConstructPTM(qcode, kraus_dict)
 	print("Done in %d seconds." % (timer() - click))
 	click = timer()
 	# for debugging, compare with old version.
-	#print("OLD")
-	#chi = get_chi_diagLST(qcode, kraus_dict)
-	#print("Done in %d seconds." % (timer() - click))
-	
-	print("\033[2mInfidelity = %.4e.\033[0m" % (1 - chi[0]))
-	# process = None # for debudding
-	process = get_process_correlated(qcode, kraus_dict)
+	# print("OLD")
+	# chi = get_chi_diagLST(qcode, kraus_dict)
+	# print("Done in %d seconds." % (timer() - click))
+	# print("\033[2mInfidelity = %.4e.\033[0m" % (1 - chi[0]))
+	ptm = get_process_correlated(qcode, kraus_dict)
 	print("PTM was constructed in %d seconds." % (timer() - click))
 	# Check if the i,j element of the channel is j,i element of the adjoint channel.
 	for key, (support, krauslist) in kraus_dict.items():
 		for k in range(len(krauslist)):
 			kraus_dict[key][1][k] = Dagger(kraus_dict[key][1][k])
-	process_adj = get_process_correlated(qcode, kraus_dict)
-	print("process - process_adj: {}".format(np.linalg.norm(process.reshape(256, 256) - process_adj.reshape(256, 256).T)))
-	print("Process[0] = {}".format(process[0]))
-	PTM = process.reshape((nlogs * nstabs, nlogs * nstabs))
+	ptm_adj = get_process_correlated(qcode, kraus_dict)
+	print("ptm - ptm_adj: {}".format(np.linalg.norm(ptm.reshape(256, 256) - ptm_adj.reshape(256, 256).T)))
+	print("Process[0] = {}".format(ptm[0]))
+	PTM = ptm.reshape((nlogs * nstabs, nlogs * nstabs))
 	print("||PTM - Diag(PTM)||_2 = {}".format(np.linalg.norm(PTM - np.diag(np.diag(PTM)))))
-	return (process, chi)
+	return (ptm, chi)

@@ -41,6 +41,7 @@ def get_process_chi(qcode, method = "sum_unitaries", *params):
 	click = timer()
 	ptm_old = get_process_correlated(qcode, kraus_dict).reshape(256, 256)
 	print("Old PTM was constructed in %d seconds." % (timer() - click))
+	print("||PTM - PTM_old||_2 = {}".format(np.linalg.norm(ptm - ptm_old)))
 	print("||PTM - Diag(PTM)||_2 = {}".format(np.linalg.norm(ptm_old - np.diag(np.diag(ptm_old)))))
 	# Check if the i,j element of the channel is j,i element of the adjoint channel.
 	for key, (support, krauslist) in kraus_dict.items():

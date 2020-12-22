@@ -1,6 +1,68 @@
 import numpy as np
 from define.QECCLfid.ptm import get_Pauli_tensor, fix_index_after_tensor
 
+def ExtractPTMElement_Binary(pauli_op_i, pauli_op_j, ptm, supp_ptm):
+	# Compute the PTM element corresponding to a Pair of Pauli operators given a PTM matrix.
+	# Given G, we want to compute G_ij = << Pi | G | Pj >> where |P>> is the vector in the Pauli basis corresponding to the Pauli matrix P.
+	# In other words, |Pi>> is an indicator vector with a "1" at position x and 0 elsewhere.
+	# Here "x" is the position of pauli_op_i in the lexicographic ordering, i.e., if pauli_op_i = (p(0) p(1) ... p(n-1)), then
+	# x = 4**(n-1) * p(n-1) + ... + 4 * p1 + p0
+	# We want << i(1) i(2) ... i(2n) | A | j(1) j(2) ... j(2n) >>, where i(k) in {0, 1}.
+	# We will reshape A to: [2, 2, 2, 2] * supp(A). To specify an element of A, we need two row and two column bits, per support qubit.
+	# row_indices = []
+	# col_indices = []
+	# result = 1
+	# for q in [1, n]:
+	# 	if supp(A) doesn't have q:
+	# 		result *= delta(i(2q), j(2q)) * delta(i(2q + 1), j(2q + 1))
+	# if result != 0:
+	# 	for q in supp(A):
+	#		row_indices.extend([i(2q), i(2q + 1)])
+	#		col_indices.extend([j(2q), j(2q + 1)])
+	# 	ptm_ij = A[*[row_indices + col_indices]]
+	click = timer()
+	nq = pauli_op_i.shape[0]
+	
+	Pi_binary = list(map(int, np.binary_repr(ConvertToDecimal(pauli_op_i, 4), 2 * nq)))
+	# print("Pi_binary\n{}".format(Pi_binary))
+	Pj_binary = list(map(int, np.binary_repr(ConvertToDecimal(pauli_op_j, 4), 2 * nq)))
+	# print("Pj_binary\n{}".format(Pj_binary))
+	trivial_action = 1
+	for q in range(nq):
+		if q not in supp_ptm:
+			trivial_action *= int(pauli_op_i[q] == pauli_op_j[q])
+	
+	row_indices = []
+	col_indices = []
+	if (trivial_action != 0):
+		for i in range(len(supp_ptm)//2):
+			q = supp_ptm[i]
+			row_indices.extend([Pi_binary[2 * q], Pi_binary[2 * q + 1]])
+			col_indices.extend([Pj_binary[2 * q], Pj_binary[2 * q + 1]])
+			# row_indices.extend([Pi_binary[q], Pi_binary[q + nq]])
+			# col_indices.extend([Pj_binary[q], Pj_binary[q + nq]])
+		ptm_ij = ptm[tuple(row_indices + col_indices)]
+	else:
+		ptm_ij = 0
+	"""
+	click = timer()
+	nq = pauli_op_i.shape[0]
+	support_pauli = tuple([q for q in range(nq)] + [(nq + q) for q in range(nq)])
+	Pi_indicator = np.zeros((1, 4**nq), dtype = np.double)
+	Pi_indicator[0, ConvertToDecimal(pauli_op_i, 4)] = 1
+	Pi_tensor = [(support_pauli, Pi_indicator.reshape([1, 2] * 2*nq))]
+	Pj_indicator = np.zeros((4**nq, 1), dtype = np.double)
+	Pj_indicator[ConvertToDecimal(pauli_op_j, 4), 0] = 1
+	Pj_tensor = [(support_pauli, Pj_indicator.reshape([2, 1] * 2*nq))]
+	ptm_tensor = [(supp_ptm, ptm)]
+	print("Preparing the indicator vectors take {}".format(timer() - click))
+	(__, ptm_ij) = ContractTensorNetwork(Pi_tensor + ptm_tensor + Pj_tensor, end_trace=1)
+	"""
+	return ptm_ij
+
+
+
+
 def StineToKraus(U):
     # Compute the Krauss operators for the input quantum channel, which is represented in the Stinespring dialation
     # The Krauss operator T_k is given by: <a|T_k|b> = <a e_k|U|b e_0> , where {|e_i>} is a basis for the environment and |a>, |b> are basis vectors of the system

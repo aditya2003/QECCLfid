@@ -57,7 +57,7 @@ def get_process_chi(qcode, method = "sum_unitaries", *params):
 	click = timer()
 	ptm_adj = ConstructPTM(qcode, kraus_dict)
 	print("Adjoint PTM was constructed in %d seconds." % (timer() - click))
-	print("ptm - ptm_adj: {}".format(np.linalg.norm(ptm - ptm_adj.T)))
+	print("ptm - ptm_adj: {}".format(np.nonzero(ptm - ptm_adj.T)))
 	print("Process[0, 0] = {}".format(ptm[0, 0]))
 	print("||PTM - Diag(PTM)||_2 = {}".format(np.linalg.norm(ptm - np.diag(np.diag(ptm)))))
 	exit(0) # for debugging only

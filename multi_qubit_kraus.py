@@ -67,7 +67,7 @@ def NoiseReconstruction(qcode, kraus_dict, max_weight=None):
 	We don't want all the diagonal entries; only a fraction "x" of these.
 	For a given fraction "x", we will choose x * 4^N errors, picking the low weight ones before one of a higher weight.
 	Amongst errors of the same weight, we will simply choose a random
-	
+
 	chi matrix in LST ordering.
 	"""
 	if max_weight is None:
@@ -82,13 +82,12 @@ def NoiseReconstruction(qcode, kraus_dict, max_weight=None):
 		filled += n_errors_weight[w]
 	# nrops = np.array([[0, 0, 0, 1, 0, 0, 0]], dtype = np.int8) # only for debugging.
 	# In the chi matrix, fill the entries corresponding to nrops with the reconstruction data.
+	chi_partial = Chi_Element_Diag(kraus_dict, nrops)
 	chi = np.zeros(4**qcode.N, dtype = np.double)
 	start = 0
 	for w in range(max_weight + 1):
 		end = start + n_errors_weight[w]
-		chi[qcode.group_by_weight[w]] = nrops[start:end]
+		chi[qcode.group_by_weight[w]] = chi_partial[start:end]
 		start = end
-	Chi_Element_Diag(kraus_dict, nrops)
 	print("Sum of chi = {}, infid = {}\nElements of chi\n{}".format(np.sum(chi), 1 - chi[0], np.sort(chi)[::-1]))
 	return chi
-

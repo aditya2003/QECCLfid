@@ -59,18 +59,18 @@ def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 	chunk = int(np.ceil(n_maps/n_cores))
 	theta_channels = mp.Queue()
 	processes = []
-	
+
 	for p in range(n_cores):
 		start = p * chunk
 		end = min((p + 1) * chunk, n_maps)
 		processes.append(mp.Process(target = Chi_Element_Diag_Partial, args = (start, end, theta_channels, krausdict, paulis)))
-	
+
 	for p in range(n_cores):
 		processes[p].start()
-	
+
 	for p in range(n_cores):
 		processes[p].join()
-	
+
 	# Gather the results
 	theta_dict = [None for __ in krausdict]
 	while not theta_channels.empty():
@@ -89,7 +89,6 @@ def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 
 	(supp_theta, theta_contracted) = ContractTensorNetwork(theta_dict)
 	print("theta_contracted supported on {} has shape: {}.".format(supp_theta, theta_contracted.shape))
-	theta_contracted_reshaped = theta_contracted
 	# theta_contracted_reshaped = theta_contracted.reshape([2, 2, 2, 2]*len(supp_theta))
 	# (supp_theta, theta_contracted) = theta_dict[0] # only for debugging purposes.
 
@@ -97,5 +96,5 @@ def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 	for i in range(paulis.shape[0]):
 		chi_diag[i] = np.real(ThetaToChiElement(paulis[i, :], paulis[i, :], theta_contracted, supp_theta))
 
-	print("Pauli error probabilities:\n{}".format(chi_diag))
+	# print("Pauli error probabilities:\n{}".format(chi_diag))
 	return chi_diag

@@ -76,21 +76,8 @@ def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 		(map_index, theta_support, theta) = theta_channels.get()
 		theta_dict[map_index] = (theta_support, theta)
 
-	"""
-	nq = paulis.shape[1]
-	theta_dict = [None for __ in krausdict]
-	for m in krausdict:
-		(support, kraus) = krausdict[m]
-		# print("Shape of Kraus list : {}".format(np.array(kraus).shape))
-		theta_dict[m] = (tuple([q for q in support] + [(nq + q) for q in support]), KraussToTheta(np.array(kraus)))
-		# print("support = {} and Theta matrix shape = {}".format(support, theta_dict[m][1].shape))
-	"""
-
 	(supp_theta, theta_contracted) = ContractTensorNetwork(theta_dict)
-	# print("theta_contracted supported on {} has shape: {}.".format(supp_theta, theta_contracted.shape))
-	# theta_contracted_reshaped = theta_contracted.reshape([2, 2, 2, 2]*len(supp_theta))
-	# (supp_theta, theta_contracted) = theta_dict[0] # only for debugging purposes.
-
+	
 	chi_diag = np.zeros(paulis.shape[0], dtype = np.double)
 	for i in range(paulis.shape[0]):
 		chi_diag[i] = np.real(ThetaToChiElement(paulis[i, :], paulis[i, :], theta_contracted, supp_theta))

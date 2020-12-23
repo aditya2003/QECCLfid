@@ -2,6 +2,7 @@ import time
 import numpy as np
 import ctypes as ct
 import multiprocessing as mp
+from timeit import default_timer as timer
 from define.QECCLfid.contract import ContractTensorNetwork
 from define.QECCLfid.theta import KraussToTheta,ThetaToChiElement
 from define.qcode import GetOperatorsForLSTIndex, PrepareSyndromeLookUp
@@ -36,7 +37,9 @@ def Chi_Element_Diag_Partial(start, end, theta_channels, krausdict, paulis):
 	for m in range(start, end):
 		(support, kraus) = krausdict[m]
 		theta_support = tuple([q for q in support] + [(nq + q) for q in support])
+		click = timer()
 		theta = KraussToTheta(np.array(kraus))
+		print("Theta matrix for map {} was computed in {} seconds.".format(m, timer() - click))
 		theta_channels.put((m, theta_support, theta))
 	return None
 
@@ -68,19 +71,24 @@ def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 		processes[p].start()
 
 	for p in range(n_cores):
+		print("Waiting for process {} to join.".format(p))
 		processes[p].join()
 
 	# Gather the results
 	theta_dict = [None for __ in krausdict]
-	while not theta_channels.empty():
+	for p in range(n_cores):
 		(map_index, theta_support, theta) = theta_channels.get()
 		theta_dict[map_index] = (theta_support, theta)
 
+	click = timer()
 	(supp_theta, theta_contracted) = ContractTensorNetwork(theta_dict)
-	
+	print("Theta tensor network was contracted in {} seconds.".format(timer() - click))
+
 	chi_diag = np.zeros(paulis.shape[0], dtype = np.double)
 	for i in range(paulis.shape[0]):
+		click = timer()
 		chi_diag[i] = np.real(ThetaToChiElement(paulis[i, :], paulis[i, :], theta_contracted, supp_theta))
+		print("Chi[{}, {}] was computed in {} seconds.".format(i, i, timer() - click))
 
 	# print("Pauli error probabilities:\n{}".format(chi_diag))
 	return chi_diag
@@ -107,7 +115,7 @@ def NoiseReconstruction(qcode, kraus_dict, max_weight=None):
 		filled += n_errors_weight[w]
 	
 	# In the chi matrix, fill the entries corresponding to nrops with the reconstruction data.
-	chi_partial = Chi_Element_Diag(kraus_dict, nrops, n_cores=1)
+	chi_partial = Chi_Element_Diag(kraus_dict, nrops, n_cores=1) # For debugging only.
 	chi = np.zeros(4**qcode.N, dtype = np.double)
 	start = 0
 	for w in range(max_weight + 1):

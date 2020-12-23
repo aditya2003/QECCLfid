@@ -118,9 +118,9 @@ def NoiseReconstruction(qcode, kraus_dict, max_weight=None):
 	for w in range(max_weight + 1):
 		(nrops[filled : (filled + n_errors_weight[w]), :], __) = GetOperatorsForLSTIndex(qcode, qcode.group_by_weight[w])
 		filled += n_errors_weight[w]
-	# nrops = np.array([[0, 0, 0, 1, 0, 0, 0]], dtype = np.int8) # only for debugging.
+	
 	# In the chi matrix, fill the entries corresponding to nrops with the reconstruction data.
-	chi_partial = Chi_Element_Diag(kraus_dict, nrops)
+	chi_partial = Chi_Element_Diag(kraus_dict, nrops, n_cores=1)
 	chi = np.zeros(4**qcode.N, dtype = np.double)
 	start = 0
 	for w in range(max_weight + 1):

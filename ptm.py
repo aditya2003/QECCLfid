@@ -1,5 +1,7 @@
 import copy
 import numpy as np
+import ctypes as ct
+import multiprocessing as mp
 from define import globalvars as gv
 from define.qcode import GetOperatorsForTLSIndex
 from timeit import default_timer as timer
@@ -132,27 +134,57 @@ def ExtractPTMElement(pauli_op_i, pauli_op_j, ptm, supp_ptm):
 	return ptm_ij
 
 
-def ConstructPTM(qcode, kraus_dict):
+def ConstructPTM_Partial(map_start, map_end, mem_start, ptm_channels, kraus_dict):
+	# Construct PTM for some maps.
+	for m in range(map_start, map_end):
+		(support, kraus) = kraus_dict[m]
+		mem_end = mem_start + 16 ** len(support)
+		click = timer()
+		ptm = KrausToPTM(np.array(kraus))
+		ptm_channels[mem_start : mem_end] = ptm.reshape(-1)
+		print("PTM for map {} was constructed in {} seconds.".format(m + 1, timer() - click))
+		mem_end = mem_start
+	return None
+
+
+def ConstructPTM(qcode, kraus_dict, n_cores = None):
 	r"""
 	Generates LS part of the process matrix of the n-qubit Pauli channel.
 	"""
 	nstabs = 2 ** (qcode.N - qcode.K)
 	nlogs = 4 ** qcode.K
 	n_maps = len(list(kraus_dict.keys()))
+	ptm_channels_sizes = [0 for __ in range(n_maps)]
+	for m in range(n_maps):
+		(support, __) = kraus_dict[m]
+		ptm_channels_sizes[m] = 16 ** len(support)
+	ptm_channels = mp.Array(ct.c_double, sum(ptm_channels_sizes))
+
+	if (n_cores is None):
+		n_cores = mp.cpu_count()
+
+	chunk = int(np.ceil(n_maps/n_cores))
+
+	processes = []
+	for p in range(n_cores):
+		map_start = p * chunk
+		map_end = min((p + 1) * chunk, n_maps)
+		mem_start = sum(ptm_channels_sizes[:map_start])
+		processes.append(mp.Process(target = ConstructPTM_Partial, args = (map_start, map_end, mem_start, ptm_channels, kraus_dict)))
+	for p in range(n_cores):
+		processes[p].start()
+	for p in range(n_cores):
+		processes[p].join()
+
+	# Retrieve the results
 	ptm_dict = [None for __ in range(n_maps)]
 	for m in range(n_maps):
-		(support, kraus) = kraus_dict[m]
-		# print("support = {}".format(support))
-		
-		click = timer()
-		ptm = KrausToPTM(np.array(kraus))
-		print("PTM for map {} was constructed in {} seconds.".format(m + 1, timer() - click))
-		
-		if (PTMAdjointTest(np.array(kraus), ptm) == 0):
-			print("PTM adjoint test failed for map {}.".format(m + 1))
-			exit(0)
-	
+		(support, __) = kraus_dict[m]
+		mem_start = sum(ptm_channels_sizes[:m])
+		mem_end = mem_start + 16 ** len(support)
+		ptm = np.reshape(ptm_channels[mem_start : mem_end], [4, 4] * len(support))
 		ptm_dict[m] = (support, ptm)
+		mem_start = mem_end
 	
 	click = timer()
 	(supp_ptm, ptm_contracted) = ContractTensorNetwork(ptm_dict)

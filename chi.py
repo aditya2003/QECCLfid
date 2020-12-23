@@ -1,6 +1,7 @@
 import time
 import numpy as np
 import ctypes as ct
+from tqdm import tqdm
 import multiprocessing as mp
 from timeit import default_timer as timer
 from define.QECCLfid.contract import ContractTensorNetwork
@@ -48,6 +49,12 @@ def Chi_Element_Diag_Partial(map_start, map_end, mem_start, theta_channels, krau
 	return None
 
 
+def Theta_Chi_Partial(core, start, stop, mp_chi, paulis, theta, supp_theta):
+	# Compute the chi matrix elements for a list of Paulis
+	for i in tqdm(range(start, stop), ascii=True, desc="Core %d" % (core + 1), position=core+1):
+		mp_chi[i] = np.real(ThetaToChiElement(paulis[i, :], paulis[i, :], theta, supp_theta))
+	return None
+
 
 def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 	r"""
@@ -75,7 +82,6 @@ def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 		map_start = p * chunk
 		map_end = min((p + 1) * chunk, n_maps)
 		mem_start = sum(size_theta_contracted[:map_start])
-		# Chi_Element_Diag_Partial(start, end, theta_dict, krausdict, paulis)
 		processes.append(mp.Process(target = Chi_Element_Diag_Partial, args = (map_start, map_end, mem_start, theta_channels, krausdict, paulis)))
 
 	for p in range(n_cores):
@@ -109,13 +115,24 @@ def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 	(supp_theta, theta_contracted) = ContractTensorNetwork(theta_dict)
 	print("Theta tensor network was contracted in {} seconds.".format(timer() - click))
 
-	chi_diag = np.zeros(paulis.shape[0], dtype = np.double)
-	for i in range(paulis.shape[0]):
-		# click = timer()
-		chi_diag[i] = np.real(ThetaToChiElement(paulis[i, :], paulis[i, :], theta_contracted, supp_theta))
-		# print("Chi[{}, {}] was computed in {} seconds.".format(i, i, timer() - click))
+	if (n_cores is None):
+		n_cores = mp.cpu_count()
+
+	mp_chi = mp.Array(ct.c_double, paulis.shape[0])
+	
+	chunk = int(np.ceil(paulis.shape[0]/n_cores))
+	processes = []
+	for p in range(n_cores):
+		start = p * chunk
+		stop = min((p + 1) * chunk, paulis.shape[0])
+		processes.append(mp.Process(target=Theta_Chi_Partial, args = (p, start, stop, mp_chi, paulis, theta_contracted, supp_theta)))
+	for p in range(n_cores):
+		processes[p].start()
+	for p in range(n_cores):
+		processes[p].join()
 
 	# print("Pauli error probabilities:\n{}".format(chi_diag))
+	chi_diag = np.array(mp_chi[:], dtype = np.double)
 	return chi_diag
 
 

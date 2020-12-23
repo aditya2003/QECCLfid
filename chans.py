@@ -79,7 +79,7 @@ def CHI_PTM_Tests(chi, ptm, kraus_dict, kraus_dict_adj, qcode):
 	click = timer()
 	ptm_adj_old = get_process_correlated(qcode, kraus_dict_adj).reshape(256, 256)
 	print("Old adjoint PTM was constructed in %d seconds." % (timer() - click))
-	diff = np.linalg.norm(ptm_old - ptm_adj_old)
+	diff = np.linalg.norm(ptm_old - ptm_adj_old.T)
 	print("||PTM_old - PTM_adj_old.T||_2 = {}".format(diff))
 	if (diff >= atol):
 		success = 0

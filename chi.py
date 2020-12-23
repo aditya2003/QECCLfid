@@ -31,16 +31,20 @@ def get_chi_kraus(kraus, Pi, indices_Pi, n_qubits):
 	return contrib
 
 
-def Chi_Element_Diag_Partial(start, end, theta_channels, krausdict, paulis):
+def Chi_Element_Diag_Partial(map_start, map_end, mem_start, theta_channels, krausdict, paulis):
 	# Compute the theta matrix for a subset of Kraus maps.
 	nq = paulis.shape[1]
-	for m in range(start, end):
+	for m in range(map_start, map_end):
 		(support, kraus) = krausdict[m]
-		theta_support = tuple([q for q in support] + [(nq + q) for q in support])
 		click = timer()
 		theta = KraussToTheta(np.array(kraus))
-		print("Theta matrix for map {} was computed in {} seconds.".format(m, timer() - click))
-		theta_channels.put((m, theta_support, theta))
+		print("Theta matrix for map {} was computed in {} seconds.".format(m + 1, timer() - click))
+		# theta_channels[m] = (theta_support, theta)
+		mem_inter = mem_start + 16 ** len(support)
+		theta_channels[mem_start : mem_inter] = np.real(np.reshape(theta, -1))
+		mem_end = mem_inter + 16 ** len(support)
+		theta_channels[mem_inter : mem_end] = np.imag(np.reshape(theta, -1))
+		mem_start = mem_end
 	return None
 
 
@@ -58,27 +62,48 @@ def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 	if n_cores is None:
 		n_cores = mp.cpu_count()
 	n_maps = len(list(krausdict.keys()))
+	size_theta_contracted = [0 for __ in range(n_maps)]
+	for m in range(n_maps):
+		(support, kraus) = krausdict[m]
+		size_theta_contracted[m] = 2 * 16 ** len(support)
+	theta_channels = mp.Array(ct.c_double, sum(size_theta_contracted))
+
 	chunk = int(np.ceil(n_maps/n_cores))
-	theta_channels = mp.Queue()
 	processes = []
 
 	for p in range(n_cores):
-		start = p * chunk
-		end = min((p + 1) * chunk, n_maps)
-		processes.append(mp.Process(target = Chi_Element_Diag_Partial, args = (start, end, theta_channels, krausdict, paulis)))
+		map_start = p * chunk
+		map_end = min((p + 1) * chunk, n_maps)
+		mem_start = sum(size_theta_contracted[:map_start])
+		# Chi_Element_Diag_Partial(start, end, theta_dict, krausdict, paulis)
+		processes.append(mp.Process(target = Chi_Element_Diag_Partial, args = (map_start, map_end, mem_start, theta_channels, krausdict, paulis)))
 
 	for p in range(n_cores):
 		processes[p].start()
 
 	for p in range(n_cores):
-		print("Waiting for process {} to join.".format(p))
 		processes[p].join()
 
 	# Gather the results
 	theta_dict = [None for __ in krausdict]
-	for p in range(n_cores):
-		(map_index, theta_support, theta) = theta_channels.get()
-		theta_dict[map_index] = (theta_support, theta)
+	nq = paulis.shape[1]
+	for m in range(n_maps):
+		(support, kraus) = krausdict[m]
+		theta_support = tuple([q for q in support] + [(nq + q) for q in support])
+		
+		mem_start = sum(size_theta_contracted[:m])
+		mem_inter = mem_start + 16 ** len(support)
+		theta_real = np.reshape(theta_channels[mem_start : mem_inter], [2, 2] * len(theta_support))
+
+		mem_end = mem_inter + 16 ** len(support)
+		theta_imag = np.reshape(theta_channels[mem_inter : mem_end], [2, 2] * len(theta_support))
+		mem_start = mem_end
+
+		theta = theta_real + 1j * theta_imag
+
+		theta_dict[m] = (theta_support, theta)
+
+	# print("All theta matrices are done.")
 
 	click = timer()
 	(supp_theta, theta_contracted) = ContractTensorNetwork(theta_dict)
@@ -86,9 +111,9 @@ def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 
 	chi_diag = np.zeros(paulis.shape[0], dtype = np.double)
 	for i in range(paulis.shape[0]):
-		click = timer()
+		# click = timer()
 		chi_diag[i] = np.real(ThetaToChiElement(paulis[i, :], paulis[i, :], theta_contracted, supp_theta))
-		print("Chi[{}, {}] was computed in {} seconds.".format(i, i, timer() - click))
+		# print("Chi[{}, {}] was computed in {} seconds.".format(i, i, timer() - click))
 
 	# print("Pauli error probabilities:\n{}".format(chi_diag))
 	return chi_diag
@@ -115,7 +140,7 @@ def NoiseReconstruction(qcode, kraus_dict, max_weight=None):
 		filled += n_errors_weight[w]
 	
 	# In the chi matrix, fill the entries corresponding to nrops with the reconstruction data.
-	chi_partial = Chi_Element_Diag(kraus_dict, nrops, n_cores=1) # For debugging only.
+	chi_partial = Chi_Element_Diag(kraus_dict, nrops) # For debugging only.
 	chi = np.zeros(4**qcode.N, dtype = np.double)
 	start = 0
 	for w in range(max_weight + 1):

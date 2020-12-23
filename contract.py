@@ -1,5 +1,6 @@
 import string
 import numpy as np
+# from einsumt import einsumt as einsum
 from timeit import default_timer as timer
 
 

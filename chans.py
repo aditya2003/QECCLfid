@@ -34,9 +34,9 @@ def get_process_chi(qcode, method = "sum_unitaries", *params):
 	ptm = ConstructPTM(qcode, kraus_dict)
 	print("PTM was constructed in %d seconds." % (timer() - click))
 
-	if (CHI_PTM_Tests(chi, ptm, kraus_dict, kraus_dict_adj, qcode) == 0):
-		exit(0)
-	return (ptm, chi)
+	# if (CHI_PTM_Tests(chi, ptm, kraus_dict, kraus_dict_adj, qcode) == 0):
+	# 	exit(0)
+	return (ptm.reshape(-1), chi)
 
 
 def CHI_PTM_Tests(chi, ptm, kraus_dict, kraus_dict_adj, qcode):

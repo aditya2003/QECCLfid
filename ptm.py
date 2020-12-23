@@ -143,13 +143,21 @@ def ConstructPTM(qcode, kraus_dict):
 	for m in range(n_maps):
 		(support, kraus) = kraus_dict[m]
 		# print("support = {}".format(support))
+		
+		click = timer()
 		ptm = KrausToPTM(np.array(kraus))
+		print("PTM for map {} was constructed in {} seconds.".format(m + 1, timer() - click))
+		
 		if (PTMAdjointTest(np.array(kraus), ptm) == 0):
 			print("PTM adjoint test failed for map {}.".format(m + 1))
 			exit(0)
-		ptm_dict[m] = (support, ptm)
-	(supp_ptm, ptm_contracted) = ContractTensorNetwork(ptm_dict)
 	
+		ptm_dict[m] = (support, ptm)
+	
+	click = timer()
+	(supp_ptm, ptm_contracted) = ContractTensorNetwork(ptm_dict)
+	print("PTM tensor network was contracted in {} seconds.".format(timer() - click))
+
 	(ls_ops, phases) = GetOperatorsForTLSIndex(qcode, range(nstabs * nlogs))
 	process = np.zeros((nlogs * nstabs, nlogs * nstabs), dtype=np.double)
 	for i in range(nlogs * nstabs):

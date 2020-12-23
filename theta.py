@@ -23,6 +23,7 @@ def ThetaToChiElement(pauli_op_i, pauli_op_j, theta, supp_theta):
 	
 	(__, chi_elem) = ContractTensorNetwork(ops + PjT + Pi, end_trace=1)
 	chi_elem /= 4**nq
+	
 	# print("Chi element of Pauli op {} = {}".format(pauli_op_i, chi_elem))
 	if ((np.real(chi_elem) <= -1E-15) or (np.abs(np.imag(chi_elem)) >= 1E-15)):
 		print("Chi = %g + i %g" % (np.real(chi_elem), np.imag(chi_elem)))

@@ -71,18 +71,11 @@ def KrausToPTM(kraus):
 	ptm = np.zeros((4**nq, 4**nq), dtype = np.double)
 
 	# Preparing the Pauli operators.
-	click = timer()
 	pauli_tensors = np.zeros(tuple([4**nq] + [2, 2]*nq), dtype = np.complex128)
-
-	# print("Shape of pauli_tensors: {}".format(pauli_tensors.shape))
-
 	for i in range(4**nq):
 		pauli_op_i = GetNQubitPauli(i, nq)
 		Pi = [((q,), PauliTensor(pauli_op_i[q, np.newaxis])) for q in range(nq)]
 		(__, pauli_tensors[i]) = ContractTensorNetwork(Pi)
-
-	# print("Preparing Pauli tensors took {} seconds.".format(timer() - click))
-	click = timer()
 
 	for i in range(4**nq):
 		Pi_tensor = [(tuple(list(range(nq))), pauli_tensors[i])]
@@ -96,8 +89,8 @@ def KrausToPTM(kraus):
 				ptm[i, j] += np.real(innerprod)/2**nq
 
 	ptm_tensor = ptm.reshape(tuple([4, 4]*nq))
-	# print("PTM tensor of dimensions {} was computed in {} seconds.".format(ptm_tensor.shape, timer() - click))
 	return ptm_tensor
+
 
 def PTMAdjointTest(kraus, ptm):
 	# Check if the i,j element of the channel is j,i element of the adjoint channel.
@@ -154,23 +147,14 @@ def ConstructPTM(qcode, kraus_dict):
 		if (PTMAdjointTest(np.array(kraus), ptm) == 0):
 			print("PTM adjoint test failed for map {}.".format(m + 1))
 			exit(0)
-		# ptm_support = tuple([q for q in support] + [(qcode.N + q) for q in support])
 		ptm_dict[m] = (support, ptm)
-		# print("Map {}:\n{} qubit ptm supported on {} has shape {}.".format(m + 1, len(support), ptm_support, ptm.shape))
 	(supp_ptm, ptm_contracted) = ContractTensorNetwork(ptm_dict)
-	print("ptm_contracted supported on {} has shape: {}.".format(supp_ptm, ptm_contracted.shape))
-
-	# Derive the full PTM
-	# noiseless_qubits = np.setdiff1d([q for q in range(qcode.N)])
-	# ContractTensorNetwork()
-
+	
 	(ls_ops, phases) = GetOperatorsForTLSIndex(qcode, range(nstabs * nlogs))
 	process = np.zeros((nlogs * nstabs, nlogs * nstabs), dtype=np.double)
 	for i in range(nlogs * nstabs):
 		for j in range(nlogs * nstabs):
-			click = timer()
 			process[i, j] = np.real(phases[i] * phases[j] * ExtractPTMElement(ls_ops[i, :], ls_ops[j, :], ptm_contracted, supp_ptm))
-			# print("PTM[{}, {}] = {}, was done in {} seconds.".format(i, j, process[i, j], timer() - click))
 	return process
 
 

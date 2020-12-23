@@ -13,51 +13,14 @@ def ThetaToChiElement(pauli_op_i, pauli_op_j, theta, supp_theta):
 	# Note that [P_i o (P_j)^T] can be expressed as a product of the single qubit Pauli matrices
 	# (P^(1)_i)_(r1,c1) (P^(1)_j)_(c(N+1),r(N+1)) x ... x (P^(N)_i)_(c(N),r(N)) (P^(N)_j)_(c(2N),r(2N))
 	# We will store T as a Tensor with dimension = (2 * number of qubits) and bond dimension = 4.
-	#click = timer()
+	# click = timer()
 	nq = pauli_op_i.size
-	# print("nq = {}".format(nq))
-	#Pi = PauliTensor(pauli_op_i)
-	# print("Pi shape = {}".format(Pi.shape))
-	#Pj = PauliTensor(pauli_op_j)
-	# print("Pj shape = {}".format(Pj.shape))
-	#PjT = TensorTranspose(Pj)
-	# print("PjT shape = {}".format(PjT.shape))
-	#print("Building Paulis took {} seconds".format(timer() - click))
-	#click = timer()
-	#PioPjT = np.reshape(TensorKron(Pi, PjT), tuple([4, 4] * nq))
-	#print("TensorKron took {} seconds".format(timer() - click))
-	# print("PioPjT shape = {}".format(PioPjT.shape))
-	# supp_theta_tensor = np.concatenate((np.array(list(supp_theta), dtype = np.int), nq + np.array(list(supp_theta), dtype = np.int)))
-	# theta_tensor = theta.reshape([2, 2, 2, 2]*len(supp_theta))
-	# supp_theta_tensor = [q for q in supp_theta] + [(nq + q) for q in supp_theta]
-	supp_theta_tensor = supp_theta
-	# theta_reshaped = theta.reshape([2, 2, 2, 2] * len(supp_theta))
-	# print("theta_reshaped supported on {} has shape {}.".format(supp_theta_tensor, theta_reshaped.shape))
-	# exit(0);
-	# print("pauli_i\n{}\npauli_j\n{}".format(pauli_op_i, pauli_op_j))
-	click = timer()
-	ops = [(supp_theta_tensor, theta)]
+	ops = [(supp_theta, theta)]
 	
-	"""
-	Pj = list(map(lambda op: TensorTranspose(PauliTensor(op)), pauli_op_j[:, np.newaxis]))
-	Pi = list(map(lambda op: PauliTensor(op), pauli_op_i[:, np.newaxis]))
-	paulis = Pj + Pi
-	PjToPi = [None for __ in range(nq)]
-	for i in range(nq):
-		PjToPi[i] = ((i,), np.kron(paulis[2*i], paulis[2*i + 1]))
-	"""
-	# Pi = PauliTensor(pauli_op_i)
-	# Pj = PauliTensor(pauli_op_j)
-	# PjT = TensorTranspose(Pj)
-	# PjToPi = [(tuple(list(range(nq))), np.reshape(TensorKron(PjT, Pi), tuple([4, 4] * nq)))]
-
 	Pj = [((q,), PauliTensor(pauli_op_j[q, np.newaxis])) for q in range(nq)]
 	PjT = [((q,), (-1)**(int(pauli_op_j[q] == 2)) * PauliTensor(pauli_op_j[q, np.newaxis])) for q in range(nq)]
 	Pi = [((nq + q,), PauliTensor(pauli_op_i[q, np.newaxis])) for q in range(nq)]
-
-	# (__, PjToPi) = ContractTensorNetwork(PjT + Pi, end_trace=0)
-	# PjToPi_tensor = [(tuple(list(range(nq))), PjToPi.reshape([4, 4] * nq))]
-
+	
 	(__, chi_elem) = ContractTensorNetwork(ops + PjT + Pi, end_trace=1)
 	chi_elem /= 4**nq
 	# print("Chi element of Pauli op {} = {}".format(pauli_op_i, chi_elem))
@@ -80,15 +43,14 @@ def KraussToTheta(kraus):
 	nq = int(np.log2(kraus.shape[1]))
 	theta = np.zeros(tuple([2, 2, 2, 2]*nq), dtype = np.complex128)
 	# Preparing the Pauli operators.
-	click = timer()
-	pauli_tensors = np.zeros(tuple([4**nq] + [2, 2]*nq), dtype = np.complex128)
-	print("Shape of pauli_tensors: {}".format(pauli_tensors.shape))
+	# click = timer()
+	pauli_tensors = np.zeros(tuple([4**nq] + [2, 2]*nq), dtype = np.complex128)	
 	for i in range(4**nq):
 		pauli_op_i = GetNQubitPauli(i, nq)
 		Pi = [((q,), PauliTensor(pauli_op_i[q, np.newaxis])) for q in range(nq)]
 		(__, pauli_tensors[i]) = ContractTensorNetwork(Pi)
-	print("Preparing Pauli tensors took {} seconds.".format(timer() - click))
-	click = timer()
+	# print("Preparing Pauli tensors took {} seconds.".format(timer() - click))
+	# click = timer()
 	probs = 0
 	for i in range(4**nq):
 		#print("Pi: {}".format(GetNQubitPauli(i, nq)))
@@ -132,7 +94,7 @@ def KraussToTheta(kraus):
 				# chi_ij += TraceDot(Pi, K) * TraceDot(Pj, Kdag)
 			chi_ij /= 4**nq
 			if (i == j):
-				if ((np.real(chi_ij) <= -1E-15) or (np.abs(np.imag(chi_ij)) >= 1E-15)):
+				if ((np.real(chi_ij) <= -1E-14) or (np.abs(np.imag(chi_ij)) >= 1E-14)):
 					print("Chi[%d, %d] = %g + i %g" % (i, j, np.real(chi_ij), np.imag(chi_ij)))
 					exit(0)
 				else:
@@ -140,8 +102,8 @@ def KraussToTheta(kraus):
 			(__, PjToPi) = ContractTensorNetwork(PjT_tensor + Pi_tensor, end_trace=0)
 			theta += chi_ij * PjToPi
 		# print("----")
-	print("Sum of chi = {}.".format(probs))
-	print("Theta matrix was computed in {} seconds.".format(timer() - click))
+	# print("Sum of chi = {}.".format(probs))
+	# print("Theta matrix was computed in {} seconds.".format(timer() - click))
 	return theta
 
 

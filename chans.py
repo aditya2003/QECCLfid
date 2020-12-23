@@ -31,6 +31,8 @@ def get_process_chi(qcode, method = "sum_unitaries", *params):
 	ptm = ConstructPTM(qcode, kraus_dict)
 	print("PTM was constructed in %d seconds." % (timer() - click))
 	click = timer()
+	print("Process[0, 0] = {}".format(ptm[0, 0]))
+	print("||PTM - Diag(PTM)||_2 = {}".format(np.linalg.norm(ptm - np.diag(np.diag(ptm)))))
 	# for debugging, compare with old version.
 	# print("OLD")
 	# chi = get_chi_diagLST(qcode, kraus_dict)
@@ -41,24 +43,37 @@ def get_process_chi(qcode, method = "sum_unitaries", *params):
 	click = timer()
 	ptm_old = get_process_correlated(qcode, kraus_dict).reshape(256, 256)
 	print("Old PTM was constructed in %d seconds." % (timer() - click))
-	print("||PTM - PTM_old||_2 = {}".format(np.linalg.norm(ptm - ptm_old)))
+	print("Process[0, 0] = {}".format(ptm_old[0, 0]))
 	print("||PTM - Diag(PTM)||_2 = {}".format(np.linalg.norm(ptm_old - np.diag(np.diag(ptm_old)))))
 	# Check if the i,j element of the channel is j,i element of the adjoint channel.
+	n_maps = len(kraus_dict)
+	kraus_dict_adj = {}
 	for key, (support, krauslist) in kraus_dict.items():
-		for k in range(len(krauslist)):
-			kraus_dict[key][1][k] = Dagger(kraus_dict[key][1][k])
+		krauslist_adj = [Dagger(K) for K in krauslist]
+		kraus_dict_adj[n_maps - key - 1] = (support, krauslist_adj)
 	click = timer()
-	ptm_adj_old = get_process_correlated(qcode, kraus_dict).reshape(256, 256)
+	ptm_adj_old = get_process_correlated(qcode, kraus_dict_adj).reshape(256, 256)
 	print("Old adjoint PTM was constructed in %d seconds." % (timer() - click))
 	print("ptm_old - ptm_adj_old: {}".format(np.linalg.norm(ptm_old - ptm_adj_old.T)))
 	click = timer()
 	print("====")
 
+	print("||PTM - PTM_old||_2 = {}".format(np.linalg.norm(ptm - ptm_old)))
+	
 	click = timer()
-	ptm_adj = ConstructPTM(qcode, kraus_dict)
+	ptm_adj = ConstructPTM(qcode, kraus_dict_adj)
 	print("Adjoint PTM was constructed in %d seconds." % (timer() - click))
-	print("ptm - ptm_adj: {}".format(np.nonzero(ptm - ptm_adj.T)))
-	print("Process[0, 0] = {}".format(ptm[0, 0]))
-	print("||PTM - Diag(PTM)||_2 = {}".format(np.linalg.norm(ptm - np.diag(np.diag(ptm)))))
+	
+	print("||PTM_adj - PTM_adj_old||_2 = {}".format(np.linalg.norm(ptm_adj - ptm_adj_old)))
+
+	n_disagreements = np.count_nonzero(np.abs(ptm - ptm_adj.T) >= 1E-14)
+	print("ptm - ptm_adj differ at {} places and ||ptm - ptm_adj||_2 = {}.".format(n_disagreements, np.linalg.norm(ptm - ptm_adj.T)))
+	
+	(mismatches,) = np.nonzero(np.abs(np.diag(ptm) - np.diag(ptm_adj.T)) >= 1E-14)
+	print("Closeness of diagonal of PTM and PTM adjoint: {}.".format(np.allclose(np.diag(ptm), np.diag(ptm_adj))))
+	disagreements = zip(mismatches, np.diag(ptm)[mismatches], np.diag(ptm_adj.T)[mismatches])
+	print("{:<8} {:<8} {:<8}".format("P", "PTM", "PTM*"))
+	for (p, ptm_ii, ptm_adj_ii) in disagreements:
+		print("{:<8} {:<8} {:<8}".format("%d" % p, "%.5f" % ptm_ii, "%.5f" % ptm_adj_ii))
 	exit(0) # for debugging only
 	return (ptm, chi)

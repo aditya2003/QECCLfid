@@ -151,7 +151,7 @@ def ConstructPTM(qcode, kraus_dict):
 		(support, kraus) = kraus_dict[m]
 		# print("support = {}".format(support))
 		ptm = KrausToPTM(np.array(kraus))
-		if (PTMAdjointTest(kraus, ptm) == 0):
+		if (PTMAdjointTest(np.array(kraus), ptm) == 0):
 			print("PTM adjoint test failed for map {}.".format(m + 1))
 			exit(0)
 		# ptm_support = tuple([q for q in support] + [(qcode.N + q) for q in support])

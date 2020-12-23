@@ -39,8 +39,8 @@ def SumCptps(rotation_angle, qcode, cutoff = 3, n_maps = 3):
 	kraus_dict = {m:None for m in range(n_maps)}
 	n_nontrivial_maps = 0
 	for m in range(n_maps):
-		# n_q = SamplePoisson(mean = 1, cutoff=cutoff)
-		n_q = 2 # for debugging only
+		n_q = SamplePoisson(mean = 1, cutoff=cutoff)
+		# n_q = 2 # for debugging only
 		support = tuple(sorted((random.sample(range(qcode.N), n_q))))
 		if n_q == 0:
 			rand_unitary = 1.0

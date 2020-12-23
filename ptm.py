@@ -69,18 +69,18 @@ def KrausToPTM(kraus):
 
 	nq = int(np.log2(kraus.shape[1]))
 	ptm = np.zeros((4**nq, 4**nq), dtype = np.double)
-	
+
 	# Preparing the Pauli operators.
 	click = timer()
 	pauli_tensors = np.zeros(tuple([4**nq] + [2, 2]*nq), dtype = np.complex128)
-	
+
 	# print("Shape of pauli_tensors: {}".format(pauli_tensors.shape))
-	
+
 	for i in range(4**nq):
 		pauli_op_i = GetNQubitPauli(i, nq)
 		Pi = [((q,), PauliTensor(pauli_op_i[q, np.newaxis])) for q in range(nq)]
 		(__, pauli_tensors[i]) = ContractTensorNetwork(Pi)
-	
+
 	# print("Preparing Pauli tensors took {} seconds.".format(timer() - click))
 	click = timer()
 
@@ -121,12 +121,12 @@ def ExtractPTMElement(pauli_op_i, pauli_op_j, ptm, supp_ptm):
 	# We want << i(1) i(2) ... i(2n) | A | j(1) j(2) ... j(2n) >>, where i(k) in {0, 1}.
 	click = timer()
 	nq = pauli_op_i.shape[0]
-	
+
 	trivial_action = 1
 	for q in range(nq):
 		if q not in supp_ptm:
 			trivial_action *= int(pauli_op_i[q] == pauli_op_j[q])
-	
+
 	row_indices = []
 	col_indices = []
 	if (trivial_action != 0):
@@ -159,7 +159,7 @@ def ConstructPTM(qcode, kraus_dict):
 		# print("Map {}:\n{} qubit ptm supported on {} has shape {}.".format(m + 1, len(support), ptm_support, ptm.shape))
 	(supp_ptm, ptm_contracted) = ContractTensorNetwork(ptm_dict)
 	print("ptm_contracted supported on {} has shape: {}.".format(supp_ptm, ptm_contracted.shape))
-	
+
 	# Derive the full PTM
 	# noiseless_qubits = np.setdiff1d([q for q in range(qcode.N)])
 	# ContractTensorNetwork()
@@ -189,7 +189,9 @@ def PTM_Element(krausdict, Pi, Pjlist, n_qubits,phasei=None,phasej=None):
 	if phasej is None:
 		phasej = np.ones(len(Pjlist))
 	Pres = np.zeros_like(Pi)
-	for key, (support, krausList) in krausdict.items():
+	n_maps = len(krausdict)
+	for key in range(n_maps):
+		(support,krausList) = krausdict[key]
 		indices = support + tuple(map(lambda x: x + n_qubits, support))
 		if len(indices) > 0:
 			Pres = np.sum([get_kraus_conj(kraus, Pi, indices) for kraus in krausList], axis=0)

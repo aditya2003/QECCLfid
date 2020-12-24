@@ -1,10 +1,10 @@
 import string
 import numpy as np
-# from einsumt import einsumt as einsum
+from einsumt import einsumt as einsum_parallel
 from timeit import default_timer as timer
 
 
-def OptimalEinsum(scheme, ops, opt = "greedy", verbose=0):
+def OptimalEinsum(scheme, ops, opt = "greedy", verbose=0, parallel=0):
 	# Contract a tensor network using einsum supplemented with its optimization tools.
 	ops_args = ", ".join([("ops[%d]" % d) for d in range(len(ops))])
 	#print("Calling np.einsum({}, {})\nwhere shapes are\n{}.".format(scheme, ops_args, [op.shape for op in ops]))
@@ -12,7 +12,10 @@ def OptimalEinsum(scheme, ops, opt = "greedy", verbose=0):
 	path = eval("np.einsum_path(\'%s\', %s, optimize=\'%s\')" % (scheme, ops_args, opt))
 	if verbose == 1:
 		print("Contraction process\n{}: {}\n{}".format(path[0][0], path[0][1:], path[1]))
-	prod = np.einsum(scheme, *ops, optimize=path[0])
+	if (parallel == 0):
+		prod = np.einsum(scheme, *ops, optimize=path[0])
+	else:
+		prod = einsum_parallel(scheme, *ops, optimize=path[0])
 	# tfops = [tf.convert_to_tensor(op) for op in ops]
 	# prod = tf.einsum(scheme, *tfops, optimize=opt)
 	end = timer()
@@ -57,7 +60,7 @@ def SupportToLabel(supports, characters = None):
 	return (labels, free_index)
 
 
-def ContractTensorNetwork(network, end_trace=0):
+def ContractTensorNetwork(network, end_trace=0, parallel=0):
 	# Compute the Theta matrix of a composition of channels.
 	# The individual channels are provided a list where each one is a pair: (s, O) where s is the support and O is the theta matrix.
 	# We will use einsum to contract the tensor network of channels.
@@ -95,7 +98,7 @@ def ContractTensorNetwork(network, end_trace=0):
 	scheme = "%s->%s" % (left, right)
 	# print("Contraction scheme = {}".format(scheme))
 	theta_ops = [op for (__, op) in network]
-	composed = OptimalEinsum(scheme, theta_ops, opt="greedy", verbose=0)
+	composed = OptimalEinsum(scheme, theta_ops, opt="greedy", verbose=0, parallel=0)
 	#composed_dict = [(composed_support, composed)]
 	return (composed_support, composed)
 

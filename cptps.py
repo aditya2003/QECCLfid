@@ -6,6 +6,7 @@ from define.QECCLfid.utils import SamplePoisson
 def HermitianConjugate(M):
 	return M.conj().T
 
+
 def StineToKraus(U):
 	# Compute the Krauss operators for the input quantum channel, which is represented in the Stinespring dialation
 	# The Krauss operator T_k is given by: <a|T_k|b> = <a e_k|U|b e_0> , where {|e_i>} is a basis for the environment and |a>, |b> are basis vectors of the system
@@ -19,7 +20,8 @@ def StineToKraus(U):
 			krauss[:, r, c] = U[r * 4**nq + np.arange(4**nq, dtype = np.int), c * 4**nq]
 	return krauss
 
-def SumCptps(rotation_angle, qcode, cutoff = 3, n_maps = 3):
+
+def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3):
 	r"""
 	Sub-routine to prepare the dictionary for error eps = sum of cptp maps
 	Generates Kraus by using Stine to Kraus
@@ -62,6 +64,10 @@ def SumCptps(rotation_angle, qcode, cutoff = 3, n_maps = 3):
 			non_trivial_channels[n_nontrivial_maps] = (support, kraus)
 			supports[n_nontrivial_maps] = support
 			n_nontrivial_maps += 1
+
+	# If the Kraus list is empty, then append the identity error on some qubit.
+	if len(non_trivial_channels) == 0:
+		non_trivial_channels = {0: ((0,), [np.eye(2, dtype = np.complex128)])}
 
 	print("Random channel generated with the following {} interactions\n{}.".format(n_nontrivial_maps, supports))
 	return non_trivial_channels

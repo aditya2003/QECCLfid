@@ -2,14 +2,14 @@ import numpy as np
 from define.QECCLfid.ising import Ising
 from define.QECCLfid.utils import Dagger
 from timeit import default_timer as timer
-from define.QECCLfid.sum_cptps import SumCptps
+from define.QECCLfid.cptps import CorrelatedCPTP
 from define.QECCLfid.sum_unitaries import SumUnitaries
 from define.QECCLfid.multi_qubit_kraus import get_process_correlated, get_chi_diagLST
 from define.QECCLfid.ptm import ConstructPTM
 from define.QECCLfid.chi import NoiseReconstruction
 
 
-def get_process_chi(qcode, method = "sum_unitaries", *params):
+def GetProcessChi(qcode, method = "sum_unitaries", *params):
 	nstabs = 2 ** (qcode.N - qcode.K)
 	nlogs = 4 ** qcode.K
 	if method == "sum_unitaries":
@@ -20,9 +20,10 @@ def get_process_chi(qcode, method = "sum_unitaries", *params):
 		kraus_dict = Ising(J, mu, time, qcode)
 	elif method == "sum_cptps":
 		(angle, cutoff, n_maps) = params[:3]
-		kraus_dict = SumCptps(angle, qcode, cutoff = int(cutoff), n_maps = int(n_maps))
+		kraus_dict = CorrelatedCPTP(angle, qcode, cutoff = int(cutoff), n_maps = int(n_maps))
 	else:
 		pass
+	
 	# Prepare the adjoint channel for PTM checks.
 	kraus_dict_adj = AdjointChannel(kraus_dict)
 	
@@ -36,7 +37,11 @@ def get_process_chi(qcode, method = "sum_unitaries", *params):
 
 	# if (CHI_PTM_Tests(chi, ptm, kraus_dict, kraus_dict_adj, qcode) == 0):
 	# 	exit(0)
-	return (ptm.reshape(-1), chi)
+	interactions = []
+	for m in kraus_dict:
+		interactions.append(kraus_dict[m][0])
+	misc_info = (interactions, 1 - chi[0], 1 - np.sum(chi), np.linalg.norm(ptm - np.diag(np.diag(ptm))))
+	return (ptm.reshape(-1), chi, misc_info)
 
 
 def CHI_PTM_Tests(chi, ptm, kraus_dict, kraus_dict_adj, qcode):

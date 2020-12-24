@@ -187,7 +187,7 @@ def ConstructPTM(qcode, kraus_dict, n_cores = None):
 		mem_start = mem_end
 	
 	click = timer()
-	(supp_ptm, ptm_contracted) = ContractTensorNetwork(ptm_dict)
+	(supp_ptm, ptm_contracted) = ContractTensorNetwork(ptm_dict, parallel=1)
 	print("PTM tensor network was contracted in {} seconds.".format(timer() - click))
 
 	(ls_ops, phases) = GetOperatorsForTLSIndex(qcode, range(nstabs * nlogs))

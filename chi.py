@@ -2,7 +2,9 @@ import time
 import numpy as np
 import ctypes as ct
 from tqdm import tqdm
+from sys import getsizeof
 import multiprocessing as mp
+from psutil import virtual_memory
 from timeit import default_timer as timer
 from define.QECCLfid.contract import ContractTensorNetwork
 from define.QECCLfid.theta import KraussToTheta,ThetaToChiElement
@@ -112,11 +114,20 @@ def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 	# print("All theta matrices are done.")
 
 	click = timer()
-	(supp_theta, theta_contracted) = ContractTensorNetwork(theta_dict)
+	(supp_theta, theta_contracted) = ContractTensorNetwork(theta_dict, parallel=1)
 	print("Theta tensor network was contracted in {} seconds.".format(timer() - click))
+
+	# If the memory required by a theta matrix is X, then we are limited to RAM/X cores, where RAM is the total physical memory required.
+	ram = virtual_memory().total/1E9
+	theta_mem_size = getsizeof(theta_contracted)/1E9
+	n_cores_ram = ram/theta_mem_size
 
 	if (n_cores is None):
 		n_cores = mp.cpu_count()
+
+	if (n_cores_ram < n_cores):
+		print("Downsizing to {} cores since the total RAM available is only {} GB and each process needs {} GB.".format(ram, theta_mem_size))
+		n_cores = min(n_cores, n_cores_ram)
 
 	mp_chi = mp.Array(ct.c_double, paulis.shape[0])
 	

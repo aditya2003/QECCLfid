@@ -73,6 +73,7 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3):
 	print("Random channel generated with the following {} interactions\n{}.".format(n_nontrivial_maps, supports))
 	return non_trivial_channels
 
+
 def KrausTest(kraus):
 	# Given a set of Kraus operators {K_i}, check if \sum_i [ (K_i)^dag K_i ] = I.
 	total = np.zeros((kraus.shape[1], kraus.shape[2]), dtype = np.complex128)

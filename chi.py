@@ -51,10 +51,10 @@ def Chi_Element_Diag_Partial(map_start, map_end, mem_start, theta_channels, krau
 	return None
 
 
-def Theta_Chi_Partial(core, start, stop, mp_chi, paulis, theta, supp_theta):
+def Theta_Chi_Partial(core, start, stop, mp_chi, paulis, theta_dict):
 	# Compute the chi matrix elements for a list of Paulis
 	for i in tqdm(range(start, stop), ascii=True, desc="Core %d" % (core + 1), position=core+1):
-		mp_chi[i] = np.real(ThetaToChiElement(paulis[i, :], paulis[i, :], theta, supp_theta))
+		mp_chi[i] = np.real(ThetaToChiElement(paulis[i, :], paulis[i, :], theta_dict))
 	return None
 
 
@@ -113,13 +113,9 @@ def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 
 	# print("All theta matrices are done.")
 
-	click = timer()
-	(supp_theta, theta_contracted) = ContractTensorNetwork(theta_dict, parallel=1)
-	print("Theta tensor network was contracted in {} seconds.".format(timer() - click))
-
 	# If the memory required by a theta matrix is X, then we are limited to RAM/X cores, where RAM is the total physical memory required.
 	ram = virtual_memory().total/1E9
-	theta_mem_size = getsizeof(theta_contracted)/1E9
+	theta_mem_size = getsizeof(theta_dict)/1E9
 	n_cores_ram = int(ram/theta_mem_size)
 
 	if (n_cores is None):
@@ -136,7 +132,7 @@ def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 	for p in range(n_cores):
 		start = p * chunk
 		stop = min((p + 1) * chunk, paulis.shape[0])
-		processes.append(mp.Process(target=Theta_Chi_Partial, args = (p, start, stop, mp_chi, paulis, theta_contracted, supp_theta)))
+		processes.append(mp.Process(target=Theta_Chi_Partial, args = (p, start, stop, mp_chi, paulis, theta_dict)))
 	for p in range(n_cores):
 		processes[p].start()
 	for p in range(n_cores):

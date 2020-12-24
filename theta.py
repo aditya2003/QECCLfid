@@ -4,7 +4,7 @@ from define.QECCLfid.tensor import TensorTranspose, TensorKron, TensorTrace, Tra
 from define.QECCLfid.contract import ContractTensorNetwork
 from timeit import default_timer as timer
 
-def ThetaToChiElement(pauli_op_i, pauli_op_j, theta, supp_theta):
+def ThetaToChiElement(pauli_op_i, pauli_op_j, theta_dict):
 	# Convert from the Theta representation to the Chi representation.
 	# The "Theta" matrix T of a CPTP map whose chi-matrix is X is defined as:
 	# T_ij = \sum_(ij) [ X_ij (P_i o (P_j)^T) ]
@@ -15,13 +15,13 @@ def ThetaToChiElement(pauli_op_i, pauli_op_j, theta, supp_theta):
 	# We will store T as a Tensor with dimension = (2 * number of qubits) and bond dimension = 4.
 	# click = timer()
 	nq = pauli_op_i.size
-	ops = [(supp_theta, theta)]
+	# ops = [(supp_theta, theta)]
 	
 	Pj = [((q,), PauliTensor(pauli_op_j[q, np.newaxis])) for q in range(nq)]
 	PjT = [((q,), (-1)**(int(pauli_op_j[q] == 2)) * PauliTensor(pauli_op_j[q, np.newaxis])) for q in range(nq)]
 	Pi = [((nq + q,), PauliTensor(pauli_op_i[q, np.newaxis])) for q in range(nq)]
 	
-	(__, chi_elem) = ContractTensorNetwork(ops + PjT + Pi, end_trace=1)
+	(__, chi_elem) = ContractTensorNetwork(theta_dict + PjT + Pi, end_trace=1)
 	chi_elem /= 4**nq
 	
 	# print("Chi element of Pauli op {} = {}".format(pauli_op_i, chi_elem))
@@ -29,7 +29,6 @@ def ThetaToChiElement(pauli_op_i, pauli_op_j, theta, supp_theta):
 		print("Chi = %g + i %g" % (np.real(chi_elem), np.imag(chi_elem)))
 		exit(0)
 	return chi_elem
-
 
 def KraussToTheta(kraus):
 	# Convert from the Kraus representation to the "Theta" representation.
@@ -44,20 +43,18 @@ def KraussToTheta(kraus):
 	nq = int(np.log2(kraus.shape[1]))
 	chi = np.zeros((4**nq, 4**nq), dtype = np.complex128)
 	theta = np.zeros(tuple([2, 2, 2, 2]*nq), dtype = np.complex128)
+	
 	# Preparing the Pauli operators.
-	click = timer()
+	# click = timer()
 	pauli_tensors = np.zeros(tuple([4**nq] + [2, 2]*nq), dtype = np.complex128)	
 	for i in range(4**nq):
 		pauli_op_i = GetNQubitPauli(i, nq)
 		Pi = [((q,), PauliTensor(pauli_op_i[q, np.newaxis])) for q in range(nq)]
 		(__, pauli_tensors[i]) = ContractTensorNetwork(Pi)
-	print("Preparing Pauli tensors took {} seconds.".format(timer() - click))
-	# click = timer()
+	# print("Preparing Pauli tensors took {} seconds.".format(timer() - click))
+	
+	click = timer()
 	for i in range(4**nq):
-		#print("Pi: {}".format(GetNQubitPauli(i, nq)))
-		#pauli_op_i = GetNQubitPauli(i, nq)
-		#Pi = [((nq + q,), PauliTensor(pauli_op_i[q, np.newaxis])) for q in range(nq)]
-		#Pi_tensor = [ContractTensorNetwork(Pi)]
 		Pi_tensor = [(tuple([(nq + q) for q in range(nq)]), pauli_tensors[i])]
 		
 		for j in range(4**nq):
@@ -89,7 +86,7 @@ def KraussToTheta(kraus):
 			(__, PjToPi) = ContractTensorNetwork(PjT_tensor + Pi_tensor, end_trace=0)
 			theta += chi[i, j] * PjToPi
 			
-			print("Chi[%d, %d] = %g + i %g was computed in %g seconds." % (i, j, np.real(chi[i, j]), np.imag(chi[i, j]), timer() - click))
+			# print("Chi[%d, %d] = %g + i %g was computed in %d seconds." % (i, j, np.real(chi[i, j]), np.imag(chi[i, j]), timer() - click))
 		# print("----")
 	
 	# print("Theta matrix was computed in {} seconds.".format(timer() - click))

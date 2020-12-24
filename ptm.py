@@ -73,22 +73,29 @@ def KrausToPTM(kraus):
 	ptm = np.zeros((4**nq, 4**nq), dtype = np.double)
 
 	# Preparing the Pauli operators.
-	pauli_tensors = np.zeros(tuple([4**nq] + [2, 2]*nq), dtype = np.complex128)
+	pauli_tensors = [None for __ in range(4**nq)]
 	for i in range(4**nq):
 		pauli_op_i = GetNQubitPauli(i, nq)
-		Pi = [((q,), PauliTensor(pauli_op_i[q, np.newaxis])) for q in range(nq)]
-		(__, pauli_tensors[i]) = ContractTensorNetwork(Pi)
+		pauli_tensors[i] = [((q,), PauliTensor(pauli_op_i[q, np.newaxis])) for q in range(nq)]
 
 	for i in range(4**nq):
-		Pi_tensor = [(tuple(list(range(nq))), pauli_tensors[i])]
+		Pi = pauli_tensors[i]
+		
 		for j in range(4**nq):
-			Pj_tensor = [(tuple(list(range(nq))), pauli_tensors[j])]
+			Pj = pauli_tensors[j]
+			
+			# click = timer()
+
 			for k in range(kraus.shape[0]):
 				supp_K = tuple(list(range(nq)))
+				
 				K = [(supp_K, np.reshape(kraus[k, :, :], tuple([2, 2]*nq)))]
 				Kdag = [(supp_K, np.reshape(Dagger(kraus[k, :, :]), tuple([2, 2]*nq)))]
-				(__, innerprod) = ContractTensorNetwork(K + Pi_tensor + Kdag + Pj_tensor, end_trace = 1)
+				
+				(__, innerprod) = ContractTensorNetwork(K + Pi + Kdag + Pj, end_trace = 1)
 				ptm[i, j] += np.real(innerprod)/2**nq
+
+			# print("PTM[%d, %d] was computed in %g seconds." % (i, j, timer() - click))
 
 	ptm_tensor = ptm.reshape(tuple([4, 4]*nq))
 	return ptm_tensor

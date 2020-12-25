@@ -55,6 +55,8 @@ def Theta_Chi_Partial(core, start, stop, mp_chi, paulis, theta_dict):
 	# Compute the chi matrix elements for a list of Paulis
 	for i in tqdm(range(start, stop), ascii=True, desc="Core %d" % (core + 1), position=core+1):
 		mp_chi[i] = np.real(ThetaToChiElement(paulis[i, :], paulis[i, :], theta_dict))
+	# for i in range(start, stop):
+	# 	mp_chi[i] = np.real(ThetaToChiElement(paulis[i, :], paulis[i, :], theta_dict))
 	return None
 
 
@@ -164,7 +166,7 @@ def NoiseReconstruction(qcode, kraus_dict, max_weight=None):
 		filled += n_errors_weight[w]
 	
 	# In the chi matrix, fill the entries corresponding to nrops with the reconstruction data.
-	chi_partial = Chi_Element_Diag(kraus_dict, nrops) # For debugging only.
+	chi_partial = Chi_Element_Diag(kraus_dict, nrops)
 	chi = np.zeros(4**qcode.N, dtype = np.double)
 	start = 0
 	for w in range(max_weight + 1):

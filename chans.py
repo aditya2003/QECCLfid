@@ -28,8 +28,8 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 	kraus_dict_adj = AdjointChannel(kraus_dict)
 	
 	click = timer()
-	# chi = NoiseReconstruction(qcode, kraus_dict)
-	chi = None # only for debugging
+	chi = NoiseReconstruction(qcode, kraus_dict)
+	# chi = None # only for debugging
 	print("CHI was constructed in %d seconds." % (timer() - click))
 	
 	click = timer()

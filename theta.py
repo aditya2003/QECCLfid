@@ -26,9 +26,11 @@ def ThetaToChiElement(pauli_op_i, pauli_op_j, theta_dict):
 	
 	# print("Chi element of Pauli op {} = {}".format(pauli_op_i, chi_elem))
 	if ((np.real(chi_elem) <= -1E-15) or (np.abs(np.imag(chi_elem)) >= 1E-15)):
+		print("Pi\n{}\nPj\n{}".format(pauli_op_i, pauli_op_j))
 		print("Chi = %g + i %g" % (np.real(chi_elem), np.imag(chi_elem)))
 		exit(0)
 	return chi_elem
+
 
 def KraussToTheta(kraus):
 	# Convert from the Kraus representation to the "Theta" representation.
@@ -65,7 +67,7 @@ def KraussToTheta(kraus):
 
 			click = timer()
 
-			if (j <= i):
+			if (i <= j):
 				for k in range(kraus.shape[0]):
 					supp_K = tuple(list(nq + np.arange(nq, dtype = np.int)))
 					K = [(supp_K, np.reshape(kraus[k, :, :], tuple([2, 2]*nq)))]
@@ -80,7 +82,7 @@ def KraussToTheta(kraus):
 			
 			if (i == j):
 				if ((np.real(chi[i, j]) <= -1E-14) or (np.abs(np.imag(chi[i, j])) >= 1E-14)):
-					print("Chi[%d, %d] = %g + i %g" % (i, j, np.real(chi[i, j]), np.imag(chi[i, j])))
+					print("Error: Chi[%d, %d] = %g + i %g" % (i, j, np.real(chi[i, j]), np.imag(chi[i, j])))
 					exit(0)
 			
 			(__, PjToPi) = ContractTensorNetwork(PjT_tensor + Pi_tensor, end_trace=0)

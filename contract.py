@@ -1,26 +1,21 @@
 import string
 import numpy as np
-from einsumt import einsumt as einsum_parallel
 from timeit import default_timer as timer
 
 
 def OptimalEinsum(scheme, ops, opt = "greedy", verbose=0, parallel=0):
 	# Contract a tensor network using einsum supplemented with its optimization tools.
-	ops_args = ", ".join([("ops[%d]" % d) for d in range(len(ops))])
 	#print("Calling np.einsum({}, {})\nwhere shapes are\n{}.".format(scheme, ops_args, [op.shape for op in ops]))
+	
 	start = timer()
-	path = eval("np.einsum_path(\'%s\', %s, optimize=\'%s\')" % (scheme, ops_args, opt))
-	if verbose == 1:
-		print("Contraction process\n{}: {}\n{}".format(path[0][0], path[0][1:], path[1]))
-	if (parallel == 0):
-		prod = np.einsum(scheme, *ops, optimize=path[0])
-	else:
-		prod = einsum_parallel(scheme, *ops, optimize=path[0])
-	# tfops = [tf.convert_to_tensor(op) for op in ops]
-	# prod = tf.einsum(scheme, *tfops, optimize=opt)
+	
+	prod = np.einsum(scheme, *ops, optimize="greedy")
+	
 	end = timer()
+	
 	if verbose == 1:
 		print("Einsum({}, {})\nwhere shapes are\n{}\ntook {} seconds.".format(scheme, ops_args, [op.shape for op in ops], int(end - start)))
+	
 	return prod
 
 
@@ -29,8 +24,9 @@ def SupportToLabel(supports, characters = None):
 	# Each qubit index corresponds to a pair of labels, indicating the row and column indices of the 2 x 2 matrix which acts non-trivially on that qubit.
 	# Each number in the support is mapped to a pair of alphabets in the characters list, as: x -> (characters[2x], characters[2x + 1]).
 	# Eg. (x, y, z) ---> (C[2x] C[2y] C[2z] , C[2x + 1] C[2y + 1] C[2z + 1])
-	if characters == None:
-		characters = [c for c in string.ascii_lowercase] + [c for c in string.ascii_uppercase]
+	# if characters == None:
+	# 	characters = [c for c in string.ascii_lowercase] + [c for c in string.ascii_uppercase]
+	symbols = list(range(sum([2 * len(interac) for interac in supports])))
 	#print("characters\n{}".format(characters))
 	#print("support\n{}".format(supports))
 	labels = [[[-1, -1] for q in interac] for interac in supports]
@@ -71,11 +67,11 @@ def ContractTensorNetwork(network, end_trace=0, parallel=0):
 
 	(contraction_labels, free_labels) = SupportToLabel(supports)
 	# print("contraction_labels = {}".format(contraction_labels))
-	row_labels = ["".join([q[0] for q in interac]) for interac in contraction_labels]
+	row_labels = [[q[0] for q in interac] for interac in contraction_labels]
 	# print("row_contraction_labels = {}".format(row_labels))
-	col_labels = ["".join([q[1] for q in interac]) for interac in contraction_labels]
+	col_labels = [[q[1] for q in interac] for interac in contraction_labels]
 	# print("col_contraction_labels = {}".format(col_labels))
-	left = ",".join(["%s%s" % (row_labels[i], col_labels[i]) for i in range(len(contraction_labels))])
+	left = [row_labels[i] + col_labels[i] for i in range(len(contraction_labels))]
 	# print("left = {}".format(left))
 	free_row_labels = [free_labels[q][0] for q in free_labels]
 	#print("free_row_labels = {}".format(free_row_labels))
@@ -87,19 +83,30 @@ def ContractTensorNetwork(network, end_trace=0, parallel=0):
 		# So we should make sure that the i-th free row index = i-th free column index.
 		# print("left before end trace\n{}-->{}|{}".format(left, "".join(free_row_labels), "".join(free_col_labels)))
 		for (r_lab, c_lab) in zip(free_row_labels, free_col_labels):
-			left = left.replace(c_lab, r_lab)
+			# left = left.replace(c_lab, r_lab)
+			left = np.where(np.array(left, dtype = np.int) == c_lab, r_lab, np.array(left, dtype = np.int))
 		# print("left after end trace = {}".format(left))
-		right = ""
+		right = []
 		composed_support = []
 	else:
-		right = "%s%s" % ("".join(free_row_labels), "".join(free_col_labels))
+		# right = "%s%s" % ("".join(free_row_labels), "".join(free_col_labels))
+		right = row_labels + col_labels
 		composed_support = np.unique([q for (sup, op) in network for q in sup])
 	#print("right = {}".format(right))
-	scheme = "%s->%s" % (left, right)
-	# print("Contraction scheme = {}".format(scheme))
-	theta_ops = [op for (__, op) in network]
-	composed = OptimalEinsum(scheme, theta_ops, opt="greedy", verbose=0, parallel=0)
-	#composed_dict = [(composed_support, composed)]
+	
+	operators = [(__, op) for op in network]
+	scheme = []
+	for i in range(2 * len(left)):
+		scheme.append(left[i])
+		scheme.append(operators[i])
+	scheme.append(right)
+	
+	start = timer()
+	composed = np.einsum(scheme, optimize="greedy")
+	end = timer()
+
+	# print("Einsum({}, {})\nwhere shapes are\n{}\ntook {} seconds.".format(scheme, ops_args, [op.shape for op in ops], int(end - start)))
+
 	return (composed_support, composed)
 
 

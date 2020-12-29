@@ -1,5 +1,6 @@
 import numpy as np
-from define.QECCLfid.utils import GetNQubitPauli, PauliTensor
+cimport numpy as np
+from define.QECCLfid.utils import PauliTensor
 from define.QECCLfid.tensor import TensorTranspose, TensorKron, TensorTrace, TraceDot
 from define.QECCLfid.contract import ContractTensorNetwork
 from timeit import default_timer as timer
@@ -32,7 +33,7 @@ def ThetaToChiElement(pauli_op_i, pauli_op_j, theta_dict):
 	return chi_elem
 
 
-def KraussToTheta(kraus):
+def KraussToTheta(np.ndarray[np.complex128, ndim=3] kraus):
 	# Convert from the Kraus representation to the "Theta" representation.
 	# The "Theta" matrix T of a CPTP map whose chi-matrix is X is defined as:
 	# T_ij = \sum_(ij) [ X_ij (P_i o (P_j)^T) ]
@@ -42,33 +43,53 @@ def KraussToTheta(kraus):
 	# So we find that
 	# T = \sum_(ij) [ \sum_k [ Tr(P_i K_k) Tr((K_k)^\dag P_j)] ] (P_i o (P_j)^T) ]
 	# We will store T as a Tensor with dimension = (2 * number of qubits) and bond dimension = 4.
-	nq = int(np.log2(kraus.shape[1]))
-	chi = np.zeros((4**nq, 4**nq), dtype = np.complex128)
-	theta = np.zeros(tuple([2, 2, 2, 2]*nq), dtype = np.complex128)
+	cdef np.ndarray[np.complex128, ndim=3] Paulis = np.array([[[1, 0], [0, 1]], [[0, 1], [1, 0]], [[0, -1j], [1j, 0]], [[1, 0], [0, -1]]], dtype=nb.complex128)
 	
+	cdef int nq = int(np.log2(kraus.shape[1]))
+	
+	cdef double transpose_sign = 0	
+	cdef np.ndarray[np.complex128, ndim=2] chi = np.zeros((4**nq, 4**nq), dtype = np.complex128)
+	
+	cdef np.ndarray[np.complex128, ndim=4 * nq] theta = np.zeros(tuple([2, 2, 2, 2]*nq), dtype = np.complex128)
+	cdef np.ndarray[np.complex128, ndim=4 * nq] PjoPi = np.zeros(tuple([2, 2, 2, 2]*nq), dtype = np.complex128)
+	cdef np.ndarray[np.complex128, ndim=4 * nq] PjToPi = np.zeros(tuple([2, 2, 2, 2]*nq), dtype = np.complex128)
+
+	cdef np.ndarray[np.int, ndim=1] supp_Kdag = np.arange(nq, dtype = np.int)
+	cdef np.ndarray[np.int, ndim=1] supp_K = np.arange(nq, dtype = np.int) + nq
+	cdef np.complex128_t tr_Pi_K = 0
+	cdef np.complex128_t tr_Pi_K_dag = 0
+
+	# loop variables.
+	cdef int i, j, k, q, index, y_count
+
 	# Preparing the Pauli operators.
 	# click = timer()
-	pauli_operators = np.zeros((4**nq, nq), dtype = np.int)	
+	cdef np.ndarray[np.int, ndim=2] pauli_operators = np.zeros((4**nq, nq), dtype = np.int)	
+	cdef np.ndarray[np.int, ndim=1] transpose_signs = 1
 	for i in range(4**nq):
-		pauli_operators[i, :] = GetNQubitPauli(i, nq)
+		index = i
+		y_count = 0
+		for q in range(nq):
+			pauli_operators[i, nq - q - 1] = index % 4
+			index = int(index//4)
+			# Count the number of Ys' for computing the transpose.
+			if (pauli_operators[i, q] == 2):
+				y_count += 1
+		transpose_signs[i] = (-1) ** y_count 
 	
-	click = timer()
+	# click = timer()
 	for i in range(4**nq):
 		Pi_tensor = [((q,), Paulis[pauli_operators[i, q], :, :]) for q in range(nq)]
 		
 		for j in range(4**nq):
 			Pj_tensor = [((q,), Paulis[pauli_operators[j, q], :, :]) for q in range(nq)]
-			transpose_sign = (-1) ** np.count_nonzero(pauli_operators[j, :] == 2)
 			#PjT_tensor = [(tuple(list(range(nq))), transpose_sign * pauli_tensors[j])]
 
-			click = timer()
+			# click = timer()
 
 			if (i <= j):
 				for k in range(kraus.shape[0]):
-					supp_K = tuple(list(nq + np.arange(nq, dtype = np.int)))
 					K = [(supp_K, np.reshape(kraus[k, :, :], tuple([2, 2]*nq)))]
-					
-					supp_Kdag = tuple(list(np.arange(nq, dtype = np.int)))
 					Kdag = [(supp_Kdag, np.reshape(np.conj(kraus[k, :, :].T), tuple([2, 2]*nq)))]
 					
 					(__, tr_Pi_K) = ContractTensorNetwork(K + Pi_tensor, end_trace=1)
@@ -87,7 +108,7 @@ def KraussToTheta(kraus):
 					exit(0)
 			
 			(__, PjoPi) = ContractTensorNetwork(Pj_tensor + Pi_tensor, end_trace=0)
-			PjToPi = PjoPi * transpose_sign
+			PjToPi = PjoPi * transpose_signs[j]
 			theta += chi[i, j] * PjToPi
 			
 			# print("Chi[%d, %d] = %g + i %g was computed in %d seconds." % (i, j, np.real(chi[i, j]), np.imag(chi[i, j]), timer() - click))
@@ -95,24 +116,3 @@ def KraussToTheta(kraus):
 	
 	# print("Theta matrix was computed in {} seconds.".format(timer() - click))
 	return theta
-
-
-if __name__ == '__main__':
-	# depolarizing channel
-	N = 1
-	Pauli = np.array([[[1, 0], [0, 1]], [[0, 1], [1, 0]], [[0, -1j], [1j, 0]], [[1, 0], [0, -1]]], dtype=np.complex128)
-	kraus_dp = np.zeros((4**N, 2**N, 2**N), dtype = np.complex128)
-	rate = 0.1
-	kraus_dp[0, :, :] = np.sqrt(1 - rate) * Pauli[0, :, :]
-	for k in range(1, 4):
-		kraus_dp[k, :, :] = np.sqrt(rate/3) * Pauli[k, :, :]
-	theta = KraussToTheta(kraus_dp)
-	print("Theta\n{}".format(theta))
-
-	# testing theta to chi element
-	pauli_op_i = GetNQubitPauli(0, 4)
-	pauli_op_j = GetNQubitPauli(0, 4)
-	theta = np.random.rand(16, 16)
-	supp_theta = (0, 1)
-	chi_ij = ThetaToChiElement(pauli_op_i, pauli_op_j, theta, supp_theta)
-	print("chi_ij = {}".format(chi_ij))

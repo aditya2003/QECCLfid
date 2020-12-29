@@ -1,4 +1,3 @@
-import string
 import numpy as np
 from timeit import default_timer as timer
 
@@ -6,16 +5,16 @@ from timeit import default_timer as timer
 def OptimalEinsum(scheme, ops, opt = "greedy", verbose=0, parallel=0):
 	# Contract a tensor network using einsum supplemented with its optimization tools.
 	#print("Calling np.einsum({}, {})\nwhere shapes are\n{}.".format(scheme, ops_args, [op.shape for op in ops]))
-	
+
 	start = timer()
-	
+
 	prod = np.einsum(scheme, *ops, optimize="greedy")
-	
+
 	end = timer()
-	
+
 	if verbose == 1:
 		print("Einsum({}, {})\nwhere shapes are\n{}\ntook {} seconds.".format(scheme, ops_args, [op.shape for op in ops], int(end - start)))
-	
+
 	return prod
 
 
@@ -77,7 +76,7 @@ def ContractTensorNetwork(network, end_trace=0, parallel=0):
 	#print("free_row_labels = {}".format(free_row_labels))
 	free_col_labels = [free_labels[q][1] for q in free_labels]
 	#print("free_col_labels = {}".format(free_col_labels))
-	
+
 	if end_trace == 1:
 		# If the last operation is a trace, we need to contract the free row and column indices.
 		# So we should make sure that the i-th free row index = i-th free column index.
@@ -93,14 +92,14 @@ def ContractTensorNetwork(network, end_trace=0, parallel=0):
 		right = row_labels + col_labels
 		composed_support = np.unique([q for (sup, op) in network for q in sup])
 	#print("right = {}".format(right))
-	
+
 	operators = [(__, op) for op in network]
 	scheme = []
 	for i in range(2 * len(left)):
 		scheme.append(left[i])
 		scheme.append(operators[i])
 	scheme.append(right)
-	
+
 	start = timer()
 	composed = np.einsum(scheme, optimize="greedy")
 	end = timer()

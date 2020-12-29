@@ -1,4 +1,3 @@
-import numba as nb
 import numpy as np
 from collections import deque
 from functools import reduce
@@ -29,11 +28,10 @@ def PauliTensor(pauli_op):
 	return pauli_tensor
 
 
-@nb.njit("uint16[:](uint64, uint16)")
 def GetNQubitPauli(ind, nq):
 	# Compute the n-qubit Pauli that is at position 'i' in an ordering based on [I, X, Y, Z].
 	# We will express the input number in base 4^n - 1.
-	pauli = np.zeros(nq, dtype = nb.uint16)
+	pauli = np.zeros(nq, dtype = np.int)
 	for i in range(nq):
 		pauli[i] = ind % 4
 		ind = int(ind//4)

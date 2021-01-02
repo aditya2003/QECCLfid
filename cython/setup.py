@@ -4,7 +4,7 @@ import numpy as np
 from setuptools import setup, Extension
 from Cython.Build import build_ext
 
-sources = ["krauss_theta", "pauli", "tracedot"]
+sources = ["krauss_ptm", "krauss_theta", "pauli", "tracedot"]
 ext_modules = [None for __ in sources]
 for s in range(len(sources)):
 	src = sources[s]

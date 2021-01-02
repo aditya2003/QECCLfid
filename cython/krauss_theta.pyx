@@ -3,7 +3,6 @@ import numpy as np
 cimport numpy as np
 from tracedot cimport TraceDot
 from pauli cimport ComputePauliMatrix, ComputeLexicographicPaulis
-# from timeit import default_timer as timer
 ctypedef double complex complex128_t
 
 cdef extern from "math.h":

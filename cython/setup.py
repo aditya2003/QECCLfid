@@ -4,24 +4,15 @@ import numpy as np
 from setuptools import setup, Extension
 from Cython.Build import build_ext
 
+sources = ["krauss_theta", "pauli", "tracedot"]
+ext_modules = [None for __ in sources]
+for s in range(len(sources)):
+	src = sources[s]
+	ext_modules[s] = Extension(src, ["%s.pyx" % (src)], include_dirs=[np.get_include()])
+	ext_modules[s].cython_c_in_temp = True
+
 setup(
 	name='compose',
-	version=1.0,
-	description="Compose channels represented in the Kraus decomposition",
 	cmdclass={'build_ext': build_ext},
-	packages=['krauss_theta', "contract"],
-	ext_modules=[Extension(
-		'krauss_theta',
-		sources=["krauss_theta.pyx", "contract.pyx"],
-		include_dirs=[np.get_include()],
-		compiler_directives={'language_level' : "3"}
-	)],
+	ext_modules=ext_modules,
 )
-#
-# from setuptools import setup
-# from Cython.Build import cythonize
-
-# setup(
-#     name="My hello app",
-#     ext_modules=cythonize("src/*.pyx", include_path=[...]),
-# )

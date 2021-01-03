@@ -1,12 +1,40 @@
 import copy
 import numpy as np
 import ctypes as ct
+from numpy.ctypeslib import ndpointer
 import multiprocessing as mp
 from define import globalvars as gv
-from define.qcode import GetOperatorsForTLSIndex
 from timeit import default_timer as timer
+from define.qcode import GetOperatorsForTLSIndex
 from define.QECCLfid.contract import ContractTensorNetwork
 from define.QECCLfid.utils import Dagger, circular_shift, GetNQubitPauli, PauliTensor, ConvertToDecimal
+
+
+def KrausToPTM(kraus):
+	# Convert from the Kraus representation to the PTM.
+	# This is a wrapper for the KrausToPTM function in convert.so.
+	n_kraus = kraus.shape[0]
+	dim = kraus.shape[1]
+	_convert = ctypes.cdll.LoadLibrary(os.path.abspath("define/QECCLFid/convert.so"))
+	_bmark.Benchmark.argtypes(
+		ctypes.c_int,  # number of qubits
+		ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"), # Real part of Kraus
+		ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS") # Imgainary part of Kraus
+	)
+	# Output is the real part of Theta followed by its imaginary part.
+	_bmark.Benchmark.restype = ctypes.POINTER(ctypes.c_double * (n_kraus * n_kraus))
+
+	real_kraus = np.real(kraus).reshape(-1).astype(float64)
+	imag_kraus = np.imag(kraus).reshape(-1).astype(float64)
+	
+	ptm_out = _convert.KrausToPTM(nq, real_kraus, imag_kraus)
+	ptm_flat = ctypes.cast(
+		ptm_out, ctypes.POINTER(ctypes.c_double * (n_kraus * n_kraus))
+	).contents
+
+	ptm_flat_array = np.ctypeslib.as_array(ptm_flat)
+	ptm = ptm_flat_array.reshape([4, 4] * nq)
+	return ptm
 
 
 def get_Pauli_tensor(Pauli):
@@ -39,6 +67,7 @@ def fix_index_after_tensor(tensor, indices_changed):
 		perm_list = circular_shift(perm_list, index, n - n_changed + i + 1, "right")
 	return np.transpose(tensor, perm_list)
 
+
 def get_kraus_conj(kraus, Pi, indices):
 	# Compute the conjugation of a Pauli with a given Kraus operator.
 	# Given K and P, compute K P K^dag.
@@ -62,43 +91,6 @@ def get_kraus_conj(kraus, Pi, indices):
 	)
 	Pi_int = fix_index_after_tensor(Pi_int, indices_Pi)
 	return Pi_int
-
-
-def KrausToPTM(kraus):
-	# Compute the PTM for a channel whose Kraus operators are given.
-	# Given {K}, compute G given by G_ij = \sum_k Tr[ K_k P_i (K_k)^dag Pj ].
-	# print("Function: KrausToPTM")
-
-	nq = int(np.log2(kraus.shape[1]))
-	ptm = np.zeros((4**nq, 4**nq), dtype = np.double)
-
-	# Preparing the Pauli operators.
-	pauli_tensors = [None for __ in range(4**nq)]
-	for i in range(4**nq):
-		pauli_op_i = GetNQubitPauli(i, nq)
-		pauli_tensors[i] = [((q,), PauliTensor(pauli_op_i[q, np.newaxis])) for q in range(nq)]
-
-	for i in range(4**nq):
-		Pi = pauli_tensors[i]
-		
-		for j in range(4**nq):
-			Pj = pauli_tensors[j]
-			
-			# click = timer()
-
-			for k in range(kraus.shape[0]):
-				supp_K = tuple(list(range(nq)))
-				
-				K = [(supp_K, np.reshape(kraus[k, :, :], tuple([2, 2]*nq)))]
-				Kdag = [(supp_K, np.reshape(Dagger(kraus[k, :, :]), tuple([2, 2]*nq)))]
-				
-				(__, innerprod) = ContractTensorNetwork(K + Pi + Kdag + Pj, end_trace = 1)
-				ptm[i, j] += np.real(innerprod)/2**nq
-
-			# print("PTM[%d, %d] was computed in %g seconds." % (i, j, timer() - click))
-
-	ptm_tensor = ptm.reshape(tuple([4, 4]*nq))
-	return ptm_tensor
 
 
 def PTMAdjointTest(kraus, ptm):

@@ -1,4 +1,3 @@
-import time
 import numpy as np
 import ctypes as ct
 from tqdm import tqdm
@@ -6,10 +5,10 @@ from sys import getsizeof
 import multiprocessing as mp
 from psutil import virtual_memory
 from timeit import default_timer as timer
+from define.QECCLfid.ptm import fix_index_after_tensor
+from define.QECCLfid.theta import KraussToTheta
 from define.QECCLfid.contract import ContractTensorNetwork
-from define.QECCLfid.theta import KraussToTheta,ThetaToChiElement
 from define.qcode import GetOperatorsForLSTIndex, PrepareSyndromeLookUp
-from define.QECCLfid.ptm import fix_index_after_tensor, get_Pauli_tensor
 
 
 def get_chi_kraus(kraus, Pi, indices_Pi, n_qubits):
@@ -32,6 +31,34 @@ def get_chi_kraus(kraus, Pi, indices_Pi, n_qubits):
 		/ 4 ** n_qubits
 	)
 	return contrib
+
+
+def ThetaToChiElement(pauli_op_i, pauli_op_j, theta_dict):
+	# Convert from the Theta representation to the Chi representation.
+	# The "Theta" matrix T of a CPTP map whose chi-matrix is X is defined as:
+	# T_ij = \sum_(ij) [ X_ij (P_i o (P_j)^T) ]
+	# So we find that
+	# Chi_ij = Tr[ (P_i o (P_j)^T) T]
+	# Note that [P_i o (P_j)^T] can be expressed as a product of the single qubit Pauli matrices
+	# (P^(1)_i)_(r1,c1) (P^(1)_j)_(c(N+1),r(N+1)) x ... x (P^(N)_i)_(c(N),r(N)) (P^(N)_j)_(c(2N),r(2N))
+	# We will store T as a Tensor with dimension = (2 * number of qubits) and bond dimension = 4.
+	# click = timer()
+	nq = pauli_op_i.size
+	# ops = [(supp_theta, theta)]
+	
+	Pj = [((q,), PauliTensor(pauli_op_j[q, np.newaxis])) for q in range(nq)]
+	PjT = [((q,), (-1)**(int(pauli_op_j[q] == 2)) * PauliTensor(pauli_op_j[q, np.newaxis])) for q in range(nq)]
+	Pi = [((nq + q,), PauliTensor(pauli_op_i[q, np.newaxis])) for q in range(nq)]
+	
+	(__, chi_elem) = ContractTensorNetwork(theta_dict + PjT + Pi, end_trace=1)
+	chi_elem /= 4**nq
+	
+	# print("Chi element of Pauli op {} = {}".format(pauli_op_i, chi_elem))
+	if ((np.real(chi_elem) <= -1E-15) or (np.abs(np.imag(chi_elem)) >= 1E-15)):
+		print("Pi\n{}\nPj\n{}".format(pauli_op_i, pauli_op_j))
+		print("Chi = %g + i %g" % (np.real(chi_elem), np.imag(chi_elem)))
+		exit(0)
+	return chi_elem
 
 
 def Chi_Element_Diag_Partial(map_start, map_end, mem_start, theta_channels, krausdict, paulis):

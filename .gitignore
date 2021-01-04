@@ -7,6 +7,10 @@ __pycache__/
 # C extensions
 *.so
 
+# object files
+**.o
+**/obj/
+
 # Distribution / packaging
 .Python
 build/

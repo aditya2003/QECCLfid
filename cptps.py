@@ -1,7 +1,8 @@
 import random
 import numpy as np
-from define.randchans import RandomUnitary
+import cvxpy as cp
 from define.QECCLfid.utils import SamplePoisson
+from define.randchans import RandomUnitary
 
 def HermitianConjugate(M):
 	return M.conj().T
@@ -20,6 +21,29 @@ def StineToKraus(U):
 			krauss[:, r, c] = U[r * 4**nq + np.arange(4**nq, dtype = np.int), c * 4**nq]
 	return krauss
 
+def generate_support(nmaps, nqubits, nmaps_per_qubit, qubit_occupancies):
+	r"""
+	Generates supports for maps such that
+	1. Each qubit participates in at least one maps
+	2. Every map has support given by the number of qubits in qubit_occupancies list
+	3. Allocation optimized such that each qubit participates roughly in nmaps_per_qubit maps
+	returns a list of tuples with support indicies for each map
+	"""
+	supports = None
+	mat = cp.Variable(shape=(nmaps,nqubits), boolean = True)
+	constraints = []
+	col_sums = cp.sum(mat, axis=0, keepdims=True)
+	constraints.append(col_sums >= 1)
+	row_sums = cp.sum(mat, axis=1)
+	constraints.append(row_sums == qubit_occupancies)
+	objective = cp.Minimize(cp.norm(col_sums-nmaps_per_qubit,"inf"))
+	problem = cp.Problem(objective,constraints)
+	problem.solve()
+	if problem.status not in ["infeasible", "unbounded"]:
+	    supports = [tuple(np.nonzero(row)[0]) for row in mat.value]
+	else:
+	    print("Qubit allocation to maps infeasible.")
+	return supports
 
 def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3):
 	r"""
@@ -38,42 +62,35 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3):
 	krauslist = krauss ops acting on support
 	"""
 	# print("Sum of CPTP maps:\ncutoff = {}, n_maps = {}".format(cutoff, n_maps))
-	
-	# generate all the n_q's and then the supports for them.
 
-	kraus_dict = {m:None for m in range(n_maps)}
 	n_nontrivial_maps = 0
+	qubit_occupancies = []
 	for m in range(n_maps):
-		n_q = 3 # for debugging only
-		support = (0, 1, 2) # for debugging only
-		# n_q = SamplePoisson(mean = 1, cutoff=cutoff)
-		# support = tuple(sorted((random.sample(range(qcode.N), n_q))))
+		n_q = SamplePoisson(mean = 1, cutoff=cutoff)
 		if n_q == 0:
-			rand_unitary = 1.0
-			kraus_dict[m] = (support,[rand_unitary])
+			continue
 		else:
-			rand_unitary = RandomUnitary(rotation_angle/8**n_q, 8**n_q)
-			kraus = StineToKraus(rand_unitary)
-			KrausTest(kraus)
-			kraus_dict[m] = (support, kraus)
+			qubit_occupancies.append(n_q)
 			n_nontrivial_maps += 1
-
-	# Remove identity channels
-	non_trivial_channels = {m:None for m in range(n_nontrivial_maps)}
-	supports = [None for __ in range(n_nontrivial_maps)]
-	n_nontrivial_maps = 0
-	for m in range(n_maps):
-		(support, kraus) = kraus_dict[m]
-		if len(support) > 0:
-			non_trivial_channels[n_nontrivial_maps] = (support, kraus)
-			supports[n_nontrivial_maps] = support
-			n_nontrivial_maps += 1
-
+	# print("Qubit occupancies : {}".format(qubit_occupancies))
 	# If the Kraus list is empty, then append the identity error on some qubit.
-	if len(non_trivial_channels) == 0:
+	if n_nontrivial_maps == 0:
 		non_trivial_channels = {0: ((0,), [np.eye(2, dtype = np.complex128)])}
-
-	print("Random channel generated with the following {} interactions\n{}.".format(n_nontrivial_maps, supports))
+	else:
+		nmaps_per_qubit = max(0.1*n_nontrivial_maps,1)
+		supports = generate_support(n_nontrivial_maps, qcode.N, nmaps_per_qubit, qubit_occupancies)
+		if supports is not None:
+			non_trivial_channels = {m:None for m in range(n_nontrivial_maps)}
+			for m in range(n_nontrivial_maps):
+				n_q = qubit_occupancies[m]
+				rand_unitary = RandomUnitary(rotation_angle/8**n_q, 8**n_q)
+				kraus = StineToKraus(rand_unitary)
+				KrausTest(kraus)
+				non_trivial_channels[m] = (supports[m], kraus)
+			print("Random channel generated with the following {} interactions\n{}.".format(n_nontrivial_maps, supports))
+		else:
+			print("Qubit allocation failed for a total of {} non-trivial map(s) with each of {} qubits required to participate in {} map(s)".format(n_nontrivial_maps, qcode.N, nmaps_per_qubit))
+			exit(0)
 	return non_trivial_channels
 
 
@@ -92,3 +109,11 @@ def KrausTest(kraus):
 		print("Kraus test failed.")
 		exit(0)
 	return success
+
+if __name__ == "__main__":
+	# import sys
+	# import os
+	# from define import qcode as qec
+	# codename = sys.argv[1]
+	# qcode = qec.QuantumErrorCorrectingCode("%s" % (codename))
+	# channels = CorrelatedCPTP(0.1, qcode, cutoff = 3, n_maps = 10)

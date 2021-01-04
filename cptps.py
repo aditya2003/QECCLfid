@@ -7,7 +7,6 @@ from define.randchans import RandomUnitary
 def HermitianConjugate(M):
 	return M.conj().T
 
-
 def StineToKraus(U):
 	# Compute the Krauss operators for the input quantum channel, which is represented in the Stinespring dialation
 	# The Krauss operator T_k is given by: <a|T_k|b> = <a e_k|U|b e_0> , where {|e_i>} is a basis for the environment and |a>, |b> are basis vectors of the system
@@ -62,7 +61,6 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3):
 	krauslist = krauss ops acting on support
 	"""
 	# print("Sum of CPTP maps:\ncutoff = {}, n_maps = {}".format(cutoff, n_maps))
-
 	n_nontrivial_maps = 0
 	qubit_occupancies = []
 	for m in range(n_maps):

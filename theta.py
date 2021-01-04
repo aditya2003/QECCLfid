@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import ctypes as ct
 from numpy.ctypeslib import ndpointer
@@ -6,31 +7,29 @@ from define.QECCLfid.tensor import TensorTranspose, TensorKron, TensorTrace, Tra
 from define.QECCLfid.contract import ContractTensorNetwork
 from timeit import default_timer as timer
 
-def KraussToTheta(kraus):
+def KrausToTheta(kraus):
 	# Compute the Theta matrix of a channel whose Kraus matrix is given.
 	# This is a wrapper for the KrausToTheta function in convert.so.
-	n_kraus = kraus.shape[0]
 	dim = kraus.shape[1]
-	_convert = ctypes.cdll.LoadLibrary(os.path.abspath("define/QECCLFid/convert.so"))
-	_bmark.Benchmark.argtypes(
-		ctypes.c_int,  # number of qubits
+	n_kraus = kraus.shape[0]
+	nq = int(np.ceil(np.log2(dim)))
+	
+	real_kraus = np.real(kraus).reshape(-1).astype(np.float64)
+	imag_kraus = np.imag(kraus).reshape(-1).astype(np.float64)
+	
+	_convert = ct.cdll.LoadLibrary(os.path.abspath("define/QECCLfid/convert.so"))
+	_convert.KrausToTheta.argtypes = (
 		ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"), # Real part of Kraus
-		ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS") # Imgainary part of Kraus
+		ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"), # Imgainary part of Kraus
+		ct.c_int,  # number of qubits
 	)
 	# Output is the real part of Theta followed by its imaginary part.
-	_bmark.Benchmark.restype = ctypes.POINTER(ctypes.c_double * (2 * n_kraus * dim * dim))
-
-	real_kraus = np.real(kraus).reshape(-1).astype(float64)
-	imag_kraus = np.imag(kraus).reshape(-1).astype(float64)
-	
-	theta_out = _convert.KrausToTheta(nq, real_kraus, imag_kraus)
-	theta_flat = ctypes.cast(
-		theta_out, ctypes.POINTER(ctypes.c_double * n_kraus * n_kraus)
-	).contents
-
-	theta_flat_array = np.ctypeslib.as_array(theta_flat)
-	theta_real = theta_flat_array[ : (n_kraus * n_kraus)].reshape([2, 2, 2, 2] * nq)
-	theta_imag = theta_flat_array[(n_kraus * n_kraus) : ].reshape([2, 2, 2, 2] * nq)
+	_convert.KrausToTheta.restype = ndpointer(dtype=ct.c_double, shape=(2 * n_kraus * n_kraus,))
+	# Call the backend function.
+	theta_out = _convert.KrausToTheta(real_kraus, imag_kraus, nq)
+	# print("theta_out\n{}".format(theta_out))
+	theta_real = theta_out[ : (n_kraus * n_kraus)].reshape([2, 2, 2, 2] * nq)
+	theta_imag = theta_out[(n_kraus * n_kraus) : ].reshape([2, 2, 2, 2] * nq)
 	theta = theta_real + 1j * theta_imag
 	return theta
 

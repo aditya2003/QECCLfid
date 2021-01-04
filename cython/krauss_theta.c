@@ -43,22 +43,26 @@ double* KrausToTheta(double *kraus_real, double *kraus_imag, int nq){
 
 	int i, j, k, q;
 	long dim = (long)(pow(2, nq)), n_pauli = (long)(pow(4, nq));
-	complex128_t real_part, imag_part;
+	double real_part, imag_part;
 
 	complex128_t ***kraus = malloc(sizeof(complex128_t **) * n_pauli);
 	for (k = 0; k < n_pauli; k ++){
 		kraus[k] = malloc(sizeof(complex128_t *) * dim);
+		// printf("K_%d\n", k);
 		for (i = 0; i < dim; i ++){
 			kraus[k][i] = malloc(sizeof(complex128_t) * dim);
 			for (j = 0; j < dim; j ++){
 				real_part = kraus_real[k * dim * dim + i * dim + j];
 				imag_part = kraus_imag[k * dim * dim + i * dim + j];
 				kraus[k][i][j] = real_part + I * imag_part;
+				// printf("%.3lf + i %.3lf  ", real_part, imag_part);
 			}
+			// printf("\n");
 		}
+		// printf("------\n");
 	}
 
-	// printf("n_pauli = %ld and dim = %ld\n", n_pauli, dim);
+	// printf("n_pauli s= %ld and dim = %ld\n", n_pauli, dim);
 	
 	// Allocate memory for the Pauli operators.
 	short *transpose_signs = malloc(sizeof(short) * n_pauli);
@@ -86,12 +90,17 @@ double* KrausToTheta(double *kraus_real, double *kraus_imag, int nq){
 		chi[i] = malloc(sizeof(complex128_t) * n_pauli);
 		theta[i] = malloc(sizeof(complex128_t) * n_pauli);
 		pauli_matrix_2nq[i] = malloc(sizeof(complex128_t) * n_pauli);
+		for (j = 0; j < n_pauli; j ++){
+			chi[i][j] = 0 + 0 * I;
+			theta[i][j] = 0 + 0 * I;
+			pauli_matrix_2nq[i][j] = 0 + 0 * I;
+		}
 	}
 
 	// Compute the Chi and Theta matrix.
 	for (i = 0; i < n_pauli; i ++){
 		for (j = 0; j < n_pauli; j ++){
-			transpose_sign = transpose_signs[j] + I * 0;
+			chi[i][j] = 0 + 0 * I;
 			// Compute the Chi matrix first.
 			// printf("Computing Chi[%d, %d]\n", i, j);
 			// Since Chi is Hermitian, we only need to really compute its upper diagonal.
@@ -99,20 +108,23 @@ double* KrausToTheta(double *kraus_real, double *kraus_imag, int nq){
 				for (k = 0; k < n_pauli; k ++){
 					tr_Pi_K = TraceDot(pauli_matrices[i], kraus[k], dim, dim, 0);
 					tr_Pj_Kdag = TraceDot(pauli_matrices[j], kraus[k], dim, dim, 1);
-					chi[i][j] = chi[i][j] + tr_Pi_K * tr_Pj_Kdag;
+					chi[i][j] += tr_Pi_K * tr_Pj_Kdag;
 				}
-				chi[i][j] = chi[i][j]/(double) (n_pauli);
+				chi[i][j] = chi[i][j]/((double) (n_pauli));
 			}
 			else
 				chi[i][j] = conj(chi[j][i]);
 			
+			// Consistency check: the diagonal elements should be posivite real numbers.
 			if (i == j){
 				if ((creal(chi[i][j]) <= -1E-14) || (fabs(cimag(chi[i][j])) >= 1E-14)){
-					printf("Error: Chi[%d, %d] = %g + i %g\n", i, j, creal(chi[i][j]), cimag(chi[i][j]));
+					printf("Error: Chi[%d, %d] = %.3e + i %.3e\n", i, j, creal(chi[i][j]), cimag(chi[i][j]));
 					exit(0);
 				}
 			}
+			
 			// Compute the tensor product of two Pauli operators.
+			transpose_sign = transpose_signs[j] + I * 0;
 			for (q = 0; q < nq; q ++)
 				pauli_op_2nq[q] = pauli_operators[i][q];
 			for (q = nq; q < 2 * nq; q ++)
@@ -135,6 +147,17 @@ double* KrausToTheta(double *kraus_real, double *kraus_imag, int nq){
 			theta_flat[size + i * n_pauli + j] = cimag(theta[i][j]);
 		}
 	}
+
+	/*
+	printf("%ld Real entries\n", n_pauli * n_pauli);
+	for (i = 0; i < n_pauli * n_pauli; i ++)
+		printf("%.3f  ", theta_flat[i]);
+	printf("\n");
+	printf("%ld Complex entries\n", n_pauli * n_pauli);
+	for (i = n_pauli * n_pauli; i < 2 * n_pauli * n_pauli; i ++)
+		printf("%.3f  ", theta_flat[i]);
+	printf("\n");
+	*/
 
 	// Free memory for the Kraus operators
 	for (k = 0; k < n_pauli; k ++){

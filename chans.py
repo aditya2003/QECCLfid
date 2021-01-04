@@ -36,8 +36,8 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 	ptm = ConstructPTM(qcode, kraus_dict)
 	print("PTM was constructed in %d seconds." % (timer() - click))
 
-	# if (CHI_PTM_Tests(chi, ptm, kraus_dict, kraus_dict_adj, qcode) == 0):
-	# 	exit(0)
+	if (CHI_PTM_Tests(chi, ptm, kraus_dict, kraus_dict_adj, qcode) == 0):
+		exit(0)
 	interactions = []
 	for m in kraus_dict:
 		interactions.append(kraus_dict[m][0])

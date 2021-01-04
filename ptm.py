@@ -1,3 +1,4 @@
+import os
 import copy
 import numpy as np
 import ctypes as ct
@@ -13,27 +14,24 @@ from define.QECCLfid.utils import Dagger, circular_shift, GetNQubitPauli, PauliT
 def KrausToPTM(kraus):
 	# Convert from the Kraus representation to the PTM.
 	# This is a wrapper for the KrausToPTM function in convert.so.
-	n_kraus = kraus.shape[0]
 	dim = kraus.shape[1]
-	_convert = ctypes.cdll.LoadLibrary(os.path.abspath("define/QECCLFid/convert.so"))
-	_bmark.Benchmark.argtypes(
-		ctypes.c_int,  # number of qubits
-		ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"), # Real part of Kraus
-		ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS") # Imgainary part of Kraus
-	)
-	# Output is the real part of Theta followed by its imaginary part.
-	_bmark.Benchmark.restype = ctypes.POINTER(ctypes.c_double * (n_kraus * n_kraus))
-
-	real_kraus = np.real(kraus).reshape(-1).astype(float64)
-	imag_kraus = np.imag(kraus).reshape(-1).astype(float64)
+	n_kraus = kraus.shape[0]
+	nq = int(np.ceil(np.log2(dim)))
 	
-	ptm_out = _convert.KrausToPTM(nq, real_kraus, imag_kraus)
-	ptm_flat = ctypes.cast(
-		ptm_out, ctypes.POINTER(ctypes.c_double * (n_kraus * n_kraus))
-	).contents
-
-	ptm_flat_array = np.ctypeslib.as_array(ptm_flat)
-	ptm = ptm_flat_array.reshape([4, 4] * nq)
+	real_kraus = np.real(kraus).reshape(-1).astype(np.float64)
+	imag_kraus = np.imag(kraus).reshape(-1).astype(np.float64)
+	
+	_convert = ct.cdll.LoadLibrary(os.path.abspath("define/QECCLfid/convert.so"))
+	_convert.KrausToPTM.argtypes = (
+		ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"), # Real part of Kraus
+		ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"), # Imgainary part of Kraus
+		ct.c_int,  # number of qubits
+	)
+	# Output is the flattened PTM.
+	_convert.KrausToPTM.restype = ndpointer(dtype=ct.c_double, shape=(n_kraus * n_kraus,))
+	# Call the backend function.
+	ptm_out = _convert.KrausToPTM(real_kraus, imag_kraus, nq)
+	ptm = ptm_out.reshape([4, 4] * nq)
 	return ptm
 
 

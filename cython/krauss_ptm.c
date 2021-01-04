@@ -92,6 +92,7 @@ double* KrausToPTM(double *kraus_real, double *kraus_imag, int nq){
 				ptm[i][j] += creal(TraceDot(prod, pauli_matrices[j], dim, dim, 0));
 				// printf("PTM_%d[%d, %d] = %.3f\n", k, i, j, ptm[i][j]);
 			}
+			ptm[i][j] = ptm[i][j]/((double) dim);
 			// printf("PTM[%d, %d] = %.3f\n", i, j, ptm[i][j]);
 		}
 	}

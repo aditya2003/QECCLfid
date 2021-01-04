@@ -16,8 +16,8 @@ def OptimalEinsum(scheme, ops, opt = "greedy", verbose=0, parallel=0):
 
 def ContractTensorNetwork(network, end_trace=0):
 	# Compute the trace of a tensor network.
-	print("network")
-	print(network)
+	# print("network")
+	# print(network)
 
 	n_interactions = len(network)
 	
@@ -34,11 +34,11 @@ def ContractTensorNetwork(network, end_trace=0):
 		for j in range(1, 1 + interactions[i, 0]):
 			interactions[i, j] = network[i][0][j - 1]
 
-	print("{} interactions\n{}".format(n_interactions, interactions))
+	# print("{} interactions\n{}".format(n_interactions, interactions))
 
 	# Compute the contraction labels and the free labels.
 	(contraction_labels, free_labels, qubits) = SupportToLabel(interactions)
-	print("contraction_labels\n{}\nfree labels\n{}".format(contraction_labels, free_labels))
+	# print("contraction_labels\n{}\nfree labels\n{}".format(contraction_labels, free_labels))
 	
 	# Arrange the contraction labels as row, column pairs.
 	left = np.zeros((n_interactions, 2 * max_interaction_range), dtype = np.int)
@@ -49,7 +49,7 @@ def ContractTensorNetwork(network, end_trace=0):
 			# Column labels
 			left[i, max_interaction_range + j] = contraction_labels[i, j, 1]
 
-	print("left\n{}".format(left))
+	# print("left\n{}".format(left))
 	
 	if (end_trace == 1):
 		# The last operation is a trace, we need to contract the free row and column indices.
@@ -63,7 +63,7 @@ def ContractTensorNetwork(network, end_trace=0):
 				for q in range(interactions[i, 0]):
 					if (left[j, q + max_interaction_range] == col_free):
 						left[j, q + max_interaction_range] = row_free
-		print("left after trace\n{}".format(left))
+		# print("left after trace\n{}".format(left))
 	
 	# Prepare the input to numpy's einsum
 	scheme = []
@@ -76,7 +76,7 @@ def ContractTensorNetwork(network, end_trace=0):
 	if (end_trace == 0):
 		scheme.append(list(np.concatenate((free_labels[:, 0], free_labels[:, 1]))))
 
-	print("scheme\n{}".format(scheme))
+	# print("scheme\n{}".format(scheme))
 	
 	# Contract the network using einsum
 	# start = timer()

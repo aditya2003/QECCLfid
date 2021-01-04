@@ -51,7 +51,7 @@ def SupportToLabel(interactions):
 	unique_qubits = np.unique(qubits)
 	n_unique = unique_qubits.shape[0]
 
-	print("{} unique qubits\n{}".format(n_unique, unique_qubits))
+	# print("{} unique qubits\n{}".format(n_unique, unique_qubits))
 	
 	# Free indices
 	free_index = np.zeros((n_unique, 2), dtype = np.int)

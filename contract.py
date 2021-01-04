@@ -34,11 +34,10 @@ def ContractTensorNetwork(network, end_trace=0):
 		for j in range(1, 1 + interactions[i, 0]):
 			interactions[i, j] = network[i][0][j - 1]
 
-	print("n_interactions = %d\n{}" % (n_interactions, interactions))
+	print("{} interactions\n{}".format(n_interactions, interactions))
 
 	# Compute the contraction labels and the free labels.
-	contraction_labels = np.zeros((n_interactions, max_interaction_range, 2), dtype = np.int)
-	free_labels = SupportToLabel(interactions, contraction_labels)
+	(contraction_labels, free_labels, qubits) = SupportToLabel(interactions)
 	print("contraction_labels\n{}\nfree labels\n{}".format(contraction_labels, free_labels))
 	
 	# Arrange the contraction labels as row, column pairs.
@@ -64,7 +63,6 @@ def ContractTensorNetwork(network, end_trace=0):
 				for q in range(interactions[i, 0]):
 					if (left[j, q + max_interaction_range] == col_free):
 						left[j, q + max_interaction_range] = row_free
-
 		print("left after trace\n{}".format(left))
 	
 	# Prepare the input to numpy's einsum
@@ -78,11 +76,12 @@ def ContractTensorNetwork(network, end_trace=0):
 	if (end_trace == 0):
 		scheme.append(list(np.concatenate((free_labels[:, 0], free_labels[:, 1]))))
 
-	print("scheme")
-	print(scheme)
-
+	print("scheme\n{}".format(scheme))
+	
 	# Contract the network using einsum
 	# start = timer()
-	trace = np.einsum(*scheme, optimize="greedy")
+	contracted_support = tuple([q for q in qubits])
+	contracted_operator = np.einsum(*scheme, optimize="greedy")
+	contracted_network = (contracted_support, contracted_operator)
 	# print("Contraction was done in %.3f seconds." % (timer() - click))
-	return trace
+	return contracted_network

@@ -38,6 +38,9 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3):
 	krauslist = krauss ops acting on support
 	"""
 	# print("Sum of CPTP maps:\ncutoff = {}, n_maps = {}".format(cutoff, n_maps))
+	
+	# generate all the n_q's and then the supports for them.
+
 	kraus_dict = {m:None for m in range(n_maps)}
 	n_nontrivial_maps = 0
 	for m in range(n_maps):

@@ -21,7 +21,7 @@ def StineToKraus(U):
 			krauss[:, r, c] = U[r * 4**nq + np.arange(4**nq, dtype = np.int), c * 4**nq]
 	return krauss
 
-def generate_support(nmaps, nqubits, nmaps_per_qubit, qubit_occupancies):
+def GenerateSupport(nmaps, nqubits, nmaps_per_qubit, qubit_occupancies):
 	r"""
 	Generates supports for maps such that
 	1. Each qubit participates in at least one maps
@@ -78,7 +78,7 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3):
 		non_trivial_channels = {0: ((0,), [np.eye(2, dtype = np.complex128)])}
 	else:
 		nmaps_per_qubit = max(0.1*n_nontrivial_maps,1)
-		supports = generate_support(n_nontrivial_maps, qcode.N, nmaps_per_qubit, qubit_occupancies)
+		supports = GenerateSupport(n_nontrivial_maps, qcode.N, nmaps_per_qubit, qubit_occupancies)
 		if supports is not None:
 			non_trivial_channels = {m:None for m in range(n_nontrivial_maps)}
 			for m in range(n_nontrivial_maps):

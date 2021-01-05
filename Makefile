@@ -7,7 +7,7 @@ ifdef db
 	MODE=DEBUG
 endif
 ifeq ($(MODE), DEBUG)
-	CC = icc
+	CC = gcc
 	OPTS = -O${db} -g
 	REPORT = $()
 	TARGET = convert
@@ -35,8 +35,11 @@ OS := $(shell uname -s)
 $(info Make is being run in ${MODE} mode on the ${OS} OS.)
 
 ifeq ($(OS), Darwin)
-	CFLAGS_MKL = -I${MKLROOT}/include
-	LIBS_MKL = -L${MKLROOT}/lib -Wl,-rpath,${MKLROOT}/lib -lmkl_rt -lpthread $(LIBS) -ldl
+	# CFLAGS_MKL = -I${MKLROOT}/include
+	# LIBS_MKL = -L${MKLROOT}/lib -Wl,-rpath,${MKLROOT}/lib -lmkl_rt -lpthread $(LIBS) -ldl
+	MKL_DIR = ${MKLROOT}
+	CFLAGS_MKL = -m64 -I${MKL_DIR}/include
+	LIBS_MKL =  -L${MKL_DIR}/lib -Wl, -lmkl_rt -lpthread
 else ifeq ($(OS), Linux)
 	ifeq ($(MKLROOT),)
 		MKLROOT="/mnt/c/Program Files (x86)/IntelSWTools/compilers_and_libraries_2020.4.311/windows/mkl/"

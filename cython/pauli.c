@@ -24,8 +24,8 @@ void ComputePauliMatrix(short *pauli_op, int nq, complex128_t **pauli_matrix){
 	Paulis[1][0][1] = 1 + 0 * I;
 	Paulis[1][1][0] = 1 + 0 * I;
 	// Pauli matrix: Y
-	Paulis[2][0][1] = 0 + 1 * I;
-	Paulis[2][1][0] = 0 + -1 * I;
+	Paulis[2][0][1] = 0 - 1 * I;
+	Paulis[2][1][0] = 0 + 1 * I;
 	// Pauli matrix: Z
 	Paulis[3][0][0] = 1 + 0 * I;
 	Paulis[3][1][1] = -1 + 0 * I;

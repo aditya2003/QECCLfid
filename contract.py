@@ -16,68 +16,54 @@ def OptimalEinsum(scheme, ops, opt = "greedy", verbose=0, parallel=0):
 
 def ContractTensorNetwork(network, end_trace=0):
 	# Compute the trace of a tensor network.
-	# print("network")
-	# print(network)
-
-	n_interactions = len(network)
-	
-	# Compute the maximum range of interactions.
-	max_interaction_range = 0
-	for i in range(n_interactions):
-		if (max_interaction_range < len(network[i][0])):
-			max_interaction_range = len(network[i][0])
-	
-	# The interactions are stored as a numpy array.
-	interactions = np.zeros((n_interactions, max_interaction_range + 1), dtype = np.int)
-	for i in range(n_interactions):
-		interactions[i, 0] = len(network[i][0])
-		for j in range(1, 1 + interactions[i, 0]):
-			interactions[i, j] = network[i][0][j - 1]
-
-	# print("{} interactions\n{}".format(n_interactions, interactions))
+	interactions = [sup for (sup, __) in network]
+	# print("{} interactions\n{}".format(len(interactions), interactions))
 
 	# Compute the contraction labels and the free labels.
 	(contraction_labels, free_labels, qubits) = SupportToLabel(interactions)
-	# print("contraction_labels\n{}\nfree labels\n{}".format(contraction_labels, free_labels))
-	
-	# Arrange the contraction labels as row, column pairs.
-	left = np.zeros((n_interactions, 2 * max_interaction_range), dtype = np.int)
-	for i in range(n_interactions):
-		for j in range(interactions[i, 0]):
-			# Row labels
-			left[i, j] = contraction_labels[i, j, 0]
-			# Column labels
-			left[i, max_interaction_range + j] = contraction_labels[i, j, 1]
+	# print("contraction labels\n{}\nfree labels\n{}".format(contraction_labels, free_labels))
+
+	# Arrange the operators to be contracted as row and column pairs.
+	left = []
+	for i in range(len(interactions)):
+		interaction_range = len(interactions[i])
+		labels = [-1 for __ in range(2 * interaction_range)]
+		for j in range(interaction_range):
+			labels[j] = contraction_labels[i][j][0] # Row label.
+			labels[j + interaction_range] = contraction_labels[i][j][1] # Column label.
+		left.append(labels)
 
 	# print("left\n{}".format(left))
-	
+
 	if (end_trace == 1):
-		# The last operation is a trace, we need to contract the free row and column indices.
+		# When the last operation is a trace, we need to contract the free row and column indices.
 		# So we should make sure that the i-th free row index = i-th free column index.
 		# Every free column index that appears in the left, must be replaced by the corresponding free row index.
-		n_free = free_labels.shape[0]
-		for i in range(n_free):
-			row_free = free_labels[i, 0]
-			col_free = free_labels[i, 1]
-			for j in range(n_interactions):
-				for q in range(interactions[i, 0]):
-					if (left[j, q + max_interaction_range] == col_free):
-						left[j, q + max_interaction_range] = row_free
+		n_interactions = len(interactions)
+		for q in free_labels:
+			row_free = free_labels[q][0]
+			col_free = free_labels[q][1]
+			for i in range(len(left)):
+				for j in range(len(left[i])):
+					if (left[i][j] == col_free):
+						left[i][j] = row_free
 		# print("left after trace\n{}".format(left))
-	
+	else:
+		# order the indices of the contracted network.
+		right = [free_labels[q][0] for q in qubits] + [free_labels[q][1] for q in qubits]
+
 	# Prepare the input to numpy's einsum
 	scheme = []
-	for i in range(n_interactions):
+	for i in range(len(network)):
 		scheme.append(network[i][1])
-		rows = left[i, :interactions[i, 0]]
-		cols = left[i, max_interaction_range : (max_interaction_range + interactions[i, 0])]
-		scheme.append(list(np.concatenate((rows, cols))))
-	
-	if (end_trace == 0):
-		scheme.append(list(np.concatenate((free_labels[:, 0], free_labels[:, 1]))))
+		scheme.append(left[i])
 
-	# print("scheme\n{}".format(scheme))
-	
+	if (end_trace == 0):
+		scheme.append(right)
+		# print("contraction labels\n{}\nfree labels\n{}".format(contraction_labels, free_labels))
+		# print("left\n{}".format(left))
+		# print("right\n{}".format(right))
+
 	# Contract the network using einsum
 	# start = timer()
 	contracted_support = tuple([q for q in qubits])

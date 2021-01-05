@@ -62,33 +62,41 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3):
 	"""
 	# print("Sum of CPTP maps:\ncutoff = {}, n_maps = {}".format(cutoff, n_maps))
 	n_nontrivial_maps = 0
-	qubit_occupancies = []
+	interaction_range = []
 	for m in range(n_maps):
-		n_q = SamplePoisson(mean = 1, cutoff=cutoff)
-		if n_q == 0:
-			continue
-		else:
-			qubit_occupancies.append(n_q)
+		# n_q = SamplePoisson(mean = 1, cutoff=cutoff)
+		n_q = 3
+		if n_q != 0:
+			interaction_range.append(n_q)
 			n_nontrivial_maps += 1
-	# print("Qubit occupancies : {}".format(qubit_occupancies))
+	print("Range of interactions : {}".format(interaction_range))
+
 	# If the Kraus list is empty, then append the identity error on some qubit.
 	if n_nontrivial_maps == 0:
 		non_trivial_channels = {0: ((0,), [np.eye(2, dtype = np.complex128)])}
 	else:
 		nmaps_per_qubit = max(0.1*n_nontrivial_maps,1)
-		supports = GenerateSupport(n_nontrivial_maps, qcode.N, nmaps_per_qubit, qubit_occupancies)
+		# supports = GenerateSupport(n_nontrivial_maps, qcode.N, nmaps_per_qubit, interaction_range)
+		# supports = [(0, 1), (1, 2), (2, 3), (3, 4)]
+		supports = [(0, 1, 2)]
+
 		if supports is not None:
 			non_trivial_channels = {m:None for m in range(n_nontrivial_maps)}
 			for m in range(n_nontrivial_maps):
-				n_q = qubit_occupancies[m]
+				n_q = interaction_range[m]
 				rand_unitary = RandomUnitary(rotation_angle/8**n_q, 8**n_q)
 				kraus = StineToKraus(rand_unitary)
-				KrausTest(kraus)
+
+				if (KrausTest(kraus) == 0):
+					print("Kraus test failed for the following channel.\n{}".format(kraus))
+
 				non_trivial_channels[m] = (supports[m], kraus)
 			print("Random channel generated with the following {} interactions\n{}.".format(n_nontrivial_maps, supports))
+
 		else:
 			print("Qubit allocation failed for a total of {} non-trivial map(s) with each of {} qubits required to participate in {} map(s)".format(n_nontrivial_maps, qcode.N, nmaps_per_qubit))
 			exit(0)
+
 	return non_trivial_channels
 
 
@@ -104,14 +112,10 @@ def KrausTest(kraus):
 		# print("Kraus test passed.")
 	else:
 		print("sum_i [ (K_i)^dag K_i ]\n{}".format(total))
-		print("Kraus test failed.")
-		exit(0)
 	return success
 
 if __name__ == "__main__":
-	# import sys
-	# import os
-	# from define import qcode as qec
-	# codename = sys.argv[1]
-	# qcode = qec.QuantumErrorCorrectingCode("%s" % (codename))
-	# channels = CorrelatedCPTP(0.1, qcode, cutoff = 3, n_maps = 10)
+	# Test the channel generation code.
+	from define import qcode as qec
+	qcode = qec.QuantumErrorCorrectingCode("Steane")
+	channels = CorrelatedCPTP(0.1, qcode, cutoff = 3, n_maps = 10)

@@ -12,26 +12,30 @@ from define.QECCLfid.chi import NoiseReconstruction
 def GetProcessChi(qcode, method = "sum_unitaries", *params):
 	nstabs = 2 ** (qcode.N - qcode.K)
 	nlogs = 4 ** qcode.K
+
 	if method == "sum_unitaries":
 		p_error,rotation_angle,w_thresh = params[:3]
 		kraus_dict = SumUnitaries(p_error, rotation_angle, qcode, w_thresh)
+
 	elif method == "ising":
 		J, mu, time = params[:3]
 		kraus_dict = Ising(J, mu, time, qcode)
+
 	elif method == "sum_cptps":
 		(angle, cutoff, n_maps) = params[:3]
 		kraus_dict = CorrelatedCPTP(angle, qcode, cutoff = int(cutoff), n_maps = int(n_maps))
+
 	else:
 		pass
-	
+
 	# Prepare the adjoint channel for PTM checks.
 	kraus_dict_adj = AdjointChannel(kraus_dict)
-	
+
 	click = timer()
 	chi = NoiseReconstruction(qcode, kraus_dict)
 	# chi = None # only for debugging
 	print("CHI was constructed in %d seconds." % (timer() - click))
-	
+
 	click = timer()
 	ptm = ConstructPTM(qcode, kraus_dict)
 	print("PTM was constructed in %d seconds." % (timer() - click))
@@ -50,7 +54,7 @@ def CHI_PTM_Tests(chi, ptm, kraus_dict, kraus_dict_adj, qcode):
 	success = 1
 	atol = 1E-8
 	n_maps = len(kraus_dict)
-	
+
 	print("Process[0, 0] = {}".format(ptm[0, 0]))
 	print("||PTM - Diag(PTM)||_2 = {}".format(np.linalg.norm(ptm - np.diag(np.diag(ptm)))))
 	click = timer()
@@ -72,7 +76,7 @@ def CHI_PTM_Tests(chi, ptm, kraus_dict, kraus_dict_adj, qcode):
 		if (diff >= atol):
 			success = 0
 		print("\033[2mInfidelity = %.4e.\033[0m" % (1 - chi[0]))
-	
+
 	click = timer()
 	ptm_old = get_process_correlated(qcode, kraus_dict).reshape(256, 256)
 	print("Old PTM was constructed in %d seconds." % (timer() - click))
@@ -80,7 +84,7 @@ def CHI_PTM_Tests(chi, ptm, kraus_dict, kraus_dict_adj, qcode):
 	print("||PTM - PTM_old||_2 = {}".format(diff))
 	if (diff >= atol):
 		success = 0
-	
+
 	# Check if the i,j element of the channel is j,i element of the adjoint channel.
 	click = timer()
 	ptm_adj_old = get_process_correlated(qcode, kraus_dict_adj).reshape(256, 256)
@@ -90,7 +94,7 @@ def CHI_PTM_Tests(chi, ptm, kraus_dict, kraus_dict_adj, qcode):
 	if (diff >= atol):
 		success = 0
 	print("========")
-		
+
 	# (mismatches,) = np.nonzero(np.abs(np.diag(ptm) - np.diag(ptm_adj.T)) >= 1E-14)
 	# print("Closeness of diagonal of PTM and PTM adjoint: {}.".format(np.allclose(np.diag(ptm), np.diag(ptm_adj))))
 	# disagreements = zip(mismatches, np.diag(ptm)[mismatches], np.diag(ptm_adj.T)[mismatches])

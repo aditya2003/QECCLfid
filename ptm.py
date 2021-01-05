@@ -95,6 +95,7 @@ def PTMAdjointTest(kraus, ptm):
 	# Check if the i,j element of the channel is j,i element of the adjoint channel.
 	nq = int(np.log2(kraus.shape[1]))
 	if (np.abs(ptm[tuple([0, 0] * nq)] - 1) >= 1E-14):
+		# Check if PTM[0, 0] is 1.
 		return False
 	kraus_adj = np.zeros_like(kraus)
 	for k in range(kraus.shape[0]):
@@ -140,8 +141,8 @@ def ConstructPTM_Partial(map_start, map_end, mem_start, ptm_channels, kraus_dict
 		mem_end = mem_start + 16 ** len(support)
 		click = timer()
 		ptm = KrausToPTM(np.array(kraus))
-		if (PTMAdjointTest(np.array(kraus), ptm) == False):
-			print("PTM Test for map %d failed." % (m))
+		# if (PTMAdjointTest(np.array(kraus), ptm) == False):
+		# 	print("PTM Test for map %d failed." % (m))
 		ptm_channels[mem_start : mem_end] = ptm.reshape(-1)
 		print("PTM for map {} was constructed in {} seconds.".format(m + 1, timer() - click))
 		mem_end = mem_start

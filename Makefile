@@ -19,6 +19,7 @@ else
 	REPORT = -qopt-report-phase=vec -qopt-report=5
 	TARGET = convert.so
 	LDFLAGS = -shared
+	LIBS_MATH = -lm
 endif
 ### To do: the following 3 lines should not be apllicable for the debug mode.
 #ifeq ($(strip $(shell icc --version)),)
@@ -39,7 +40,7 @@ ifeq ($(OS), Darwin)
 	# LIBS_MKL = -L${MKLROOT}/lib -Wl,-rpath,${MKLROOT}/lib -lmkl_rt -lpthread $(LIBS) -ldl
 	MKL_DIR = ${MKLROOT}
 	CFLAGS_MKL = -m64 -I${MKL_DIR}/include
-	LIBS_MKL =  -L${MKL_DIR}/lib -Wl, -lmkl_rt -lpthread
+	LIBS_MKL =  -L${MKL_DIR}/lib -lmkl_rt -lpthread -ldl
 else ifeq ($(OS), Linux)
 	ifeq ($(MKLROOT),)
 		MKLROOT="/mnt/c/Program Files (x86)/IntelSWTools/compilers_and_libraries_2020.4.311/windows/mkl/"

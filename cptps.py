@@ -21,7 +21,7 @@ def StineToKraus(U):
 	return krauss
 
 
-def GenerateSupport(nmaps, nqubits, nmaps_per_qubit, qubit_occupancies):
+def GenerateSupport(nmaps, nqubits, qubit_occupancies):
 	r"""
 	Generates supports for maps such that
 	1. Each qubit participates in at least one maps
@@ -29,14 +29,23 @@ def GenerateSupport(nmaps, nqubits, nmaps_per_qubit, qubit_occupancies):
 	3. Allocation optimized such that each qubit participates roughly in nmaps_per_qubit maps
 	returns a list of tuples with support indicies for each map
 	"""
-	supports = None
+	# A matrix of variables, where each row corresponds to an interaction while each column to a qubit.
+	# The (i,j) entry of this matrix is 1 if the i-th interaction involves the j-th qubit.
 	mat = cp.Variable(shape=(nmaps,nqubits), boolean = True)
+	
+	# These are hard constraints.
 	constraints = []
+	# Each qubit to be part of at least one map.
 	col_sums = cp.sum(mat, axis=0, keepdims=True)
 	constraints.append(col_sums >= 1)
+	# Each interaction must involve a fixed number of qubits.
 	row_sums = cp.sum(mat, axis=1)
 	constraints.append(row_sums == qubit_occupancies)
-	objective = cp.Minimize(cp.norm(col_sums - nmaps_per_qubit, "fro"))
+	
+	# Objective function to place a penalty on the number of interactions per qubit.
+	objective = cp.Minimize(cp.norm(col_sums, "fro"))
+	
+	# Solve the optimization problem.
 	problem = cp.Problem(objective,constraints)
 	# print("Available solvers\n{}".format(cp.installed_solvers()))
 	problem.solve(solver='ECOS_BB', verbose=False)
@@ -45,6 +54,8 @@ def GenerateSupport(nmaps, nqubits, nmaps_per_qubit, qubit_occupancies):
 	    supports = [tuple(np.nonzero(np.round(row).astype(np.int))[0]) for row in mat.value]
 	else:
 	    print("Qubit allocation to maps infeasible.")
+	    supports = None
+	
 	return supports
 
 
@@ -79,8 +90,8 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3):
 	if n_nontrivial_maps == 0:
 		non_trivial_channels = {0: ((0,), [np.eye(2, dtype = np.complex128)])}
 	else:
-		nmaps_per_qubit = max(0.1 * n_nontrivial_maps, 1)
-		supports = GenerateSupport(n_nontrivial_maps, qcode.N, nmaps_per_qubit, interaction_range)
+		# nmaps_per_qubit = max(0.1 * n_nontrivial_maps, 1)
+		supports = GenerateSupport(n_nontrivial_maps, qcode.N, interaction_range)
 		if (supports is None):
 			supports = []
 			for m in range(n_nontrivial_maps):

@@ -49,12 +49,16 @@ def GenerateSupport(nmaps, nqubits, qubit_occupancies):
 	problem = cp.Problem(objective,constraints)
 	# print("Available solvers\n{}".format(cp.installed_solvers()))
 	problem.solve(solver='ECOS_BB', verbose=False)
-	print("problem\n{}".format(problem.status))
+	
 	if ("optimal" in problem.status):
-	    supports = [tuple(np.nonzero(np.round(row).astype(np.int))[0]) for row in mat.value]
+		if (not (problem.status == "optimal")):
+			print("\033[2mWarning: The problem status is \"{}\".\033[0m".format(problem.status))
+		
+		supports = [tuple(np.nonzero(np.round(row).astype(np.int))[0]) for row in mat.value]
+	
 	else:
-	    print("Qubit allocation to maps infeasible.")
-	    supports = None
+		print("Qubit allocation to maps infeasible.")
+		supports = None
 	
 	return supports
 
@@ -79,7 +83,7 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3):
 	n_nontrivial_maps = 0
 	interaction_range = []
 	for m in range(n_maps):
-		n_q = SamplePoisson(mean = 1, cutoff=cutoff)
+		n_q = SamplePoisson(mean = 1.5, cutoff=cutoff)
 		# n_q = 3 # Only for decoding purposes.
 		if n_q != 0:
 			interaction_range.append(n_q)
@@ -103,7 +107,7 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3):
 		non_trivial_channels = {m:None for m in range(n_nontrivial_maps)}
 		for m in range(n_nontrivial_maps):
 			n_q = interaction_range[m]
-			rand_unitary = RandomUnitary(rotation_angle/8**n_q, 8**n_q)
+			rand_unitary = RandomUnitary(rotation_angle/np.power(2, n_q), np.power(8, n_q))
 			kraus = StineToKraus(rand_unitary)
 
 			if (KrausTest(kraus) == 0):

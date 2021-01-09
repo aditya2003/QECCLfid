@@ -41,6 +41,7 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 	print("PTM was constructed in %d seconds." % (timer() - click))
 
 	# if (CHI_PTM_Tests(chi, ptm, kraus_dict, kraus_dict_adj, qcode, compare_against_old = 0) == 0):
+	# 	print("PTM test failed.")
 	# 	exit(0)
 	
 	# Load the interactions
@@ -58,7 +59,11 @@ def CHI_PTM_Tests(chi, ptm, kraus_dict, kraus_dict_adj, qcode, compare_against_o
 	n_maps = len(kraus_dict)
 
 	print("Process[0, 0] = {}".format(ptm[0, 0]))
+	if (np.abs(ptm[0, 0] - 1) >= atol):
+		success = 0
+
 	print("||PTM - Diag(PTM)||_2 = {}".format(np.linalg.norm(ptm - np.diag(np.diag(ptm)))))
+	
 	click = timer()
 	ptm_adj = ConstructPTM(qcode, kraus_dict_adj)
 	print("Adjoint PTM was constructed in %d seconds." % (timer() - click))

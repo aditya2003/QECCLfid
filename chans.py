@@ -22,8 +22,8 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 		kraus_dict = Ising(J, mu, time, qcode)
 
 	elif method == "sum_cptps":
-		(angle, cutoff, n_maps) = params[:3]
-		kraus_dict = CorrelatedCPTP(angle, qcode, cutoff = int(cutoff), n_maps = int(n_maps))
+		(angle, cutoff, n_maps, mean) = params[:3]
+		kraus_dict = CorrelatedCPTP(angle, qcode, cutoff = int(cutoff), n_maps = int(n_maps), mean = mean)
 
 	else:
 		pass

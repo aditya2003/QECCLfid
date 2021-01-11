@@ -63,7 +63,7 @@ def GenerateSupport(nmaps, nqubits, qubit_occupancies):
 	return supports
 
 
-def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3):
+def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1):
 	r"""
 	Sub-routine to prepare the dictionary for error eps = sum of cptp maps
 	Generates Kraus by using Stine to Kraus
@@ -83,7 +83,7 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3):
 	n_nontrivial_maps = 0
 	interaction_range = []
 	for m in range(n_maps):
-		n_q = SamplePoisson(mean = 1.5, cutoff=cutoff)
+		n_q = SamplePoisson(mean = mean, cutoff=cutoff)
 		# n_q = 3 # Only for decoding purposes.
 		if n_q != 0:
 			interaction_range.append(n_q)

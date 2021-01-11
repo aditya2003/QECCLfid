@@ -49,6 +49,7 @@ def SamplePoisson(mean, cutoff=None):
 			rv_val = np.random.poisson(lam = mean)
 	return rv_val
 
+
 def extend_gate(support, mat, extended_support):
 	r"""
 	Extend a gate supported on some qubits in support, to a set of qubit labels, by padding identities.

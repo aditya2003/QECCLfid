@@ -31,7 +31,7 @@ def GenerateSupport(nmaps, nqubits, qubit_occupancies):
 	"""
 	# A matrix of variables, where each row corresponds to an interaction while each column to a qubit.
 	# The (i,j) entry of this matrix is 1 if the i-th interaction involves the j-th qubit.
-	mat = cp.Variable(shape=(nmaps,nqubits), boolean = True)
+	mat = cp.Variable(shape=(nmaps, nqubits), boolean = True)
 	
 	# These are hard constraints.
 	constraints = []
@@ -47,17 +47,14 @@ def GenerateSupport(nmaps, nqubits, qubit_occupancies):
 	
 	# Solve the optimization problem.
 	problem = cp.Problem(objective,constraints)
-	# print("Available solvers\n{}".format(cp.installed_solvers()))
-	problem.solve(solver='ECOS_BB', verbose=False)
+	problem.solve(solver = 'ECOS_BB', verbose=False)
 	
 	if ("optimal" in problem.status):
 		if (not (problem.status == "optimal")):
 			print("\033[2mWarning: The problem status is \"{}\".\033[0m".format(problem.status))
-		
 		supports = [tuple(np.nonzero(np.round(row).astype(np.int))[0]) for row in mat.value]
-	
 	else:
-		print("Qubit allocation to maps infeasible.")
+		print("\033[2mQubit allocation to maps infeasible.\033[0m")
 		supports = None
 	
 	return supports
@@ -79,7 +76,7 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1):
 	support = tuple describing which qubits the kraus ops act on
 	krauslist = krauss ops acting on support
 	"""
-	# print("Sum of CPTP maps:\ncutoff = {}, n_maps = {}".format(cutoff, n_maps))
+	# print("Sum of CPTP maps:\nmean = {}, cutoff = {}, n_maps = {}".format(mean, cutoff, n_maps))
 	n_nontrivial_maps = 0
 	interaction_range = []
 	for m in range(n_maps):

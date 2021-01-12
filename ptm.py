@@ -144,7 +144,7 @@ def ConstructPTM_Partial(map_start, map_end, mem_start, ptm_channels, kraus_dict
 		# if (PTMAdjointTest(np.array(kraus), ptm) == False):
 		# 	print("PTM Test for map %d failed." % (m))
 		ptm_channels[mem_start : mem_end] = ptm.reshape(-1)
-		print("PTM for map {} was constructed in {} seconds.".format(m + 1, timer() - click))
+		print("\033[2mPTM for map %d was constructed in %.2f seconds.\033[0m" % (m + 1, timer() - click))
 		mem_end = mem_start
 	return None
 
@@ -190,7 +190,7 @@ def ConstructPTM(qcode, kraus_dict, n_cores = None):
 	
 	click = timer()
 	(supp_ptm, ptm_contracted) = ContractTensorNetwork(ptm_dict, end_trace=0)
-	print("PTM tensor network was contracted in {} seconds.".format(timer() - click))
+	print("\033[2mPTM tensor network was contracted in %d seconds.\033[0m" % (timer() - click))
 
 	(ls_ops, phases) = GetOperatorsForTLSIndex(qcode, range(nstabs * nlogs))
 	process = np.zeros((nlogs * nstabs, nlogs * nstabs), dtype=np.double)

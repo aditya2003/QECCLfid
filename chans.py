@@ -34,11 +34,11 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 	click = timer()
 	chi = NoiseReconstruction(qcode, kraus_dict)
 	# chi = None # only for debugging
-	print("CHI was constructed in %d seconds." % (timer() - click))
+	print("\033[2mCHI was constructed in %d seconds.\033[0m" % (timer() - click))
 
 	click = timer()
 	ptm = ConstructPTM(qcode, kraus_dict)
-	print("PTM was constructed in %d seconds." % (timer() - click))
+	print("\033[2mPTM was constructed in %d seconds.\033[0m" % (timer() - click))
 
 	# if (CHI_PTM_Tests(chi, ptm, kraus_dict, kraus_dict_adj, qcode, compare_against_old = 0) == 0):
 	# 	print("PTM test failed.")

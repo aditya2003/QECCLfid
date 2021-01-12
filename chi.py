@@ -6,8 +6,8 @@ import multiprocessing as mp
 from psutil import virtual_memory
 from timeit import default_timer as timer
 from define.QECCLfid.ptm import fix_index_after_tensor
-from define.QECCLfid.theta import KrausToTheta, ThetaToChiElement
 from define.QECCLfid.contract import ContractTensorNetwork
+from define.QECCLfid.theta import KrausToTheta, ThetaToChiElement
 from define.qcode import GetOperatorsForLSTIndex, PrepareSyndromeLookUp
 
 
@@ -33,34 +33,6 @@ def get_chi_kraus(kraus, Pi, indices_Pi, n_qubits):
 	return contrib
 
 
-# def ThetaToChiElement(pauli_op_i, pauli_op_j, theta_dict):
-# 	# Convert from the Theta representation to the Chi representation.
-# 	# The "Theta" matrix T of a CPTP map whose chi-matrix is X is defined as:
-# 	# T_ij = \sum_(ij) [ X_ij (P_i o (P_j)^T) ]
-# 	# So we find that
-# 	# Chi_ij = Tr[ (P_i o (P_j)^T) T]
-# 	# Note that [P_i o (P_j)^T] can be expressed as a product of the single qubit Pauli matrices
-# 	# (P^(1)_i)_(r1,c1) (P^(1)_j)_(c(N+1),r(N+1)) x ... x (P^(N)_i)_(c(N),r(N)) (P^(N)_j)_(c(2N),r(2N))
-# 	# We will store T as a Tensor with dimension = (2 * number of qubits) and bond dimension = 4.
-# 	# click = timer()
-# 	nq = pauli_op_i.size
-# 	# ops = [(supp_theta, theta)]
-	
-# 	Pj = [((q,), PauliTensor(pauli_op_j[q, np.newaxis])) for q in range(nq)]
-# 	PjT = [((q,), (-1)**(int(pauli_op_j[q] == 2)) * PauliTensor(pauli_op_j[q, np.newaxis])) for q in range(nq)]
-# 	Pi = [((nq + q,), PauliTensor(pauli_op_i[q, np.newaxis])) for q in range(nq)]
-	
-# 	(__, chi_elem) = ContractTensorNetwork(theta_dict + PjT + Pi, end_trace=1)
-# 	chi_elem /= 4**nq
-	
-# 	# print("Chi element of Pauli op {} = {}".format(pauli_op_i, chi_elem))
-# 	if ((np.real(chi_elem) <= -1E-15) or (np.abs(np.imag(chi_elem)) >= 1E-15)):
-# 		print("Pi\n{}\nPj\n{}".format(pauli_op_i, pauli_op_j))
-# 		print("Chi = %g + i %g" % (np.real(chi_elem), np.imag(chi_elem)))
-# 		exit(0)
-# 	return chi_elem
-
-
 def Chi_Element_Diag_Partial(map_start, map_end, mem_start, theta_channels, krausdict, paulis):
 	# Compute the theta matrix for a subset of Kraus maps.
 	nq = paulis.shape[1]
@@ -68,7 +40,7 @@ def Chi_Element_Diag_Partial(map_start, map_end, mem_start, theta_channels, krau
 		(support, kraus) = krausdict[m]
 		click = timer()
 		theta = KrausToTheta(np.array(kraus))
-		print("Theta matrix for map {} was computed in {} seconds.".format(m + 1, timer() - click))
+		print("\033[2mTheta matrix for map %d was computed in %.2f seconds.\033[0m" % (m + 1, timer() - click))
 		# theta_channels[m] = (theta_support, theta)
 		mem_inter = mem_start + 16 ** len(support)
 		theta_channels[mem_start : mem_inter] = np.real(np.reshape(theta, -1))
@@ -80,8 +52,9 @@ def Chi_Element_Diag_Partial(map_start, map_end, mem_start, theta_channels, krau
 
 def Theta_Chi_Partial(core, start, stop, mp_chi, paulis, theta_dict):
 	# Compute the chi matrix elements for a list of Paulis
-	for i in tqdm(range(start, stop), ascii=True, desc="Core %d" % (core + 1), position=core+1):
+	for i in tqdm(range(start, stop), ascii = True, desc = "Core %d" % (core + 1), position = core, colour = "yellow"):
 		mp_chi[i] = np.real(ThetaToChiElement(paulis[i, :], paulis[i, :], theta_dict))
+	# print("Core %d" % (core + 1))
 	# for i in range(start, stop):
 	# 	mp_chi[i] = np.real(ThetaToChiElement(paulis[i, :], paulis[i, :], theta_dict))
 	return None
@@ -143,8 +116,8 @@ def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 	# print("All theta matrices are done.")
 
 	# If the memory required by a theta matrix is X, then we are limited to RAM/X cores, where RAM is the total physical memory required.
-	ram = virtual_memory().total/1E9
-	theta_mem_size = getsizeof(theta_dict)/1E9
+	ram = virtual_memory().total
+	theta_mem_size = getsizeof(theta_dict)
 	n_cores_ram = int(ram/theta_mem_size)
 
 	if (n_cores is None):
@@ -166,6 +139,10 @@ def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 		processes[p].start()
 	for p in range(n_cores):
 		processes[p].join()
+
+	# Add new lines to ensure that future prints don't overlap with the progress bars
+	# for p in range(n_cores):
+	# 	print("")
 
 	# print("Pauli error probabilities:\n{}".format(chi_diag))
 	chi_diag = np.array(mp_chi[:], dtype = np.double)
@@ -200,5 +177,5 @@ def NoiseReconstruction(qcode, kraus_dict, max_weight=None):
 		end = start + n_errors_weight[w]
 		chi[qcode.group_by_weight[w]] = chi_partial[start:end]
 		start = end
-	print("Budget of chi = {}, infid = {}\nElements of chi\n{}".format(np.sum(chi), 1 - chi[0], np.sort(chi)[::-1]))
+	print("\033[2mBudget of chi excluded = %.2e and infid = %.2e.\033[0m" % (1 - np.sum(chi), 1 - chi[0]))
 	return chi

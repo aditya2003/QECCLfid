@@ -88,7 +88,7 @@ def ComputeUncorrProbs(probs, qcode, nlevels, leading_fraction):
     """
     # print("Probs = {}".format(probs))
     if qcode.PauliCorrectableIndices is None:
-        ComputeCorrectableIndices(qcode)
+        qc.ComputeCorrectableIndices(qcode)
     if qcode.decoder_degens is None:
         ComputeDecoderDegeneracies(qcode)
     if probs.ndim == 2:
@@ -157,24 +157,3 @@ def ComputeUncorrProbs(probs, qcode, nlevels, leading_fraction):
             pass
     # print("uncorrectable_probabilities\n{}".format(1 - correctable_probabilities))
     return 1 - correctable_probabilities
-
-
-def ComputeCorrectableIndices(qcode):
-    r"""
-    Compute the indices of correctable errors in a code.
-    """
-    minwt_reps = list(map(ut.convert_Pauli_to_symplectic, qcode.lookup[:, 2:]))
-    degeneracies = [
-        ut.prod_sym(unique_rep, stab)
-        for unique_rep in minwt_reps
-        for stab in qcode.SGroupSym
-    ]
-    qcode.Paulis_correctable = np.array(
-        list(map(ut.convert_symplectic_to_Pauli, degeneracies)), dtype=np.int
-    )
-    qcode.PauliCorrectableIndices = np.array(
-        list(map(lambda op: qcode.GetPositionInLST(op), qcode.Paulis_correctable)),
-        dtype=np.int,
-    )
-    # print("Pauli correctable indices : {}".format(list(qcode.PauliCorrectableIndices)))
-    return None

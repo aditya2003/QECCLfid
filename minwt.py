@@ -82,18 +82,19 @@ def ComputeResiduals(L_s, pauli_probs, qcode, lookup=None):
     return probls
 
 
-def ComputeUncorrProbs(probs, qcode, nlevels, leading_fraction):
+def ComputeUncorrProbs(probs, qcodes, nlevels, leading_fraction):
     r"""
     Computes uncorr
     """
     # print("Probs = {}".format(probs))
-    if qcode.PauliCorrectableIndices is None:
-        qc.ComputeCorrectableIndices(qcode)
-    if qcode.decoder_degens is None:
-        ComputeDecoderDegeneracies(qcode)
+    for qcode in qcodes:
+        if qcode.PauliCorrectableIndices is None:
+            qc.ComputeCorrectableIndices(qcode)
+        if qcode.decoder_degens is None:
+            ComputeDecoderDegeneracies(qcode)
     if probs.ndim == 2:
         pauli_probs = np.prod(
-            probs[range(qcode.N), qcode.PauliOperatorsLST[:, range(qcode.N)]], axis=1
+            probs[range(qcodes[0].N), qcodes[0].PauliOperatorsLST[:, range(qcodes[0].N)]], axis=1
         )
     else:
         pauli_probs = probs
@@ -102,11 +103,9 @@ def ComputeUncorrProbs(probs, qcode, nlevels, leading_fraction):
         #         pauli_probs, np.sum(pauli_probs), pauli_probs[0]
         #     )
         # )
-    coset_probs = np.zeros(4, dtype=np.double)
     if leading_fraction > 0 and leading_fraction < 1:
-        pauli_probs = CompleteDecoderKnowledge(leading_fraction, pauli_probs, qcode)
-    for log in range(4):
-        coset_probs[log] = ComputeResiduals(log, pauli_probs, qcode)
+        pauli_probs = CompleteDecoderKnowledge(leading_fraction, pauli_probs, qcodes[0])
+    coset_probs = np.zeros(4, dtype=np.double)
     # Here we can use the details of the level-2 code if they're not the same as the level-1 code.
     correctable_probabilities = np.zeros(nlevels, dtype=np.double)
     for l in range(nlevels):
@@ -117,7 +116,7 @@ def ComputeUncorrProbs(probs, qcode, nlevels, leading_fraction):
             # Get level-1 contribution
             # These are all errors that are corected by the level-1 code.
             correctable_probabilities[l] = np.sum(
-                pauli_probs[qcode.PauliCorrectableIndices]
+                pauli_probs[qcodes[0].PauliCorrectableIndices]
             )
             # correctable_probabilities[1] = 1 - sum(
             #     [pauli_probs[p] for p in qcode.PauliCorrectableIndices]
@@ -126,34 +125,33 @@ def ComputeUncorrProbs(probs, qcode, nlevels, leading_fraction):
             # This is computed in two steps.
             # First we need to account for errors that are completely removed by the level-1 code.
             correctable_probabilities[l] = np.power(
-                correctable_probabilities[l - 1], qcode.N
+                correctable_probabilities[l - 1], qcodes[l-2].N
             )
             # Then we need to account for errors that are mapped to a correctable pattern of logical errors, for the level-2 code to correct.
-            # correctable_probabilities[2] = np.sum(
-            #     np.prod(coset_probs[qcode.Paulis_correctable[0:]], axis=1)
-            # )
+            for log in range(4):
+                coset_probs[log] = ComputeResiduals(log, pauli_probs, qcodes[l-2])
             correctable_probabilities[l] += np.sum(
-                np.prod(coset_probs[qcode.Paulis_correctable[1:]], axis=1)
+                np.prod(coset_probs[qcodes[l-1].Paulis_correctable[1:]], axis=1)
             )
         elif l == 3:
             # This is also computed in two steps.
             # First we need to account for errors are completely removed by the level-2 code.
             correctable_probabilities[l] = np.power(
-                correctable_probabilities[l - 1], qcode.N
+                correctable_probabilities[l - 1], qcodes[l-2].N
             )
             # Then we need to account for errors that are mapped to a correctable pattern of logical errors, for the level-3 code to correct.
             # Update coset probs recursively
             pauli_probs = np.prod(
-                np.tile(coset_probs, [qcode.N, 1])[range(qcode.N), qcode.PauliOperatorsLST[:, range(qcode.N)]], axis=1
+                np.tile(coset_probs, [qcodes[l-2].N, 1])[range(qcodes[l-2].N), qcodes[l-2].PauliOperatorsLST[:, range(qcodes[l-2].N)]], axis=1
             )
             for log in range(4):
-                coset_probs[log] = ComputeResiduals(log, pauli_probs, qcode)
+                coset_probs[log] = ComputeResiduals(log, pauli_probs, qcodes[l-2])
 
             correctable_probabilities[l] += np.sum(
-                np.prod(coset_probs[qcode.Paulis_correctable[1:]], axis=1)
+                np.prod(coset_probs[qcodes[l-1].Paulis_correctable[1:]], axis=1)
             )
 
         else:
             pass
-    # print("uncorrectable_probabilities\n{}".format(1 - correctable_probabilities))
+    print("uncorrectable_probabilities\n{}".format(1 - correctable_probabilities))
     return 1 - correctable_probabilities

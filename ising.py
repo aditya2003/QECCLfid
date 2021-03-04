@@ -14,6 +14,7 @@ def Ising(J, mu, time, qcode):
 	support = tuple describing which qubits the kraus ops act on
 	krauslist = krauss ops acting on support
 	"""
+	# J *= -1 # This creats an antiferromagnetic ground state.
 	ZZ = np.kron(gv.Pauli[3], gv.Pauli[3])
 	if qcode.interaction_graph is None:
 		if qcode.name == "Steane":
@@ -23,7 +24,7 @@ def Ising(J, mu, time, qcode):
 			qcode.interaction_graph = np.array(connections + connections_rev)
 		else:
 			# Asssume nearest neighbour in numerically sorted order
-			qcode.interaction_graph = np.array([(i,(i+1)%qcode.N) for i in range(qcode.N)],dtype=np.int8)
+			qcode.interaction_graph = np.array([(i, (i + 1) % qcode.N) for i in range(qcode.N)], dtype=np.int8)
 
 	Ham = np.zeros(2**qcode.N, dtype = np.double)
 	for (i,j) in qcode.interaction_graph :

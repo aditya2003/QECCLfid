@@ -90,6 +90,8 @@ def ComputeUncorrProbs(probs, qcodes, nlevels, leading_fraction):
     for qcode in qcodes:
         if qcode.PauliCorrectableIndices is None:
             qc.ComputeCorrectableIndices(qcode)
+            # print("Pure errors\n{}".format(qcode.T))
+            # print("Correctable error representatives for the {} code:\n{}\nCorrectable errors\n{}".format(qcode.name, qcode.lookup, qcode.Paulis_correctable))
         if qcode.decoder_degens is None:
             ComputeDecoderDegeneracies(qcode)
     if probs.ndim == 2:
@@ -108,7 +110,9 @@ def ComputeUncorrProbs(probs, qcodes, nlevels, leading_fraction):
     coset_probs = np.zeros(4, dtype=np.double)
     # Here we can use the details of the level-2 code if they're not the same as the level-1 code.
     correctable_probabilities = np.zeros(nlevels, dtype=np.double)
+    # print("Uncorr: nlevels = %d" % (nlevels))
     for l in range(nlevels):
+        # print("pauli_probs = {}".format(pauli_probs[pauli_probs <= 0]))
         if l == 0:
             # Get level-0 contribution -- this is just the probability of I.
             correctable_probabilities[l] = pauli_probs[0]
@@ -124,20 +128,23 @@ def ComputeUncorrProbs(probs, qcodes, nlevels, leading_fraction):
         elif l == 2:
             # This is computed in two steps.
             # First we need to account for errors that are completely removed by the level-1 code.
+            # print("at l = 2\nqcodes[l - 2].N = {}".format(qcodes[l - 2].N))
             correctable_probabilities[l] = np.power(
-                correctable_probabilities[l - 1], qcodes[l-2].N
+                correctable_probabilities[l - 1], qcodes[l-1].N
             )
             # Then we need to account for errors that are mapped to a correctable pattern of logical errors, for the level-2 code to correct.
             for log in range(4):
                 coset_probs[log] = ComputeResiduals(log, pauli_probs, qcodes[l-2])
+            # print("Coset probs = {}".format(coset_probs))
             correctable_probabilities[l] += np.sum(
                 np.prod(coset_probs[qcodes[l-1].Paulis_correctable[1:]], axis=1)
             )
+            # print("Correctable probabilities\n{}".format(correctable_probabilities[l]))
         elif l == 3:
             # This is also computed in two steps.
             # First we need to account for errors are completely removed by the level-2 code.
             correctable_probabilities[l] = np.power(
-                correctable_probabilities[l - 1], qcodes[l-2].N
+                correctable_probabilities[l - 1], qcodes[l-1].N
             )
             # Then we need to account for errors that are mapped to a correctable pattern of logical errors, for the level-3 code to correct.
             # Update coset probs recursively

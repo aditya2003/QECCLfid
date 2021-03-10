@@ -82,16 +82,21 @@ def ComputeResiduals(L_s, pauli_probs, qcode, lookup=None):
     return probls
 
 
-def ComputeUncorrProbs(probs, qcodes, nlevels, leading_fraction):
+def ComputeUncorrProbs(probs, qcodes, nlevels, leading_fraction, misc=None):
     r"""
     Computes uncorr
     """
     # print("Probs = {}".format(probs))
     for qcode in qcodes:
-        if qcode.PauliCorrectableIndices is None:
-            qc.ComputeCorrectableIndices(qcode)
-            # print("Pure errors\n{}".format(qcode.T))
-            # print("Correctable error representatives for the {} code:\n{}\nCorrectable errors\n{}".format(qcode.name, qcode.lookup, qcode.Paulis_correctable))
+        if misc is None:
+            if qcode.PauliCorrectableIndices is None:
+                qc.ComputeCorrectableIndices(qcode)
+        else:
+            if (misc["submit"].channel == "bpauli"):
+                TailorDecoder(misc["submit"], misc["noise"])
+                qc.ComputeCorrectableIndices(qcode)
+        # print("Pure errors\n{}".format(qcode.T))
+        # print("Correctable error representatives for the {} code:\n{}\nCorrectable errors\n{}".format(qcode.name, qcode.lookup, qcode.Paulis_correctable))
         if qcode.decoder_degens is None:
             ComputeDecoderDegeneracies(qcode)
     if probs.ndim == 2:

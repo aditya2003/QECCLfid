@@ -4,7 +4,7 @@ from define.QECCLfid import clique as cq
 from define.qcode import PrepareSyndromeLookUp
 
 
-def ComputeUnCorrProb(pauli_probs, qcodes, nlevels, leading_fraction=0, method=None):
+def ComputeUnCorrProb(pauli_probs, qcodes, nlevels, leading_fraction=0, method=None, misc=None):
     r"""
     Given a list of Pauli probabilities corresponding to a noise process and a list of qcodes,
     it estimates uncorrectable probability using the chosen method. The default method is
@@ -18,7 +18,7 @@ def ComputeUnCorrProb(pauli_probs, qcodes, nlevels, leading_fraction=0, method=N
         for qcode in qcodes:
             if qcode.lookup is None:
                 PrepareSyndromeLookUp(qcode)
-        return mw.ComputeUncorrProbs(pauli_probs, qcodes, nlevels, leading_fraction)
+        return mw.ComputeUncorrProbs(pauli_probs, qcodes, nlevels, leading_fraction, misc)
     elif method == "maxclique":
         # Consider getting rid of this feature
         # Not updated for different codes across levels

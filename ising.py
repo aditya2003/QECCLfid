@@ -15,20 +15,23 @@ def Ising(J, mu, time, qcode):
 	krauslist = krauss ops acting on support
 	"""
 	# J *= -1 # This creats an antiferromagnetic ground state.
-	ZZ = np.kron(gv.Pauli[3], gv.Pauli[3])
+	# ZZ = np.kron(gv.Pauli[3], gv.Pauli[3])
+	YY = np.kron(gv.Pauli[3], gv.Pauli[3])
 	if qcode.interaction_graph is None:
-		if qcode.name == "Steane":
-			# Color code triangle graph
-			connections = [(0,5),(0,1),(1,6),(5,6),(4,5),(3,4),(3,6),(2,3),(1,2)]
-			connections_rev = [(y,x) for (x,y) in connections]
-			qcode.interaction_graph = np.array(connections + connections_rev)
-		else:
-			# Asssume nearest neighbour in numerically sorted order
-			qcode.interaction_graph = np.array([(i, (i + 1) % qcode.N) for i in range(qcode.N)], dtype=np.int8)
+		qcode.interaction_graph = np.array([(i, (i + 1) % qcode.N) for i in range(qcode.N)], dtype=np.int8)
+		# if qcode.name == "Steane":
+		# 	# Color code triangle graph
+		# 	connections = [(0,5),(0,1),(1,6),(5,6),(4,5),(3,4),(3,6),(2,3),(1,2)]
+		# 	connections_rev = [(y,x) for (x,y) in connections]
+		# 	qcode.interaction_graph = np.array(connections + connections_rev)
+		# else:
+		# 	# Asssume nearest neighbour in numerically sorted order
+		# 	qcode.interaction_graph = np.array([(i, (i + 1) % qcode.N) for i in range(qcode.N)], dtype=np.int8)
 
 	Ham = np.zeros(2**qcode.N, dtype = np.double)
 	for (i,j) in qcode.interaction_graph :
-		Ham = Ham + J * extend_gate([i,j], ZZ, np.arange(qcode.N, dtype=np.int))
+		# Ham = Ham + J * extend_gate([i,j], ZZ, np.arange(qcode.N, dtype=np.int))
+		Ham = Ham + J * extend_gate([i,j], YY, np.arange(qcode.N, dtype=np.int))
 	if mu > 0:
 		for i in range(qcode.N):
 			Ham = Ham + mu * extend_gate([i], gv.Pauli[1], np.arange(qcode.N, dtype=np.int))

@@ -86,13 +86,12 @@ def ComputeUncorrProbs(probs, qcodes, nlevels, leading_fraction, recompute=None)
     r"""
     Computes uncorr
     """
-    # print("Probs = {}".format(probs))
+    # print("recompute Correctable error indices is {}".format(recompute))
     for qcode in qcodes:
         if (recompute == True):
-            if qcode.PauliCorrectableIndices is None:
-                qc.ComputeCorrectableIndices(qcode)
+            qc.ComputeCorrectableIndices(qcode)
         else:
-            if (recompute == True):
+            if qcode.PauliCorrectableIndices is None:
                 qc.ComputeCorrectableIndices(qcode)
         # print("Pure errors\n{}".format(qcode.T))
         # print("Correctable error representatives for the {} code:\n{}\nCorrectable errors\n{}".format(qcode.name, qcode.lookup, qcode.Paulis_correctable))

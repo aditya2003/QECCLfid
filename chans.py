@@ -32,20 +32,20 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 	kraus_dict_adj = AdjointChannel(kraus_dict)
 
 	click = timer()
-	# chi = NoiseReconstruction(qcode, kraus_dict)
-	chi = get_chi_diagLST(qcode, kraus_dict)
+	chi = NoiseReconstruction(qcode, kraus_dict)
+	# chi = get_chi_diagLST(qcode, kraus_dict)
 	# chi = np.zeros(4**qcode.N, dtype = np.double) # only for debugging
 	print("\033[2mCHI was constructed in %d seconds.\033[0m" % (timer() - click))
 
 	click = timer()
-	# ptm = ConstructPTM(qcode, kraus_dict)
-	ptm = get_process_correlated(qcode, kraus_dict).reshape(2**(qcode.N + qcode.K), 2**(qcode.N + qcode.K))
+	ptm = ConstructPTM(qcode, kraus_dict)
+	# ptm = get_process_correlated(qcode, kraus_dict).reshape(2**(qcode.N + qcode.K), 2**(qcode.N + qcode.K))
 	print("\033[2mPTM was constructed in %d seconds.\033[0m" % (timer() - click))
 
 	# if (CHI_PTM_Tests(chi, ptm, kraus_dict, kraus_dict_adj, qcode, compare_against_old = 0) == 0):
 	# 	print("PTM test failed.")
 	# 	exit(0)
-	
+
 	# Load the interactions
 	interactions = []
 	for m in kraus_dict:
@@ -65,7 +65,7 @@ def CHI_PTM_Tests(chi, ptm, kraus_dict, kraus_dict_adj, qcode, compare_against_o
 		success = 0
 
 	print("||PTM - Diag(PTM)||_2 = {}".format(np.linalg.norm(ptm - np.diag(np.diag(ptm)))))
-	
+
 	click = timer()
 	ptm_adj = ConstructPTM(qcode, kraus_dict_adj)
 	print("Adjoint PTM was constructed in %d seconds." % (timer() - click))

@@ -134,7 +134,8 @@ def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 	for p in range(n_cores):
 		start = p * chunk
 		stop = min((p + 1) * chunk, paulis.shape[0])
-		processes.append(mp.Process(target=Theta_Chi_Partial, args = (p, start, stop, mp_chi, paulis, theta_dict)))
+		# processes.append(mp.Process(target=Theta_Chi_Partial, args = (p, start, stop, mp_chi, paulis)))
+		Theta_Chi_Partial(p, start, stop, mp_chi, paulis, theta_dict)
 	for p in range(n_cores):
 		processes[p].start()
 	for p in range(n_cores):

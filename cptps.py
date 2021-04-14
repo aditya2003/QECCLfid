@@ -81,10 +81,11 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1):
 	interaction_range = []
 	for m in range(n_maps):
 		n_q = SamplePoisson(mean = mean, cutoff=cutoff)
-		# n_q = 3 # Only for decoding purposes.
 		if n_q != 0:
 			interaction_range.append(n_q)
 			n_nontrivial_maps += 1
+	# interaction_range = [3, 3, 3, 2] # Only for decoding purposes.
+	# n_nontrivial_maps = len(interaction_range) # Only for decoding purposes.
 	print("Range of interactions : {}".format(interaction_range))
 
 	# If the Kraus list is empty, then append the identity error on some qubit.

@@ -14,12 +14,12 @@ ifeq ($(MODE), DEBUG)
 	LDFLAGS = $()
 	LIBS_MATH = -lm
 else
-	CC = icc
+	CC = gcc-10
 	OPTS = -O3
 	REPORT = -qopt-report-phase=vec -qopt-report=5
 	TARGET = convert.so
-	LDFLAGS = -shared
 	LIBS_MATH = -lm
+	LDFLAGS = -shared
 endif
 ### To do: the following 3 lines should not be apllicable for the debug mode.
 #ifeq ($(strip $(shell icc --version)),)
@@ -36,18 +36,15 @@ OS := $(shell uname -s)
 $(info Make is being run in ${MODE} mode on the ${OS} OS.)
 
 ifeq ($(OS), Darwin)
-	# CFLAGS_MKL = -I${MKLROOT}/include
-	# LIBS_MKL = -L${MKLROOT}/lib -Wl,-rpath,${MKLROOT}/lib -lmkl_rt -lpthread $(LIBS) -ldl
-	MKL_DIR = ${MKLROOT}
-	CFLAGS_MKL = -m64 -I${MKL_DIR}/include
-	LIBS_MKL =  -L${MKL_DIR}/lib -lmkl_rt -lpthread -ldl
+	CFLAGS_MKL = -m64 -I${MKLROOT}/include
+	LIBS_MKL =  -L${MKLROOT}/lib -lmkl_rt -lpthread -ldl
+# 	,--no-as-needed -lmkl_rt -lpthread -ldl
 else ifeq ($(OS), Linux)
 	ifeq ($(MKLROOT),)
 		MKLROOT="/mnt/c/Program Files (x86)/IntelSWTools/compilers_and_libraries_2020.4.311/windows/mkl/"
 	endif
-	MKL_DIR = ${MKLROOT}
-	CFLAGS_MKL = -m64 -I${MKL_DIR}/include
-	LIBS_MKL =  -L${MKL_DIR}/lib/intel64 -Wl,--no-as-needed -lmkl_rt -lpthread -ldl
+	CFLAGS_MKL = -m64 -I${MKLROOT}/include
+	LIBS_MKL =  -L${MKLROOT}/lib/intel64 -Wl,--no-as-needed -lmkl_rt -lpthread -ldl
 else
 	MKL_DIR = "c:/Program Files (x86)/IntelSWTools/compilers_and_libraries_2020/windows"
 	CFLAGS_MKL =  -I${MKL_DIR}/mkl/include
@@ -55,10 +52,12 @@ else
 	LIBS_MKL = -L${LIBS_DIR}/mkl_rt.lib
 endif
 
+# $(info CFLAGS_MKL is ${CFLAGS_MKL}, LIBS_MKL is ${LIBS_MKL} and LIBS_MATH is ${LIBS_MATH}.)
+
 $(shell mkdir -p obj/)
 
 $(TARGET):obj/main.o obj/pauli.o obj/tracedot.o obj/zdot.o obj/krauss_theta.o obj/krauss_ptm.o
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $(TARGET) obj/main.o obj/pauli.o obj/tracedot.o obj/krauss_theta.o obj/krauss_ptm.o $(LIBS_MKL) obj/zdot.o $(LIBS_MATH)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $(TARGET) obj/main.o obj/pauli.o obj/tracedot.o obj/krauss_theta.o obj/krauss_ptm.o obj/zdot.o $(LIBS_MKL) $(LIBS_MATH)
 
 obj/main.o: $(SRC_DIR)/main.c Makefile
 	$(CC) $(CFLAGS) -c $(SRC_DIR)/main.c -o obj/main.o $(LIBS_MATH)
@@ -70,7 +69,7 @@ obj/tracedot.o: $(SRC_DIR)/tracedot.c $(SRC_DIR)/tracedot.h Makefile
 	$(CC) $(CFLAGS) -c $(SRC_DIR)/tracedot.c -o obj/tracedot.o $(LIBS_MATH)
 
 obj/zdot.o: $(SRC_DIR)/zdot.c $(SRC_DIR)/zdot.h Makefile
-	$(CC) $(CFLAGS) $(CFLAGS_MKL) $(LIBS_MKL) -c $(SRC_DIR)/zdot.c -o obj/zdot.o $(LIBS_MATH)
+	$(CC) $(CFLAGS) $(CFLAGS_MKL) -c $(SRC_DIR)/zdot.c -o obj/zdot.o $(LIBS_MKL) $(LIBS_MATH)
 
 obj/krauss_theta.o: $(SRC_DIR)/krauss_theta.c $(SRC_DIR)/krauss_theta.h Makefile
 	$(CC) $(CFLAGS) -c $(SRC_DIR)/krauss_theta.c -o obj/krauss_theta.o $(LIBS_MATH)
@@ -79,4 +78,4 @@ obj/krauss_ptm.o: $(SRC_DIR)/krauss_ptm.c $(SRC_DIR)/krauss_ptm.h Makefile
 	$(CC) $(CFLAGS) -c $(SRC_DIR)/krauss_ptm.c -o obj/krauss_ptm.o $(LIBS_MATH)
 
 clean:
-	$(RM) convert convert.so obj/main.o obj/pauli.o obj/tracedot.o obj/zdot.o obj/krauss_theta.o obj/krauss_ptm.o
+	$(RM) $(TARGET) obj/main.o obj/pauli.o obj/tracedot.o obj/zdot.o obj/krauss_theta.o obj/krauss_ptm.o

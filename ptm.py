@@ -15,7 +15,6 @@ def KrausToPTM(kraus):
 	# Convert from the Kraus representation to the PTM.
 	# This is a wrapper for the KrausToPTM function in convert.so.
 	dim = kraus.shape[1]
-	n_kraus = kraus.shape[0]
 	nq = int(np.ceil(np.log2(dim)))
 	
 	real_kraus = np.real(kraus).reshape(-1).astype(np.float64)
@@ -28,7 +27,7 @@ def KrausToPTM(kraus):
 		ct.c_int,  # number of qubits
 	)
 	# Output is the flattened PTM.
-	_convert.KrausToPTM.restype = ndpointer(dtype=ct.c_double, shape=(n_kraus * n_kraus,))
+	_convert.KrausToPTM.restype = ndpointer(dtype=ct.c_double, shape=(4**nq * 4**nq,))
 	# Call the backend function.
 	ptm_out = _convert.KrausToPTM(real_kraus, imag_kraus, nq)
 	ptm = ptm_out.reshape([4, 4] * nq)

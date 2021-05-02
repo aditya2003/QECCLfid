@@ -5,7 +5,7 @@ from define.QECCLfid.chi import Chi_Element_Diag
 from define.QECCLfid.ptm import PTM_Element, get_Pauli_tensor, ExtractPTMElement
 from define.QECCLfid.utils import Dot, Kron, Dagger, circular_shift
 # for debugging
-from define.QECCLfid.backup import get_Chielem_ii
+from define.QECCLfid.backup import get_Chielem_ii, get_PTMelem_ij
 
 def get_process_correlated(qcode, kraus_dict):
 	r"""
@@ -20,7 +20,7 @@ def get_process_correlated(qcode, kraus_dict):
 	ops_tensor = list(map(get_Pauli_tensor, ops))
 	process = np.zeros(nstabs * nstabs * nlogs * nlogs, dtype=np.double)
 	for i in range(len(ops_tensor)):
-		process[i * nstabs * nlogs : (i + 1) * nstabs * nlogs] = PTM_Element(
+		process[i * nstabs * nlogs : (i + 1) * nstabs * nlogs] = get_PTMelem_ij(
 			kraus_dict, ops_tensor[i], ops_tensor, qcode.N, phases[i], phases
 		)
 		# print("Test for {}\n{}".format(i, test_get_PTMelem_ij(kraus_dict, ops_tensor[i], ops_tensor, qcode.N)))
@@ -54,8 +54,8 @@ def get_chi_diagLST(qcode, kraus_dict):
 	nstabs = 2 ** (qcode.N - qcode.K)
 	nlogs = 4 ** qcode.K
 	(ops, __) = GetOperatorsForLSTIndex(qcode, range(nstabs * nstabs * nlogs))
-	# chi = get_Chielem_ii(kraus_dict, ops, qcode.N)
+	chi = get_Chielem_ii(kraus_dict, ops, qcode.N)
 	# chi = get_Chielem_broadcast(kraus_dict, ops, qcode.N)
-	chi = Chi_Element_Diag(kraus_dict, ops, qcode.N)
+	# chi = Chi_Element_Diag(kraus_dict, ops, qcode.N)
 	print("Sum of chi = {}, infid = {}\nElements of chi\n{}".format(np.sum(chi), 1 - chi[0], np.sort(chi)[::-1]))
 	return chi

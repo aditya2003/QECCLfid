@@ -1,5 +1,7 @@
 import numpy as np
+from define.QECCLfid.utils import Dagger
 from define.QECCLfid.ptm import get_Pauli_tensor, fix_index_after_tensor
+
 
 def get_chi_kraus(kraus, Pi, indices_Pi, n_qubits):
 	# Compute the addition to the Chi element from a given Kraus operator.

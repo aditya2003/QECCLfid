@@ -19,8 +19,7 @@ def SumUnitaries(p_error, rotation_angle, qcode, w_thresh=3):
 
 	kraus_count = 0
 	norm_coeff = np.zeros(qcode.N + 1, dtype=np.double)
-	# for n_q in range(qcode.N, qcode.N + 1): # For debugging.
-	for n_q in range(qcode.N + 1):
+	for n_q in range(qcode.N, qcode.N + 1):
 		if n_q == 0:
 			p_q = 1 - p_error
 		elif n_q <= w_thresh:
@@ -32,26 +31,30 @@ def SumUnitaries(p_error, rotation_angle, qcode, w_thresh=3):
 			nops_q = 1
 		else:
 			# nops_q = 1 # For debugging.
-			nops_q = max(1, (qcode.N + n_q) // 2) # Aditya's version
+			# nops_q = max(1, (qcode.N + n_q) // 2) # Aditya's version
+			nops_q = max(1, qcode.N - n_q - 1)
 			# nops_q = sc.special.comb(qcode.N, n_q, exact=True) * n_q
 		norm_coeff[n_q] += p_q
 		for __ in range(nops_q):
 			support = tuple(sorted((random.sample(range(qcode.N), n_q))))
 			if n_q == 0:
-				rand_unitary = 1.0
+				rand_unitary = np.array([[1.0]])
 			else:
-				rand_unitary = rc.RandomUnitary(
-				    rotation_angle/(2**n_q), 2 ** n_q, method="exp"
-				)
-			kraus_dict[kraus_count] = (support, [rand_unitary * 1 / np.sqrt(nops_q)])
+				rand_unitary = rc.RandomUnitary(rotation_angle/(2**n_q), 2 ** n_q, method="exp")
+			kraus_dict[kraus_count] = (support, np.array([rand_unitary * 1 / np.sqrt(nops_q)]))
 			kraus_count += 1
 
 	norm_coeff /= np.sum(norm_coeff)
 	# print("norm_coeff = {}".format(norm_coeff))
 	# Renormalize kraus ops
 	for key, (support, krauslist) in kraus_dict.items():
+		# print("Map: {}: support: {}, krauslist shape: {}".format(key, support, np.shape(krauslist)))
 		for k in range(len(krauslist)):
 			# print("k = {}".format(k))
 			kraus_dict[key][1][k] *= np.sqrt(norm_coeff[len(support)])
+	
+	supports = [kraus_dict[key][0] for key in kraus_dict]
+	print("Range of interactions : {}".format(supports))
+	
 	return kraus_dict
 

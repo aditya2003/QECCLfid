@@ -11,7 +11,6 @@ def KrausToTheta(kraus):
 	# Compute the Theta matrix of a channel whose Kraus matrix is given.
 	# This is a wrapper for the KrausToTheta function in convert.so.
 	dim = kraus.shape[1]
-	n_kraus = kraus.shape[0]
 	nq = int(np.ceil(np.log2(dim)))
 	
 	real_kraus = np.real(kraus).reshape(-1).astype(np.float64)
@@ -24,12 +23,12 @@ def KrausToTheta(kraus):
 		ct.c_int,  # number of qubits
 	)
 	# Output is the real part of Theta followed by its imaginary part.
-	_convert.KrausToTheta.restype = ndpointer(dtype=ct.c_double, shape=(2 * n_kraus * n_kraus,))
+	_convert.KrausToTheta.restype = ndpointer(dtype=ct.c_double, shape=(2 * 4**nq * 4**nq,))
 	# Call the backend function.
 	theta_out = _convert.KrausToTheta(real_kraus, imag_kraus, nq)
-	# print("theta_out\n{}".format(theta_out))
-	theta_real = theta_out[ : (n_kraus * n_kraus)].reshape([2, 2, 2, 2] * nq)
-	theta_imag = theta_out[(n_kraus * n_kraus) : ].reshape([2, 2, 2, 2] * nq)
+	# print("theta_out length\n{}".format(len(theta_out)))
+	theta_real = theta_out[ : (4**nq * 4**nq)].reshape([2, 2, 2, 2] * nq)
+	theta_imag = theta_out[(4**nq * 4**nq) : ].reshape([2, 2, 2, 2] * nq)
 	theta = theta_real + 1j * theta_imag
 	return theta
 

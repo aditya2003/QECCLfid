@@ -14,7 +14,7 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 	nlogs = 4 ** qcode.K
 
 	if method == "sum_unitaries":
-		p_error,rotation_angle,w_thresh = params[:3]
+		(p_error, rotation_angle, w_thresh) = params[:3]
 		kraus_dict = SumUnitaries(p_error, rotation_angle, qcode, w_thresh)
 
 	elif method == "ising":
@@ -29,19 +29,21 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 		pass
 
 	# Prepare the adjoint channel for PTM checks.
-	kraus_dict_adj = AdjointChannel(kraus_dict)
+	# kraus_dict_adj = AdjointChannel(kraus_dict)
 
 	click = timer()
-	chi = NoiseReconstruction(qcode, kraus_dict)
-	# chi = get_chi_diagLST(qcode, kraus_dict)
+	print("\033[2mKraus operators done in %d seconds.\033[0m" % (timer() - click))
+	# chi = NoiseReconstruction(qcode, kraus_dict)
+	chi = get_chi_diagLST(qcode, kraus_dict)
 	# chi = np.zeros(4**qcode.N, dtype = np.double) # only for debugging
 	print("\033[2mCHI was constructed in %d seconds.\033[0m" % (timer() - click))
 
 	click = timer()
-	ptm = ConstructPTM(qcode, kraus_dict)
-	# ptm = get_process_correlated(qcode, kraus_dict).reshape(2**(qcode.N + qcode.K), 2**(qcode.N + qcode.K))
+	# ptm = ConstructPTM(qcode, kraus_dict)
+	ptm = get_process_correlated(qcode, kraus_dict).reshape(2**(qcode.N + qcode.K), 2**(qcode.N + qcode.K))
 	print("\033[2mPTM was constructed in %d seconds.\033[0m" % (timer() - click))
-
+	print("Process[0, 0] = {}".format(ptm[0, 0]))
+	
 	# if (CHI_PTM_Tests(chi, ptm, kraus_dict, kraus_dict_adj, qcode, compare_against_old = 0) == 0):
 	# 	print("PTM test failed.")
 	# 	exit(0)

@@ -104,7 +104,9 @@ def ComputeUncorrProbs(probs, qcodes, nlevels, leading_fraction, recompute=None)
 		pauli_probs = probs
 	
 	if ((leading_fraction > 0) and (leading_fraction < 1)):
+		# print("Attempting to complete the Pauli probs:\n{}\nfor leading fraction: {}".format(pauli_probs, leading_fraction))
 		complete_pauli_probs = CompleteDecoderKnowledge(leading_fraction, pauli_probs, qcodes[0], option="sqprobs")
+		# print("Completed Pauli probabilities: min = {}, max = {} and sum = {}\n{}".format(np.min(complete_pauli_probs), np.max(complete_pauli_probs), np.sum(complete_pauli_probs), complete_pauli_probs))
 	else:
 		complete_pauli_probs = pauli_probs
 

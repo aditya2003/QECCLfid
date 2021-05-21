@@ -7,6 +7,8 @@ from define.QECCLfid.sum_unitaries import SumUnitaries
 from define.QECCLfid.multi_qubit_kraus import get_process_correlated, get_chi_diagLST
 from define.QECCLfid.ptm import ConstructPTM
 from define.QECCLfid.chi import NoiseReconstruction
+from define.QECCLfid.utils import Kron
+import define.globalvars as gv
 
 
 def GetProcessChi(qcode, method = "sum_unitaries", *params):
@@ -25,6 +27,13 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 		(angle, cutoff, n_maps, mean) = params[:4]
 		kraus_dict = CorrelatedCPTP(angle, qcode, cutoff = int(cutoff), n_maps = int(n_maps), mean = mean)
 
+	elif method == "correctable_kraus":
+		(beta,) = params[:1]
+		P1 = Kron(gv.Pauli[1],gv.Pauli[0],gv.Pauli[0],gv.Pauli[0])
+		P2 = Kron(gv.Pauli[2],gv.Pauli[3],gv.Pauli[3],gv.Pauli[3])
+		kraus_dict = {}
+		kraus_dict[0] = ((), np.array([np.sqrt(1-2*beta)]))
+		kraus_dict[1] = ((0,1,2,3), np.array([np.sqrt(beta)*(P1 + P2)]))
 	else:
 		pass
 
@@ -43,7 +52,7 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 	ptm = get_process_correlated(qcode, kraus_dict).reshape(2**(qcode.N + qcode.K), 2**(qcode.N + qcode.K))
 	print("\033[2mPTM was constructed in %d seconds.\033[0m" % (timer() - click))
 	print("Process[0, 0] = {}".format(ptm[0, 0]))
-	
+
 	# if (CHI_PTM_Tests(chi, ptm, kraus_dict, kraus_dict_adj, qcode, compare_against_old = 0) == 0):
 	# 	print("PTM test failed.")
 	# 	exit(0)

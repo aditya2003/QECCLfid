@@ -9,6 +9,9 @@ from define.QECCLfid.ptm import ConstructPTM
 from define.QECCLfid.chi import NoiseReconstruction
 from define.QECCLfid.utils import Kron
 import define.globalvars as gv
+from define.qcode import PauliOperatorToMatrix, ComputeCorrectableIndices, PrepareSyndromeLookUp
+from scipy import linalg as linalg
+from define.QECCLfid.cptps import KrausTest
 
 
 def GetProcessChi(qcode, method = "sum_unitaries", *params):
@@ -28,12 +31,23 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 		kraus_dict = CorrelatedCPTP(angle, qcode, cutoff = int(cutoff), n_maps = int(n_maps), mean = mean)
 
 	elif method == "correctable_kraus":
-		(beta,) = params[:1]
-		P1 = Kron(gv.Pauli[1],gv.Pauli[0],gv.Pauli[0],gv.Pauli[0])
-		P2 = Kron(gv.Pauli[2],gv.Pauli[3],gv.Pauli[3],gv.Pauli[3])
+		(delta,) = params[:1]
+		support = (0, 2, 4, 6)
 		kraus_dict = {}
-		kraus_dict[0] = ((), np.array([np.sqrt(1-2*beta)]))
-		kraus_dict[1] = ((0,1,2,3), np.array([np.sqrt(beta)*(P1 + P2)]))
+		n_corr = 2
+		syndrome = 1
+		nstabs = 2**(qcode.N - qcode.K)
+		if qcode.Paulis_correctable is None:
+			PrepareSyndromeLookUp(qcode)
+			ComputeCorrectableIndices(qcode)
+		paulis = qcode.Paulis_correctable[(syndrome*nstabs):(syndrome*nstabs + n_corr)]
+		print("Paulis taken : {}".format(paulis))
+		axis_rot = np.zeros((2**len(support), 2**len(support)), dtype = np.complex128)
+		for i in range(n_corr):
+			axis_rot += PauliOperatorToMatrix(paulis[i,list(support)])
+		kraus_dict[0] = (support, [linalg.expm(-1j * delta * np.pi * axis_rot)])
+		for q in range(qcode.N):
+			kraus_dict[q+1] = ((q,), [linalg.expm(-1j * delta * np.pi * gv.Pauli[3])])
 	else:
 		pass
 
@@ -42,14 +56,14 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 
 	click = timer()
 	print("\033[2mKraus operators done in %d seconds.\033[0m" % (timer() - click))
-	# chi = NoiseReconstruction(qcode, kraus_dict)
-	chi = get_chi_diagLST(qcode, kraus_dict)
+	chi = NoiseReconstruction(qcode, kraus_dict)
+	# chi = get_chi_diagLST(qcode, kraus_dict)
 	# chi = np.zeros(4**qcode.N, dtype = np.double) # only for debugging
 	print("\033[2mCHI was constructed in %d seconds.\033[0m" % (timer() - click))
 
 	click = timer()
-	# ptm = ConstructPTM(qcode, kraus_dict)
-	ptm = get_process_correlated(qcode, kraus_dict).reshape(2**(qcode.N + qcode.K), 2**(qcode.N + qcode.K))
+	ptm = ConstructPTM(qcode, kraus_dict)
+	# ptm = get_process_correlated(qcode, kraus_dict).reshape(2**(qcode.N + qcode.K), 2**(qcode.N + qcode.K))
 	print("\033[2mPTM was constructed in %d seconds.\033[0m" % (timer() - click))
 	print("Process[0, 0] = {}".format(ptm[0, 0]))
 

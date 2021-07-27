@@ -12,6 +12,7 @@ def KrausToTheta(kraus):
 	# This is a wrapper for the KrausToTheta function in convert.so.
 	dim = kraus.shape[1]
 	nq = int(np.ceil(np.log2(dim)))
+	nkr = kraus.shape[0]
 	
 	real_kraus = np.real(kraus).reshape(-1).astype(np.float64)
 	imag_kraus = np.imag(kraus).reshape(-1).astype(np.float64)
@@ -21,11 +22,12 @@ def KrausToTheta(kraus):
 		ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"), # Real part of Kraus
 		ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"), # Imgainary part of Kraus
 		ct.c_int,  # number of qubits
+		ct.c_long, # number of Kraus operators (can set to -1 if the number of Kraus operators is 4^n)
 	)
 	# Output is the real part of Theta followed by its imaginary part.
 	_convert.KrausToTheta.restype = ndpointer(dtype=ct.c_double, shape=(2 * 4**nq * 4**nq,))
 	# Call the backend function.
-	theta_out = _convert.KrausToTheta(real_kraus, imag_kraus, nq)
+	theta_out = _convert.KrausToTheta(real_kraus, imag_kraus, nq, nkr)
 	# print("theta_out length\n{}".format(len(theta_out)))
 	theta_real = theta_out[ : (4**nq * 4**nq)].reshape([2, 2, 2, 2] * nq)
 	theta_imag = theta_out[(4**nq * 4**nq) : ].reshape([2, 2, 2, 2] * nq)

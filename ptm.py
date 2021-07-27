@@ -14,6 +14,7 @@ from define.QECCLfid.utils import Dagger, circular_shift, GetNQubitPauli, PauliT
 def KrausToPTM(kraus):
 	# Convert from the Kraus representation to the PTM.
 	# This is a wrapper for the KrausToPTM function in convert.so.
+	nkr = kraus.shape[0]
 	dim = kraus.shape[1]
 	nq = int(np.ceil(np.log2(dim)))
 	
@@ -25,11 +26,12 @@ def KrausToPTM(kraus):
 		ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"), # Real part of Kraus
 		ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"), # Imgainary part of Kraus
 		ct.c_int,  # number of qubits
+		ct.c_long, # number of Kraus operators (can set to -1 if the number of Kraus operators is 4^n)
 	)
 	# Output is the flattened PTM.
 	_convert.KrausToPTM.restype = ndpointer(dtype=ct.c_double, shape=(4**nq * 4**nq,))
 	# Call the backend function.
-	ptm_out = _convert.KrausToPTM(real_kraus, imag_kraus, nq)
+	ptm_out = _convert.KrausToPTM(real_kraus, imag_kraus, nq, nkr)
 	ptm = ptm_out.reshape([4, 4] * nq)
 	return ptm
 

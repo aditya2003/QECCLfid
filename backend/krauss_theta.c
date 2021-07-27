@@ -26,7 +26,7 @@ void Add(complex128_t **A, complex128_t **B, long rows, long cols){
 }
 
 
-double* KrausToTheta(double *kraus_real, double *kraus_imag, int nq){
+double* KrausToTheta(double *kraus_real, double *kraus_imag, int nq, long nkr){
 	/*
 		Convert from the Kraus representation to the "Theta" representation.
 		The "Theta" matrix T of a CPTP map whose chi-matrix is X is defined as:
@@ -36,17 +36,18 @@ double* KrausToTheta(double *kraus_real, double *kraus_imag, int nq){
 			   = \sum_k [ Tr(P_i K_k) Tr((K_k)^\dag P_j)]
 		So we find that
 		T = \sum_(ij) [ \sum_k [ Tr(P_i K_k) Tr((K_k)^\dag P_j)] ] (P_i o (P_j)^T) ]
-		
-		To do:
-		complex128_t [:, :] theta = np.zeros((n_pauli, n_pauli), dtype = np.complex128)
 	*/
 
 	int i, j, k, q;
 	long dim = (long)(pow(2, nq)), n_pauli = (long)(pow(4, nq));
 	double real_part, imag_part;
 
-	complex128_t ***kraus = malloc(sizeof(complex128_t **) * n_pauli);
-	for (k = 0; k < n_pauli; k ++){
+	// If the number of Kraus operators is 4^n, it can be left in the input as -1.
+	if (nkr == -1):
+		nkr = n_pauli
+
+	complex128_t ***kraus = malloc(sizeof(complex128_t **) * nkr);
+	for (k = 0; k < nkr; k ++){
 		kraus[k] = malloc(sizeof(complex128_t *) * dim);
 		// printf("K_%d\n", k);
 		for (i = 0; i < dim; i ++){
@@ -105,7 +106,7 @@ double* KrausToTheta(double *kraus_real, double *kraus_imag, int nq){
 			// printf("Computing Chi[%d, %d]\n", i, j);
 			// Since Chi is Hermitian, we only need to really compute its upper diagonal.
 			if (i <= j){
-				for (k = 0; k < n_pauli; k ++){
+				for (k = 0; k < nkr; k ++){
 					tr_Pi_K = TraceDot(pauli_matrices[i], kraus[k], dim, dim, 0);
 					tr_Pj_Kdag = TraceDot(pauli_matrices[j], kraus[k], dim, dim, 1);
 					chi[i][j] += tr_Pi_K * tr_Pj_Kdag;

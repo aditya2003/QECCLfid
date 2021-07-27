@@ -29,23 +29,24 @@ void ComputeDagger(complex128_t **A, complex128_t **Adag, long dim){
 }
 
 
-double* KrausToPTM(double *kraus_real, double *kraus_imag, int nq){
+double* KrausToPTM(double *kraus_real, double *kraus_imag, int nq, long nkr){
 	/*
 		Compute the PTM for a channel whose Kraus operators are given.
 		Given {K}, compute G given by G_ij = \sum_k Tr[ K_k P_i (K_k)^dag Pj ].
-		
-		To do:
-		double [:, :] ptm = np.zeros((n_pauli, n_pauli), dtype = np.float64)
 	*/
 	int i, j, k;
 	long dim = (long)(pow(2, nq)), n_pauli = (long)(pow(4, nq));
+
+	// If the number of Kraus operators is 4^n, it can be left in the input as -1.
+	if (nkr == -1):
+		nkr = n_pauli
 	
 	// Compute Hermitian conjugate of Kraus operators
-	complex128_t ***kraus = malloc(sizeof(complex128_t **) * n_pauli);
-	complex128_t ***krausH = malloc(sizeof(complex128_t **) * n_pauli);
+	complex128_t ***kraus = malloc(sizeof(complex128_t **) * nkr);
+	complex128_t ***krausH = malloc(sizeof(complex128_t **) * nkr);
 	double real_part, imag_part;
 
-	for (k = 0; k < n_pauli; k ++){
+	for (k = 0; k < nkr; k ++){
 		kraus[k] = malloc(sizeof(complex128_t *) * dim);
 		krausH[k] = malloc(sizeof(complex128_t *) * dim);
 		for (i = 0; i < dim; i ++){
@@ -84,7 +85,7 @@ double* KrausToPTM(double *kraus_real, double *kraus_imag, int nq){
 		ptm[i] = malloc(sizeof(double) * n_pauli);
 		for (j = 0; j < n_pauli; j ++){
 			ptm[i][j] = 0;
-			for (k = 0; k < n_pauli; k ++){
+			for (k = 0; k < nkr; k ++){
 				ZDot(kraus[k], pauli_matrices[i], prod, dim, dim, dim, dim);
 				ZDot(prod, krausH[k], prod, dim, dim, dim, dim);
 				// ZDot(prod, pauli_matrices[j], prod, dim, dim, dim, dim);
@@ -109,23 +110,27 @@ double* KrausToPTM(double *kraus_real, double *kraus_imag, int nq){
 		free(prod[i]);
 	free(prod);
 
-	for (k = 0; k < n_pauli; k ++){
+	for (i = 0; i < n_pauli; i ++){
+		for (j = 0; j < dim; j ++)
+			free(pauli_matrices[i][j]);
+		free(pauli_matrices[i]);
+		free(pauli_operators[i]);
+		free(ptm[i]);
+	}
+	free(pauli_matrices);
+	free(pauli_operators);
+	free(ptm);
+
+	for (k = 0; k < nkr; k ++){
 		for (i = 0; i < dim; i ++){
 			free(kraus[k][i]);
 			free(krausH[k][i]);
-			free(pauli_matrices[k][i]);
 		}
 		free(kraus[k]);
 		free(krausH[k]);
-		free(pauli_operators[k]);
-		free(pauli_matrices[k]);
-		free(ptm[k]);
 	}
 	free(kraus);
 	free(krausH);
-	free(pauli_operators);
-	free(pauli_matrices);
-	free(ptm);
-
+	
 	return ptm_flat;
 }

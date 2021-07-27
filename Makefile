@@ -29,7 +29,7 @@ endif
 
 CFLAGS = -fPIC -Wall -Wextra -std=c11 $(OPTS) # $(REPORT)
 RM = rm
-SRC_DIR = cython
+SRC_DIR = backend
 
 # Detecting the OS type.
 OS := $(shell uname -s)

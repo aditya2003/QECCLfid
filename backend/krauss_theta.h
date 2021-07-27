@@ -14,10 +14,7 @@ typedef double complex complex128_t;
 		   = \sum_k [ Tr(P_i K_k) Tr((K_k)^\dag P_j)]
 	So we find that
 	T = \sum_(ij) [ \sum_k [ Tr(P_i K_k) Tr((K_k)^\dag P_j)] ] (P_i o (P_j)^T) ]
-	
-	To do:
-	complex128_t [:, :] theta = np.zeros((n_pauli, n_pauli), dtype = np.complex128)
 */
-extern double* KrausToTheta(double *kraus_real, double *kraus_imag, int nq);
+extern double* KrausToTheta(double *kraus_real, double *kraus_imag, int nq, long nkr);
 
 #endif /* KRAUSS_THETA_H */

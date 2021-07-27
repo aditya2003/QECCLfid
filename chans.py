@@ -1,17 +1,14 @@
 import numpy as np
-from define.QECCLfid.ising import Ising
-from define.QECCLfid.utils import Dagger
 from timeit import default_timer as timer
-from define.QECCLfid.cptps import CorrelatedCPTP
-from define.QECCLfid.sum_unitaries import SumUnitaries
-from define.QECCLfid.multi_qubit_kraus import get_process_correlated, get_chi_diagLST
-from define.QECCLfid.ptm import ConstructPTM
-from define.QECCLfid.chi import NoiseReconstruction
+from define.QECCLfid.utils import Dagger
 from define.QECCLfid.utils import Kron
-import define.globalvars as gv
-from define.qcode import PauliOperatorToMatrix, ComputeCorrectableIndices, PrepareSyndromeLookUp
-from scipy import linalg as linalg
-from define.QECCLfid.cptps import KrausTest
+from define.QECCLfid.ising import Ising
+from define.QECCLfid.sum_unitaries import SumUnitaries
+from define.QECCLfid.cptps import CorrelatedCPTP
+from define.QECCLfid.ckraus import AdversarialRotKraus
+from define.QECCLfid.multi_qubit_kraus import get_process_correlated, get_chi_diagLST
+from define.QECCLfid.chi import NoiseReconstruction
+from define.QECCLfid.ptm import ConstructPTM
 
 
 def GetProcessChi(qcode, method = "sum_unitaries", *params):
@@ -31,23 +28,8 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 		kraus_dict = CorrelatedCPTP(angle, qcode, cutoff = int(cutoff), n_maps = int(n_maps), mean = mean)
 
 	elif method == "correctable_kraus":
-		(delta,) = params[:1]
-		support = (0, 2, 4, 6)
-		kraus_dict = {}
-		n_corr = 2
-		syndrome = 1
-		nstabs = 2**(qcode.N - qcode.K)
-		if qcode.Paulis_correctable is None:
-			PrepareSyndromeLookUp(qcode)
-			ComputeCorrectableIndices(qcode)
-		paulis = qcode.Paulis_correctable[(syndrome*nstabs):(syndrome*nstabs + n_corr)]
-		print("Paulis taken : {}".format(paulis))
-		axis_rot = np.zeros((2**len(support), 2**len(support)), dtype = np.complex128)
-		for i in range(n_corr):
-			axis_rot += PauliOperatorToMatrix(paulis[i,list(support)])
-		kraus_dict[0] = (support, [linalg.expm(-1j * delta * np.pi * axis_rot)])
-		for q in range(qcode.N):
-			kraus_dict[q+1] = ((q,), [linalg.expm(-1j * delta * np.pi * gv.Pauli[3])])
+		angle = params[0]
+		kraus_dict = AdversarialRotKraus(qcode, angle)
 	else:
 		pass
 

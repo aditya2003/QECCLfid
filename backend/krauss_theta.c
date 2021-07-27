@@ -43,8 +43,8 @@ double* KrausToTheta(double *kraus_real, double *kraus_imag, int nq, long nkr){
 	double real_part, imag_part;
 
 	// If the number of Kraus operators is 4^n, it can be left in the input as -1.
-	if (nkr == -1):
-		nkr = n_pauli
+	if (nkr == -1)
+		nkr = n_pauli;
 
 	complex128_t ***kraus = malloc(sizeof(complex128_t **) * nkr);
 	for (k = 0; k < nkr; k ++){
@@ -161,7 +161,7 @@ double* KrausToTheta(double *kraus_real, double *kraus_imag, int nq, long nkr){
 	*/
 
 	// Free memory for the Kraus operators
-	for (k = 0; k < n_pauli; k ++){
+	for (k = 0; k < nkr; k ++){
 		for (i = 0; i < dim; i ++)
 			free(kraus[k][i]);
 		free(kraus[k]);

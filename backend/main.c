@@ -53,7 +53,7 @@ int main(int argc, char **argv){
 	// Compute Theta.
 	long size = n_pauli * n_pauli;
 	begin = clock();
-	double *theta_flat = KrausToTheta(kraus_real, kraus_imag, nq);
+	double *theta_flat = KrausToTheta(kraus_real, kraus_imag, nq, -1);
 	double real_part, imag_part;
 	// Print the Theta matrix.
 	printf("=======\n");
@@ -77,7 +77,7 @@ int main(int argc, char **argv){
 
 	// Compute PTM.
 	begin = clock();
-	double *ptm_flat = KrausToPTM(kraus_real, kraus_imag, nq);
+	double *ptm_flat = KrausToPTM(kraus_real, kraus_imag, nq, -1);
 	// Print the PTM.
 	printf("=======\n");
 	printf("PTM\n");

@@ -14,7 +14,7 @@ ifeq ($(MODE), DEBUG)
 	LDFLAGS = $()
 	LIBS_MATH = -lm
 else
-	CC = gcc-10
+	CC = gcc
 	OPTS = -O3
 	REPORT = -qopt-report-phase=vec -qopt-report=5
 	TARGET = convert.so

@@ -38,8 +38,8 @@ double* KrausToPTM(double *kraus_real, double *kraus_imag, int nq, long nkr){
 	long dim = (long)(pow(2, nq)), n_pauli = (long)(pow(4, nq));
 
 	// If the number of Kraus operators is 4^n, it can be left in the input as -1.
-	if (nkr == -1):
-		nkr = n_pauli
+	if (nkr == -1)
+		nkr = n_pauli;
 	
 	// Compute Hermitian conjugate of Kraus operators
 	complex128_t ***kraus = malloc(sizeof(complex128_t **) * nkr);

@@ -32,6 +32,7 @@ def KrausToPTM(kraus):
 	_convert.KrausToPTM.restype = ndpointer(dtype=ct.c_double, shape=(4**nq * 4**nq,))
 	# Call the backend function.
 	ptm_out = _convert.KrausToPTM(real_kraus, imag_kraus, nq, nkr)
+	print("PTM out\n{}".format(ptm_out))
 	ptm = ptm_out.reshape([4, 4] * nq)
 	return ptm
 
@@ -132,6 +133,9 @@ def ExtractPTMElement(pauli_op_i, pauli_op_j, ptm, supp_ptm):
 		ptm_ij = ptm[tuple(row_indices + col_indices)]
 	else:
 		ptm_ij = 0
+	
+	print("PTM element extracted for Pi = {} and Pj = {} is {}.".format(pauli_op_i, pauli_op_j, ptm_ij))
+
 	return ptm_ij
 
 
@@ -173,11 +177,13 @@ def ConstructPTM(qcode, kraus_dict, n_cores = None):
 		map_start = p * chunk
 		map_end = min((p + 1) * chunk, n_maps)
 		mem_start = sum(ptm_channels_sizes[:map_start])
-		processes.append(mp.Process(target = ConstructPTM_Partial, args = (map_start, map_end, mem_start, ptm_channels, kraus_dict)))
-	for p in range(n_cores):
-		processes[p].start()
-	for p in range(n_cores):
-		processes[p].join()
+		# processes.append(mp.Process(target = ConstructPTM_Partial, args = (map_start, map_end, mem_start, ptm_channels, kraus_dict)))
+		ConstructPTM_Partial(map_start, map_end, mem_start, ptm_channels, kraus_dict)
+	
+	# for p in range(n_cores):
+	# 	processes[p].start()
+	# for p in range(n_cores):
+	# 	processes[p].join()
 
 	# Retrieve the results
 	ptm_dict = [None for __ in range(n_maps)]
@@ -188,6 +194,8 @@ def ConstructPTM(qcode, kraus_dict, n_cores = None):
 		ptm = np.reshape(ptm_channels[mem_start : mem_end], [4, 4] * len(support))
 		ptm_dict[m] = (support, ptm)
 		mem_start = mem_end
+
+	print("Individual PTMs\n{}".format(ptm_dict))
 	
 	click = timer()
 	(supp_ptm, ptm_contracted) = ContractTensorNetwork(ptm_dict, end_trace=0)
@@ -198,6 +206,7 @@ def ConstructPTM(qcode, kraus_dict, n_cores = None):
 	for i in range(nlogs * nstabs):
 		for j in range(nlogs * nstabs):
 			process[i, j] = np.real(phases[i] * phases[j] * ExtractPTMElement(ls_ops[i, :], ls_ops[j, :], ptm_contracted, supp_ptm))
+	print("process\n{}".format(process))
 	return process
 
 

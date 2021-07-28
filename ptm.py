@@ -177,14 +177,14 @@ def ConstructPTM(qcode, kraus_dict, n_cores = None):
 		map_start = p * chunk
 		map_end = min((p + 1) * chunk, n_maps)
 		mem_start = sum(ptm_channels_sizes[:map_start])
-		# processes.append(mp.Process(target = ConstructPTM_Partial, args = (map_start, map_end, mem_start, ptm_channels, kraus_dict)))
-		ConstructPTM_Partial(map_start, map_end, mem_start, ptm_channels, kraus_dict)
+		processes.append(mp.Process(target = ConstructPTM_Partial, args = (map_start, map_end, mem_start, ptm_channels, kraus_dict)))
+		# ConstructPTM_Partial(map_start, map_end, mem_start, ptm_channels, kraus_dict)
 		# print("PTM on maps {} to {}:\n{}".format(map_start, map_end, ptm_channels[mem_start : (mem_start + (map_end - map_start + 1) * 16 ** len(support))]))
 
-	# for p in range(n_cores):
-	# 	processes[p].start()
-	# for p in range(n_cores):
-	# 	processes[p].join()
+	for p in range(n_cores):
+		processes[p].start()
+	for p in range(n_cores):
+		processes[p].join()
 
 	# Retrieve the results
 	ptm_dict = [None for __ in range(n_maps)]

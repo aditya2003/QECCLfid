@@ -91,14 +91,14 @@ def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 		map_end = min((p + 1) * chunk, n_maps)
 		mem_start = sum(size_theta_contracted[:map_start])
 		# print("Chi_Element_Diag_Partial({}, {}, {}, theta_channels, krausdict, paulis)".format(map_start, map_end, mem_start))
-		# processes.append(mp.Process(target = Chi_Element_Diag_Partial, args = (map_start, map_end, mem_start, theta_channels, krausdict, paulis)))
-		Chi_Element_Diag_Partial(map_start, map_end, mem_start, theta_channels, krausdict, paulis)
+		processes.append(mp.Process(target = Chi_Element_Diag_Partial, args = (map_start, map_end, mem_start, theta_channels, krausdict, paulis)))
+		# Chi_Element_Diag_Partial(map_start, map_end, mem_start, theta_channels, krausdict, paulis)
 
-	# for p in range(n_cores):
-	# 	processes[p].start()
+	for p in range(n_cores):
+		processes[p].start()
 
-	# for p in range(n_cores):
-	# 	processes[p].join()
+	for p in range(n_cores):
+		processes[p].join()
 
 	# Gather the results
 	theta_dict = [None for __ in krausdict]

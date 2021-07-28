@@ -38,7 +38,7 @@ def Chi_Element_Diag_Partial(map_start, map_end, mem_start, theta_channels, krau
 	nq = paulis.shape[1]
 	for m in range(map_start, map_end):
 		(support, kraus) = krausdict[m]
-		print("Computing theta matrix for map {} supported on {}".format(m, support))
+		# print("Computing theta matrix for map {} supported on {}".format(m, support))
 		click = timer()
 		theta = KrausToTheta(np.array(kraus))
 		print("\033[2mTheta matrix for map %d was computed in %.2f seconds.\033[0m" % (m + 1, timer() - click))
@@ -75,7 +75,7 @@ def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 		n_cores = mp.cpu_count()
 	n_maps = len(list(krausdict.keys()))
 
-	print("Constructing the diagonal of the chi matrix for {} maps.".format(n_maps))
+	# print("Constructing the diagonal of the chi matrix for {} maps.".format(n_maps))
 
 	size_theta_contracted = [0 for __ in range(n_maps)]
 	for m in range(n_maps):
@@ -90,7 +90,7 @@ def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 		map_start = p * chunk
 		map_end = min((p + 1) * chunk, n_maps)
 		mem_start = sum(size_theta_contracted[:map_start])
-		print("Chi_Element_Diag_Partial({}, {}, {}, theta_channels, krausdict, paulis)".format(map_start, map_end, mem_start))
+		# print("Chi_Element_Diag_Partial({}, {}, {}, theta_channels, krausdict, paulis)".format(map_start, map_end, mem_start))
 		# processes.append(mp.Process(target = Chi_Element_Diag_Partial, args = (map_start, map_end, mem_start, theta_channels, krausdict, paulis)))
 		Chi_Element_Diag_Partial(map_start, map_end, mem_start, theta_channels, krausdict, paulis)
 

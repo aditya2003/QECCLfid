@@ -22,4 +22,5 @@ def AdversarialRotKraus(qcode, angle):
 	# kraus_dict[0] = (support, [expm(-1j * angle * np.pi * axis_rot)])
 	for q in range(qcode.N):
 		kraus_dict[q] = ((q,), [expm(-1j * angle * np.pi * gv.Pauli[3])])
+		# print("Map {}\n{}".format(q, kraus_dict[q]))
 	return kraus_dict

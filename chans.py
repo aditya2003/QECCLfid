@@ -38,14 +38,18 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 
 	click = timer()
 	print("\033[2mKraus operators done in %d seconds.\033[0m" % (timer() - click))
-	chi = NoiseReconstruction(qcode, kraus_dict)
-	# chi = get_chi_diagLST(qcode, kraus_dict)
+	if len(kraus_dict) > 1:
+		chi = NoiseReconstruction(qcode, kraus_dict)
+	else:
+		chi = get_chi_diagLST(qcode, kraus_dict)
 	# chi = np.zeros(4**qcode.N, dtype = np.double) # only for debugging
 	print("\033[2mCHI was constructed in %d seconds.\033[0m" % (timer() - click))
 
 	click = timer()
-	ptm = ConstructPTM(qcode, kraus_dict)
-	# ptm = get_process_correlated(qcode, kraus_dict).reshape(2**(qcode.N + qcode.K), 2**(qcode.N + qcode.K))
+	if len(kraus_dict) > 1:
+		ptm = ConstructPTM(qcode, kraus_dict)
+	else:
+		ptm = get_process_correlated(qcode, kraus_dict).reshape(2**(qcode.N + qcode.K), 2**(qcode.N + qcode.K))
 	print("\033[2mPTM was constructed in %d seconds.\033[0m" % (timer() - click))
 	print("Process[0, 0] = {}".format(ptm[0, 0]))
 

@@ -32,7 +32,7 @@ def KrausToPTM(kraus):
 	_convert.KrausToPTM.restype = ndpointer(dtype=ct.c_double, shape=(4**nq * 4**nq,))
 	# Call the backend function.
 	ptm_out = _convert.KrausToPTM(real_kraus, imag_kraus, nq, nkr)
-	print("PTM out\n{}".format(ptm_out))
+	# print("PTM out\n{}".format(ptm_out))
 	ptm = ptm_out.reshape([4, 4] * nq)
 	return ptm
 
@@ -116,7 +116,7 @@ def ExtractPTMElement(pauli_op_i, pauli_op_j, ptm, supp_ptm):
 	# Here "x" is the position of pauli_op_i in the lexicographic ordering, i.e., if pauli_op_i = (p(0) p(1) ... p(n-1)), then
 	# x = 4**(n-1) * p(n-1) + ... + 4 * p1 + p0
 	# We want << i(1) i(2) ... i(2n) | A | j(1) j(2) ... j(2n) >>, where i(k) in {0, 1}.
-	click = timer()
+	# click = timer()
 	nq = pauli_op_i.shape[0]
 
 	trivial_action = 1
@@ -133,9 +133,8 @@ def ExtractPTMElement(pauli_op_i, pauli_op_j, ptm, supp_ptm):
 		ptm_ij = ptm[tuple(row_indices + col_indices)]
 	else:
 		ptm_ij = 0
-	
-	print("PTM element extracted for Pi = {} and Pj = {} is {}.".format(pauli_op_i, pauli_op_j, ptm_ij))
 
+	# print("PTM element extracted for Pi = {} and Pj = {} is {}.".format(pauli_op_i, pauli_op_j, ptm_ij))
 	return ptm_ij
 
 
@@ -146,11 +145,12 @@ def ConstructPTM_Partial(map_start, map_end, mem_start, ptm_channels, kraus_dict
 		mem_end = mem_start + 16 ** len(support)
 		click = timer()
 		ptm = KrausToPTM(np.array(kraus))
+		# print("Map {} supported on {}\n{}".format(m, support, ptm))
 		# if (PTMAdjointTest(np.array(kraus), ptm) == False):
 		# 	print("PTM Test for map %d failed." % (m))
 		ptm_channels[mem_start : mem_end] = ptm.reshape(-1)
 		print("\033[2mPTM for map %d was constructed in %.2f seconds.\033[0m" % (m + 1, timer() - click))
-		mem_end = mem_start
+		mem_start = mem_end
 	return None
 
 
@@ -179,7 +179,8 @@ def ConstructPTM(qcode, kraus_dict, n_cores = None):
 		mem_start = sum(ptm_channels_sizes[:map_start])
 		# processes.append(mp.Process(target = ConstructPTM_Partial, args = (map_start, map_end, mem_start, ptm_channels, kraus_dict)))
 		ConstructPTM_Partial(map_start, map_end, mem_start, ptm_channels, kraus_dict)
-	
+		# print("PTM on maps {} to {}:\n{}".format(map_start, map_end, ptm_channels[mem_start : (mem_start + (map_end - map_start + 1) * 16 ** len(support))]))
+
 	# for p in range(n_cores):
 	# 	processes[p].start()
 	# for p in range(n_cores):
@@ -195,18 +196,21 @@ def ConstructPTM(qcode, kraus_dict, n_cores = None):
 		ptm_dict[m] = (support, ptm)
 		mem_start = mem_end
 
-	print("Individual PTMs\n{}".format(ptm_dict))
+	# print("Individual PTMs\n{}".format(ptm_dict))
 	
 	click = timer()
 	(supp_ptm, ptm_contracted) = ContractTensorNetwork(ptm_dict, end_trace=0)
 	print("\033[2mPTM tensor network was contracted in %d seconds.\033[0m" % (timer() - click))
 
+	# print("Individual PTMs\n{}".format(ptm_dict))
+	# print("Number of nonzero elements in the contracted PTM\n{}".format(np.count_nonzero(ptm_contracted)))
+	
 	(ls_ops, phases) = GetOperatorsForTLSIndex(qcode, range(nstabs * nlogs))
 	process = np.zeros((nlogs * nstabs, nlogs * nstabs), dtype=np.double)
 	for i in range(nlogs * nstabs):
 		for j in range(nlogs * nstabs):
 			process[i, j] = np.real(phases[i] * phases[j] * ExtractPTMElement(ls_ops[i, :], ls_ops[j, :], ptm_contracted, supp_ptm))
-	print("process\n{}".format(process))
+	# print("process\n{}".format(process))
 	return process
 
 

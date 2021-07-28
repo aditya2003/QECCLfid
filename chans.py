@@ -51,7 +51,7 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 	else:
 		ptm = get_process_correlated(qcode, kraus_dict).reshape(2**(qcode.N + qcode.K), 2**(qcode.N + qcode.K))
 	print("\033[2mPTM was constructed in %d seconds.\033[0m" % (timer() - click))
-	print("Process[0, 0] = {}".format(ptm[0, 0]))
+	print("\033[2mProcess[0, 0] = {}\033[0m".format(ptm[0, 0]))
 
 	# if (CHI_PTM_Tests(chi, ptm, kraus_dict, kraus_dict_adj, qcode, compare_against_old = 0) == 0):
 	# 	print("PTM test failed.")

@@ -28,8 +28,8 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 		kraus_dict = CorrelatedCPTP(angle, qcode, cutoff = int(cutoff), n_maps = int(n_maps), mean = mean)
 
 	elif method == "correctable_kraus":
-		angle = params[0]
-		kraus_dict = AdversarialRotKraus(qcode, angle)
+		(angle, ratio) = params[:2]
+		kraus_dict = AdversarialRotKraus(qcode, angle, ratio)
 	else:
 		pass
 

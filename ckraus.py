@@ -3,13 +3,12 @@ from scipy.linalg import expm
 import define.globalvars as gv
 from define.qcode import PauliOperatorToMatrix, ComputeCorrectableIndices, PrepareSyndromeLookUp
 
-def AdversarialRotKraus(qcode, angle):
+def AdversarialRotKraus(qcode, angle, ratio):
 	# Design an adversarial error model to show performance degradation for QEC in the RC setting.
 	# The adversarial error model is a background unitary (rotation about an arbitrary non Pauli axis) and a rotation about an axis defined by the sum of a few correctable errors.
 	kraus_dict = {}
 	n_corr = 15
 	syndrome = 1
-	ratio = 2
 	nstabs = 2**(qcode.N - qcode.K)
 	if qcode.Paulis_correctable is None:
 		PrepareSyndromeLookUp(qcode)

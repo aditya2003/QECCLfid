@@ -7,7 +7,7 @@ def AdversarialRotKraus(qcode, angle, ratio):
 	# Design an adversarial error model to show performance degradation for QEC in the RC setting.
 	# The adversarial error model is a background unitary (rotation about an arbitrary non Pauli axis) and a rotation about an axis defined by the sum of a few correctable errors.
 	kraus_dict = {}
-	n_corr = 12
+	n_corr = 10
 	syndrome = 1
 	nstabs = 2**(qcode.N - qcode.K)
 	if qcode.Paulis_correctable is None:
@@ -27,15 +27,23 @@ def AdversarialRotKraus(qcode, angle, ratio):
 		pauli_indices_corr.append(correctable_errors_synd)
 		pauli_indices_uncorr.append(uncorrectable_errors_synd)
 
-	corr_indices_taken = np.concatenate(pauli_indices_corr)[:n_corr]
-	uncorr_indices_taken = np.concatenate(pauli_indices_uncorr)[: int(ratio * n_corr)]
+	weights_corr = 1
+	weights_uncorr = ratio * 1
+	
+	corr_indices_taken = np.concatenate(pauli_indices_corr)[: n_corr]
+	uncorr_indices_taken = np.concatenate(pauli_indices_uncorr)[: n_corr]
 	paulis = qcode.PauliOperatorsLST[np.concatenate([corr_indices_taken, uncorr_indices_taken])]
 
 	print("Paulis taken : {}".format(paulis))
 	support = tuple(range(qcode.N))
 	axis_rot = np.zeros((2**len(support), 2**len(support)), dtype = np.complex128 )
-	for i in range(len(paulis)):
-		axis_rot += PauliOperatorToMatrix(paulis[i,list(support)])
+	for i in range(len(corr_indices_taken)):
+		# axis_rot += PauliOperatorToMatrix(paulis[i, list(support)])
+		axis_rot += weights_corr * PauliOperatorToMatrix(paulis[i, list(support)])
+	offset = len(corr_indices_taken)
+	for i in range(len(uncorr_indices_taken)):
+		axis_rot += weights_uncorr * PauliOperatorToMatrix(paulis[i + offset, list(support)])
+	
 	kraus_dict[0] = (support, [expm(-1j * angle * np.pi/2 * axis_rot)])
 	# for q in range(qcode.N):
 	# 	kraus_dict[q+1] = ((q,), [expm(-1j * angle * np.pi * gv.Pauli[2])])

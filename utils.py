@@ -6,7 +6,7 @@ import string
 
 def ConvertToDecimal(digits, base):
 	# Convert a number represented in a given base to its decimal form (base 10).
-	decimal = np.sum(digits[::-1] * np.power(base, np.arange(digits.size, dtype = np.int), dtype = np.int))
+	decimal = np.sum(digits[::-1] * np.power(base, np.arange(digits.size, dtype = np.int64), dtype = np.int64))
 	return decimal
 
 def PauliTensor(pauli_op):
@@ -31,7 +31,7 @@ def PauliTensor(pauli_op):
 def GetNQubitPauli(ind, nq):
 	# Compute the n-qubit Pauli that is at position 'i' in an ordering based on [I, X, Y, Z].
 	# We will express the input number in base 4^n - 1.
-	pauli = np.zeros(nq, dtype = np.int)
+	pauli = np.zeros(nq, dtype = np.int64)
 	for i in range(nq):
 		pauli[i] = ind % 4
 		ind = int(ind//4)
@@ -98,7 +98,7 @@ def extend_gate(support, mat, extended_support):
 	)
 	#     print("Extend {} on {} to {}".format(mat, support, extended_support))
 	support_range = np.array(
-		[np.asscalar(np.argwhere(extended_support == s)) for s in support], dtype=np.int
+		[np.asscalar(np.argwhere(extended_support == s)) for s in support], dtype=np.int64
 	)
 	# print("support_range = {}".format(support_range))
 	if np.asscalar(np.ptp(support_range)) < 2:

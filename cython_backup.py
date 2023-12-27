@@ -14,7 +14,7 @@ cdef int Unique(int [:] arr, int size, int [:] unique, int return_elements):
 
 	cdef:
 		Py_ssize_t i, j
-		int [:] unique_indicator = np.ones(size, dtype = np.int32)
+		int [:] unique_indicator = np.ones(size, dtype = np.int6432)
 	for i in range(size):
 		for j in range(i + 1, size):
 			if (arr[i] == arr[j]):
@@ -54,14 +54,14 @@ cdef int [:, :] SupportToLabel(int [:, :] interactions, int [:, :, :] contractio
 	for q in range(n_interactions):
 		n_symbols += 2 * interactions[q, 0]
 	cdef:
-		int [:] symbols = np.arange(n_symbols, dtype = np.int32)
+		int [:] symbols = np.arange(n_symbols, dtype = np.int6432)
 
 	print("symbols")
 	print(np.asarray(symbols))
 
 	# Compute the unique qubits in the list of interactions.
 	cdef:
-		int [:] qubits = np.zeros(n_symbols//2, dtype = np.int32)
+		int [:] qubits = np.zeros(n_symbols//2, dtype = np.int6432)
 		Py_ssize_t n_qubits
 	n_qubits = 0
 	for i in range(n_interactions):
@@ -75,7 +75,7 @@ cdef int [:, :] SupportToLabel(int [:, :] interactions, int [:, :, :] contractio
 	n_unique = Unique(qubits, n_qubits, empty, 0)
 	
 	cdef:
-		int [:] unique_qubits = np.zeros(n_unique, dtype = np.int32)
+		int [:] unique_qubits = np.zeros(n_unique, dtype = np.int6432)
 	Unique(qubits, n_qubits, unique_qubits, 1)
 
 	print("%d unique qubits" % (n_unique))
@@ -83,7 +83,7 @@ cdef int [:, :] SupportToLabel(int [:, :] interactions, int [:, :, :] contractio
 
 	# Free indices
 	cdef:
-		int [:, :] free_index = np.zeros((n_unique, 2), dtype = np.int32)
+		int [:, :] free_index = np.zeros((n_unique, 2), dtype = np.int6432)
 	for q in range(n_unique):
 		free_index[q, 0] = -1
 		free_index[q, 1] = -1
@@ -137,7 +137,7 @@ def TraceNetwork(network):
 			max_interaction_range = len(network[i][0])
 	
 	cdef:
-		int [:, :] interactions = np.zeros((n_interactions, max_interaction_range + 1), dtype = np.int32)
+		int [:, :] interactions = np.zeros((n_interactions, max_interaction_range + 1), dtype = np.int6432)
 	for i in range(n_interactions):
 		interactions[i, 0] = len(network[i][0])
 		for j in range(1, 1 + interactions[i, 0]):
@@ -148,13 +148,13 @@ def TraceNetwork(network):
 
 	cdef:
 		Py_ssize_t n_free
-		int [:, :, :] contraction_labels = np.zeros((n_interactions, max_interaction_range, 2), dtype = np.int32)
+		int [:, :, :] contraction_labels = np.zeros((n_interactions, max_interaction_range, 2), dtype = np.int6432)
 		int [:, :] free_labels = SupportToLabel(interactions, contraction_labels)
 	n_free = free_labels.shape[0]
 
 	# Arrange the row and column labels for the contraction indices.
 	cdef:
-		int [:, :] left = np.zeros((n_interactions, 2 * max_interaction_range), dtype = np.int32)
+		int [:, :] left = np.zeros((n_interactions, 2 * max_interaction_range), dtype = np.int6432)
 	
 	print("contraction_labels")
 	print(np.asarray(contraction_labels))

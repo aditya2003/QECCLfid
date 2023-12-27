@@ -30,11 +30,11 @@ def Ising(J, mu, time, qcode):
 
 	Ham = np.zeros(2**qcode.N, dtype = np.double)
 	for (i,j) in qcode.interaction_graph :
-		# Ham = Ham + J * extend_gate([i,j], ZZ, np.arange(qcode.N, dtype=np.int))
-		Ham = Ham + J * extend_gate([i,j], YY, np.arange(qcode.N, dtype=np.int))
+		# Ham = Ham + J * extend_gate([i,j], ZZ, np.arange(qcode.N, dtype=np.int64))
+		Ham = Ham + J * extend_gate([i,j], YY, np.arange(qcode.N, dtype=np.int64))
 	if mu > 0:
 		for i in range(qcode.N):
-			Ham = Ham + mu * extend_gate([i], gv.Pauli[1], np.arange(qcode.N, dtype=np.int))
+			Ham = Ham + mu * extend_gate([i], gv.Pauli[1], np.arange(qcode.N, dtype=np.int64))
 	kraus = expm(-1j * time * Ham)
 	# print("Unitarity of Kraus\n{}".format(np.linalg.norm(np.dot(kraus, kraus.conj().T) - np.eye(kraus.shape[0]))))
 	kraus_dict = {0:(tuple(range(qcode.N)), [kraus])}

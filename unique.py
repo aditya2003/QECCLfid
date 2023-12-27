@@ -5,7 +5,7 @@ def Unique(arr):
 	# Compute the number of unique elements in an integer array.
 	print("searching for unique elements in\n{}".format(arr))
 	size = arr.shape[0]
-	unique_indicator = np.ones(size, dtype = np.int)
+	unique_indicator = np.ones(size, dtype = np.int64)
 	for i in range(size):
 		for j in range(i + 1, size):
 			if (arr[i] == arr[j]):
@@ -17,7 +17,7 @@ def Unique(arr):
 	print("{} unique elements\n{}".format(n_unique, unique_indicator))
 
 	# Load the unique elements in the array
-	unique = np.zeros(n_unique, dtype = np.int)
+	unique = np.zeros(n_unique, dtype = np.int64)
 	n_unique = 0
 	for i in range(size):
 		if (unique_indicator[i] == 1):

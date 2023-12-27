@@ -2,8 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <complex.h>
-#include "mkl_cblas.h"
-#include "mkl_lapacke.h"
+#include "cblas.h"
+#include "lapacke.h"
 #include "zdot.h"
 
 
@@ -30,31 +30,29 @@ void ZDot(double complex **matA, double complex **matB, double complex **prod, i
 	if (colsA != rowsB)
 		printf("Cannot multiply matrices of shape (%d x %d) and (%d x %d).\n", rowsA, colsA, rowsB, colsB);
 	else{
-		MKL_INT m = rowsA, n = colsB, k = colsA;
-		MKL_Complex16 A[rowsA * colsA], B[rowsB * colsB], C[rowsA * colsB], alpha, beta;
+		int m = rowsA, n = colsB, k = colsA;
+		double complex A[rowsA * colsA], B[rowsB * colsB], C[rowsA * colsB], alpha, beta;
 		int i, j;
 		for (i = 0; i < rowsA; i ++){
 			for (j = 0; j < colsA; j ++){
-				A[i * colsA + j].real = creal(matA[i][j]);
-				A[i * colsA + j].imag = cimag(matA[i][j]);
+				A[i * colsA + j] = matA[i][j];
 			}
 		}
 		for (i = 0; i < rowsB; i ++){
 			for (j = 0; j < colsB; j ++){
-				B[i * colsB + j].real = creal(matB[i][j]);
-				B[i * colsB + j].imag = cimag(matB[i][j]);
+				B[i * colsB + j] = matB[i][j];
 			}
 		}
-		alpha.real = 1;
-		alpha.imag = 0;
-		beta.real = 0;
-		beta.imag = 0;
+		
+		alpha = 1 + I * 0;
+		beta = 0 + I * 0;
+		
 		// Call the BLAS function.
 		cblas_zgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, m, n, k, &alpha, A, k, B, n, &beta, C, n);
 		// Load the product
 		for (i = 0; i < rowsA; i ++)
 			for (j = 0; j < colsB; j ++)
-				prod[i][j] = C[i * colsB + j].real + C[i * colsB + j].imag * I;
+				prod[i][j] = C[i * colsB + j];
 		/*
 		// Print the result
 		printf("Product\n");

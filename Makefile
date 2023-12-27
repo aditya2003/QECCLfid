@@ -14,7 +14,7 @@ ifeq ($(MODE), DEBUG)
 	LDFLAGS = $()
 	LIBS_MATH = -lm
 else
-	CC = gcc-10
+	CC = gcc-12
 	OPTS = -O3
 	REPORT = -qopt-report-phase=vec -qopt-report=5
 	TARGET = convert.so
@@ -40,11 +40,7 @@ ifeq ($(OS), Darwin)
 	LIBS_MKL =  -L${MKLROOT}/lib -lmkl_rt -lpthread -ldl
 # 	,--no-as-needed -lmkl_rt -lpthread -ldl
 else ifeq ($(OS), Linux)
-	ifeq ($(MKLROOT),)
-		MKLROOT="/mnt/c/Program Files (x86)/IntelSWTools/compilers_and_libraries_2020.4.311/windows/mkl/"
-	endif
-	CFLAGS_MKL = -m64 -I${MKLROOT}/include
-	LIBS_MKL =  -L${MKLROOT}/lib/intel64 -Wl,--no-as-needed -lmkl_rt -lpthread -ldl
+	LIBS_MATH = -L/usr/lib/x86_64-linux-gnu -llapack -lblas -lm
 else
 	MKL_DIR = "c:/Program Files (x86)/IntelSWTools/compilers_and_libraries_2020/windows"
 	CFLAGS_MKL =  -I${MKL_DIR}/mkl/include

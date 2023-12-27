@@ -17,7 +17,7 @@ def StineToKraus(U):
 	krauss = np.zeros((4**nq, 2**nq, 2**nq), dtype=np.complex128)
 	for r in range(2**nq):
 		for c in range(2**nq):
-			krauss[:, r, c] = U[r * 4**nq + np.arange(4**nq, dtype = np.int), c * 4**nq]
+			krauss[:, r, c] = U[r * 4**nq + np.arange(4**nq, dtype = np.int64), c * 4**nq]
 	return krauss
 
 
@@ -52,10 +52,14 @@ def GenerateSupport(nmaps, nqubits, qubit_occupancies):
 	if ("optimal" in problem.status):
 		if (not (problem.status == "optimal")):
 			print("\033[2mWarning: The problem status is \"{}\".\033[0m".format(problem.status))
-		supports = [tuple(np.nonzero(np.round(row).astype(np.int))[0]) for row in mat.value]
+		supports = [tuple(np.nonzero(np.round(row).astype(np.int64))[0]) for row in mat.value]
 	else:
 		print("\033[2mQubit allocation to maps infeasible.\033[0m")
-		supports = None
+		# Choose random subsets of qubits of the specified sizes.
+		supports = []
+		for m in range(nmaps):
+			support = tuple((random.sample(range(nqubits), qubit_occupancies[m])))
+			supports.append(support)
 	
 	return supports
 
@@ -94,11 +98,6 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1):
 	else:
 		# nmaps_per_qubit = max(0.1 * n_nontrivial_maps, 1)
 		supports = GenerateSupport(n_nontrivial_maps, qcode.N, interaction_range)
-		if (supports is None):
-			supports = []
-			for m in range(n_nontrivial_maps):
-				support = tuple((random.sample(range(qcode.N), interaction_range[m])))
-				supports.append(support)
 		# supports = [(0, 1), (1, 2), (2, 3), (3, 4)] # Only for decoding purposes.
 		# supports = [(0, 1, 2)] # Only for decoding purposes.
 

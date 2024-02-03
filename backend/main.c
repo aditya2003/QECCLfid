@@ -23,10 +23,13 @@ int main(int argc, char **argv){
 	int i, j, k, nq;
 	sscanf(argv[1], "%d", &nq);
 	
-	long n_pauli = (long) pow(4, nq), dim = (long) pow(2, nq);
+	long n_pauli = (long) pow(4, nq);
+	long dim = (long) pow(2, nq);
+	
+	/*
+	// These Kraus operators represent a random CPTP map on n qubits.
 	double *kraus_real = malloc(sizeof(double) * (n_pauli * dim * dim));
 	double *kraus_imag = malloc(sizeof(double) * (n_pauli * dim * dim));
-	
 	for (k = 0; k < n_pauli; k ++){
 		for (i = 0; i < dim; i ++){
 			for (j = 0; j < dim; j ++){
@@ -35,6 +38,21 @@ int main(int argc, char **argv){
 			}
 		}
 	}
+	*/
+
+	// These Kraus operators are for a single qubit unitary channel
+	dim = 2;
+	double *kraus_real = malloc(sizeof(double) * (n_pauli * dim * dim));
+	double *kraus_imag = malloc(sizeof(double) * (n_pauli * dim * dim));
+	kraus_real[0] = -0.99999775;
+	kraus_real[1] = 0.0018131;
+	kraus_real[2] = 0.0018131;
+	kraus_real[3] = 0.99999775;
+
+	kraus_imag[0] = 0;
+	kraus_imag[1] = -0.00110192;
+	kraus_imag[2] = 0.00110192;
+	kraus_imag[3] = 0;
 
 	// Print the Kraus operators.
 	printf("Kraus operators.\n");

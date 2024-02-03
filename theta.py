@@ -32,8 +32,11 @@ def KrausToTheta(kraus):
 	theta_out = _convert.KrausToTheta(real_kraus, imag_kraus, nq, nkr)
 	# print("theta_out\n{}".format(theta_out))
 	theta_real = theta_out[ : (4**nq * 4**nq)].reshape([2, 2, 2, 2] * nq)
-	theta_imag = theta_out[(4**nq * 4**nq) : ].reshape([2, 2, 2, 2] * nq)
+	theta_imag = theta_out[(4**nq * 4**nq) :].reshape([2, 2, 2, 2] * nq)
 	theta = theta_real + 1j * theta_imag
+	theta_mat = theta_out[ : (4**nq * 4**nq)].reshape(4, 4) + 1j * theta_out[(4**nq * 4**nq) :].reshape(4, 4) # Only for decoding purposes
+	print("theta\n{}".format(theta_mat)) # Only for decoding purposes
+	print("Tr(theta) = {}".format(np.trace(theta_mat))) # Only for decoding purposes
 	return theta
 
 

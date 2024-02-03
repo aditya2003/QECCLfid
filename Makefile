@@ -52,11 +52,14 @@ endif
 
 $(shell mkdir -p obj/)
 
-$(TARGET):obj/main.o obj/pauli.o obj/tracedot.o obj/zdot.o obj/krauss_theta.o obj/krauss_ptm.o
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $(TARGET) obj/main.o obj/pauli.o obj/tracedot.o obj/krauss_theta.o obj/krauss_ptm.o obj/zdot.o $(LIBS_MKL) $(LIBS_MATH)
+$(TARGET):obj/main.o obj/utils.o obj/pauli.o obj/tracedot.o obj/zdot.o obj/krauss_theta.o obj/krauss_ptm.o
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $(TARGET) obj/main.o obj/utils.o obj/pauli.o obj/tracedot.o obj/krauss_theta.o obj/krauss_ptm.o obj/zdot.o $(LIBS_MKL) $(LIBS_MATH)
 
 obj/main.o: $(SRC_DIR)/main.c Makefile
 	$(CC) $(CFLAGS) -c $(SRC_DIR)/main.c -o obj/main.o $(LIBS_MATH)
+
+obj/utils.o: $(SRC_DIR)/utils.c $(SRC_DIR)/utils.h Makefile
+	$(CC) $(CFLAGS) -c $(SRC_DIR)/utils.c -o obj/utils.o $(LIBS_MATH)
 
 obj/pauli.o: $(SRC_DIR)/pauli.c $(SRC_DIR)/pauli.h Makefile
 	$(CC) $(CFLAGS) -c $(SRC_DIR)/pauli.c -o obj/pauli.o $(LIBS_MATH)
@@ -74,4 +77,4 @@ obj/krauss_ptm.o: $(SRC_DIR)/krauss_ptm.c $(SRC_DIR)/krauss_ptm.h Makefile
 	$(CC) $(CFLAGS) -c $(SRC_DIR)/krauss_ptm.c -o obj/krauss_ptm.o $(LIBS_MATH)
 
 clean:
-	$(RM) $(TARGET) obj/main.o obj/pauli.o obj/tracedot.o obj/zdot.o obj/krauss_theta.o obj/krauss_ptm.o
+	$(RM) $(TARGET) obj/main.o obj/utils.o obj/pauli.o obj/tracedot.o obj/zdot.o obj/krauss_theta.o obj/krauss_ptm.o

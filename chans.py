@@ -23,9 +23,13 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 		J, mu, time = params[:3]
 		kraus_dict = Ising(J, mu, time, qcode)
 
-	elif method == "sum_cptps":
+	elif method == "corr_cptp":
 		(angle, cutoff, n_maps, mean) = params[:4]
-		kraus_dict = CorrelatedCPTP(angle, qcode, cutoff = int(cutoff), n_maps = int(n_maps), mean = mean)
+		kraus_dict = CorrelatedCPTP(angle, qcode, cutoff = int(cutoff), n_maps = int(n_maps), mean = mean, isUnitary = 0)
+
+	elif method == "corr_unitary":
+		(angle, cutoff, n_maps, mean) = params[:4]
+		kraus_dict = CorrelatedCPTP(angle, qcode, cutoff = int(cutoff), n_maps = int(n_maps), mean = mean, isUnitary = 1)
 
 	elif method == "correctable_kraus":
 		(angle, ratio) = params[:2]
@@ -38,6 +42,7 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 
 	click = timer()
 	print("\033[2mKraus operators done in %d seconds.\033[0m" % (timer() - click))
+	# chi = NoiseReconstruction(qcode, kraus_dict)
 	if len(kraus_dict) > 1:
 		chi = NoiseReconstruction(qcode, kraus_dict)
 	else:

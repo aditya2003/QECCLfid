@@ -156,7 +156,7 @@ def ConstructPTM_Partial(map_start, map_end, mem_start, ptm_channels, kraus_dict
 
 def ConstructPTM(qcode, kraus_dict, n_cores = None):
 	r"""
-	Generates LS part of the process matrix of the n-qubit Pauli channel.
+	Generates LS part of the process matrix of the n-qubit channel.
 	"""
 	nstabs = 2 ** (qcode.N - qcode.K)
 	nlogs = 4 ** qcode.K

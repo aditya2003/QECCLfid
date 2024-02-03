@@ -64,7 +64,7 @@ def GenerateSupport(nmaps, nqubits, qubit_occupancies):
 	return supports
 
 
-def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1):
+def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUnitary = 0):
 	r"""
 	Sub-routine to prepare the dictionary for error eps = sum of cptp maps
 	Generates Kraus by using Stine to Kraus
@@ -88,8 +88,8 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1):
 		if n_q != 0:
 			interaction_range.append(n_q)
 			n_nontrivial_maps += 1
-	# interaction_range = [3, 3, 3, 2] # Only for decoding purposes.
-	# n_nontrivial_maps = len(interaction_range) # Only for decoding purposes.
+	interaction_range = [1, 1, 1, 1, 1, 1, 1] # Only for decoding purposes.
+	n_nontrivial_maps = len(interaction_range) # Only for decoding purposes.
 	print("Range of interactions : {}".format(interaction_range))
 
 	# If the Kraus list is empty, then append the identity error on some qubit.
@@ -97,16 +97,26 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1):
 		non_trivial_channels = {0: ((0,), [np.eye(2, dtype = np.complex128)])}
 	else:
 		# nmaps_per_qubit = max(0.1 * n_nontrivial_maps, 1)
-		supports = GenerateSupport(n_nontrivial_maps, qcode.N, interaction_range)
-		# supports = [(0, 1), (1, 2), (2, 3), (3, 4)] # Only for decoding purposes.
-		# supports = [(0, 1, 2)] # Only for decoding purposes.
+		# supports = GenerateSupport(n_nontrivial_maps, qcode.N, interaction_range)
+		# supports = [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6)] # Only for decoding purposes.
+		supports = [(0,), (1,), (2,), (3,), (4,), (5,), (6,)] # Only for decoding purposes.
 
 		non_trivial_channels = {m:None for m in range(n_nontrivial_maps)}
 		for m in range(n_nontrivial_maps):
 			n_q = interaction_range[m]
-			rand_unitary = RandomUnitary(rotation_angle/np.power(2, n_q), np.power(8, n_q))
-			kraus = StineToKraus(rand_unitary)
+			
+			# For random Unitary channels: set the only Kraus operator to be the random Unitary on n_q qubits.
+			if (isUnitary == 1):
+				print("Rotation angle for map {} is {}.".format(m, rotation_angle))
+				rand_unitary = RandomUnitary(rotation_angle / np.power(2, n_q), np.power(2, n_q), method="exp")
+				kraus = rand_unitary[np.newaxis, :, :]
+				# print("Kruas for map {} = {}".format(m, kraus))
+			else:
+				rand_unitary = RandomUnitary(rotation_angle / np.power(2, n_q), np.power(8, n_q))
+				kraus = StineToKraus(rand_unitary)
 
+			print("Kraus for map {} is\n{}\n{}".format(m, np.real(kraus).reshape(-1), np.imag(kraus).reshape(-1)))
+			
 			if (KrausTest(kraus) == 0):
 				print("Kraus test failed for the following channel.\n{}".format(kraus))
 
@@ -114,6 +124,30 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1):
 		print("Random channel generated with the following {} interactions\n{}.".format(n_nontrivial_maps, supports))
 
 	return non_trivial_channels
+
+
+def HamiltonainTwoBody(time, qcode, cutoff = 3, n_maps = 3, mean = 1):
+	r"""
+	Generates random 2-body interaction Hamiltonians along with the supports to ensure that each qubit participates in the highest number of interactions.
+	Input :
+	time = Time for which Hamiltonian evolution takes place. This is a handle on the noise strength. We will mutiply each Hamiltonian by this time factor.
+	qcode = QEC
+	n_maps = number of 2-body interactions to be considered
+	Returns :
+	dict[key] = (support, Hamiltonains)
+	where key = number associated to the operation applied (not significant)
+	support = tuple describing which qubits the kraus ops act on
+	Hamiltonians = 4 x 4 Hermitian matrices that serve as interactions.
+	"""
+	supports = [(i, j) for j in range(i, qcode.N) for j in range(qcode.N)]
+	n_interactions = len(supports)
+	interaction_hamiltonians = {m:None for m in range(n_interactions)}
+	for m in range(n_interactions):
+		ham = RandomHermitian(4) * time
+		interaction_hamiltonians[m] = (supports[m], ham)
+	print("Random Hamiltonain with {} 2-body interactions:\n{}.".format(n_interactions, supports))
+
+	return interaction_hamiltonians
 
 
 def KrausTest(kraus):

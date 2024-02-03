@@ -88,18 +88,18 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUn
 		if n_q != 0:
 			interaction_range.append(n_q)
 			n_nontrivial_maps += 1
-	interaction_range = [1, 1, 1, 1, 1, 1, 1] # Only for decoding purposes.
-	n_nontrivial_maps = len(interaction_range) # Only for decoding purposes.
+	# interaction_range = [1, 1, 1, 1, 1, 1, 1] # Only for decoding purposes.
+	# n_nontrivial_maps = len(interaction_range) # Only for decoding purposes.
 	print("Range of interactions : {}".format(interaction_range))
 
 	# If the Kraus list is empty, then append the identity error on some qubit.
 	if n_nontrivial_maps == 0:
 		non_trivial_channels = {0: ((0,), [np.eye(2, dtype = np.complex128)])}
 	else:
-		# nmaps_per_qubit = max(0.1 * n_nontrivial_maps, 1)
-		# supports = GenerateSupport(n_nontrivial_maps, qcode.N, interaction_range)
+		nmaps_per_qubit = max(0.1 * n_nontrivial_maps, 1)
+		supports = GenerateSupport(n_nontrivial_maps, qcode.N, interaction_range)
 		# supports = [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6)] # Only for decoding purposes.
-		supports = [(0,), (1,), (2,), (3,), (4,), (5,), (6,)] # Only for decoding purposes.
+		# supports = [(0,), (1,), (2,), (3,), (4,), (5,), (6,)] # Only for decoding purposes.
 
 		non_trivial_channels = {m:None for m in range(n_nontrivial_maps)}
 		for m in range(n_nontrivial_maps):
@@ -107,7 +107,7 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUn
 			
 			# For random Unitary channels: set the only Kraus operator to be the random Unitary on n_q qubits.
 			if (isUnitary == 1):
-				print("Rotation angle for map {} is {}.".format(m, rotation_angle))
+				# print("Rotation angle for map {} is {}.".format(m, rotation_angle))
 				rand_unitary = RandomUnitary(rotation_angle / np.power(2, n_q), np.power(2, n_q), method="exp")
 				kraus = rand_unitary[np.newaxis, :, :]
 				# print("Kruas for map {} = {}".format(m, kraus))
@@ -115,7 +115,7 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUn
 				rand_unitary = RandomUnitary(rotation_angle / np.power(2, n_q), np.power(8, n_q))
 				kraus = StineToKraus(rand_unitary)
 
-			print("Kraus for map {} is\n{}\n{}".format(m, np.real(kraus).reshape(-1), np.imag(kraus).reshape(-1)))
+			# print("Kraus for map {} is\n{}\n{}".format(m, np.real(kraus).reshape(-1), np.imag(kraus).reshape(-1)))
 			
 			if (KrausTest(kraus) == 0):
 				print("Kraus test failed for the following channel.\n{}".format(kraus))

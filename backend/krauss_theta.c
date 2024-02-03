@@ -135,12 +135,12 @@ double* KrausToTheta(double *kraus_real, double *kraus_imag, int nq, long nkr){
 			MultiplyScalar(chi[i][j] * transpose_sign, pauli_matrix_2nq, n_pauli, n_pauli);
 			Add(pauli_matrix_2nq, theta, n_pauli, n_pauli);
 			
-			printf("Chi[%d, %d] = %g + i %g.\n", i, j, creal(chi[i][j]), cimag(chi[i][j]));
+			// printf("Chi[%d, %d] = %g + i %g.\n", i, j, creal(chi[i][j]), cimag(chi[i][j]));
 		}
-		printf("----\n");
+		// printf("----\n");
 	}
 
-	PrintArray2DComplexDouble(theta, "Theta", n_pauli, n_pauli);
+	// PrintArray2DComplexDouble(theta, "Theta", n_pauli, n_pauli);
 
 	// Flatten the theta matrix to return it.
 	double *theta_flat = malloc(sizeof(double) * (2 * n_pauli * n_pauli));

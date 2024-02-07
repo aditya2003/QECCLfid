@@ -57,7 +57,7 @@ def ThetaToChiElement(pauli_op_i, pauli_op_j, theta_dict):
 	PjT = [((q,), (-1)**(int(pauli_op_j[q] == 2)) * PauliTensor(pauli_op_j[q, np.newaxis])) for q in range(nq)]
 	Pi = [((nq + q,), PauliTensor(pauli_op_i[q, np.newaxis])) for q in range(nq)]
 	
-	# print("Calling ContractTensorNetwork on\n\ttheta_dict sizes: {}".format([supp for (supp, ops) in theta_dict]))
+	# print("Calling ContractTensorNetwork on\n\ttheta_dict sizes: {}".format([supp for (supp, __) in theta_dict]))
 	(__, chi_elem) = ContractTensorNetwork(theta_dict + PjT + Pi, end_trace=1)
 	# chi_elem = 0 # For debugging purposes.
 	chi_elem /= 4**nq

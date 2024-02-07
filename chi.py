@@ -56,9 +56,9 @@ def Theta_Chi_Partial(core, start, stop, mp_chi, paulis, theta_dict):
 	for i in tqdm(range(start, stop), ascii = True, desc = "Core %d" % (core + 1), position = core, colour = "yellow"):
 		mp_chi[i] = np.real(ThetaToChiElement(paulis[i, :], paulis[i, :], theta_dict))
 	# print("Core %d" % (core + 1))
-	# for i in range(start, stop):
+	# for i in tqdm(range(start, stop), ascii = True, desc = "Core %d" % (core + 1), colour = "yellow"):
 	# 	mp_chi[i] = np.real(ThetaToChiElement(paulis[i, :], paulis[i, :], theta_dict))
-	return None
+	# return None
 
 
 def Chi_Element_Diag(krausdict, paulis, n_cores=None):

@@ -37,12 +37,17 @@ def SupportToLabel(interactions):
 	unique_qubits = np.unique(qubits)
 	n_unique = unique_qubits.shape[0]
 
+	# print("Interactions\n{}".format(interactions))
+
+	# print("Unique qubits: {}".format(unique_qubits))
+
 	# Compute the contraction labels and free indices according to the interactions.
 	free_indices = {q: [-1, -1] for q in unique_qubits}
 	contraction_labels = [[[-1, -1] for q in interac] for interac in interactions]
 	symbols = list(range(2 * len(qubits)))
 	n_symbols = 0
 	for (i, interac) in enumerate(interactions):
+		# print("Interaction {}: {}".format(i, interac))
 		for (j, q) in enumerate(interac):
 			if (free_indices[q][0] == -1):
 				free_indices[q][0] = symbols[n_symbols]

@@ -37,7 +37,7 @@ def GenerateSupport(nmaps, nqubits, qubit_occupancies):
 	constraints = []
 	# Each qubit to be part of at least one map.
 	col_sums = cp.sum(mat, axis=0, keepdims=True)
-	constraints.append(col_sums >= 1)
+	constraints.append(col_sums >= 2)
 	# Each interaction must involve a fixed number of qubits.
 	row_sums = cp.sum(mat, axis=1)
 	constraints.append(row_sums >= qubit_occupancies)
@@ -91,7 +91,7 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUn
 			n_nontrivial_maps += 1
 	# interaction_range = [3, 3, 3, 3, 3, 3, 3, 2] # Only for decoding purposes.
 	# interaction_range = [1,1,1] # Only for decoding purposes.
-	n_nontrivial_maps = len(interaction_range) # Only for decoding purposes.
+	# n_nontrivial_maps = len(interaction_range) # Only for decoding purposes.
 	print("Range of interactions : {}".format(interaction_range))
 
 	# If the Kraus list is empty, then append the identity error on some qubit.
@@ -169,6 +169,16 @@ def KrausTest(kraus):
 
 if __name__ == "__main__":
 	# Test the channel generation code.
-	from define import qcode as qec
-	qcode = qec.QuantumErrorCorrectingCode("Steane")
-	channels = CorrelatedCPTP(0.1, qcode, cutoff = 3, n_maps = 10)
+	# from define import qcode as qec
+	# qcode = qec.QuantumErrorCorrectingCode("Steane")
+	# channels = CorrelatedCPTP(0.1, qcode, cutoff = 3, n_maps = 10)
+	nmaps = 8
+	nqubits = 7
+	interaction_range = []
+	for m in range(nmaps):
+		n_q = SamplePoisson(mean=1, cutoff=4)
+		if (n_q > 0):
+			interaction_range.append(n_q)
+	nmaps = len(interaction_range)
+	supports = GenerateSupport(nmaps, nqubits, interaction_range)
+	print("interaction range: {}\nSupport = {}".format(interaction_range, supports))

@@ -21,11 +21,11 @@ def StineToKraus(U):
 	return krauss
 
 
-def GenerateSupport(nmaps, nqubits, qubit_occupancies):
+def GenerateSupport(nmaps, nqubits, interaction_ranges):
 	r"""
 	Generates supports for maps such that
 	1. Each qubit participates in at least one maps
-	2. Every map has support given by the number of qubits in qubit_occupancies list
+	2. Every map has support given by the number of qubits in interaction_ranges list
 	3. Allocation optimized such that each qubit participates roughly in nmaps_per_qubit maps
 	returns a list of tuples with support indicies for each map
 	"""
@@ -37,10 +37,11 @@ def GenerateSupport(nmaps, nqubits, qubit_occupancies):
 	constraints = []
 	# Each qubit to be part of at least one map.
 	col_sums = cp.sum(mat, axis=0, keepdims=True)
-	constraints.append(col_sums >= 2)
-	# Each interaction must involve a fixed number of qubits.
+	constraints.append(col_sums >= 1)
+	# Each interaction must involve a fixed number of qubits +/- 1.
 	row_sums = cp.sum(mat, axis=1)
-	constraints.append(row_sums >= qubit_occupancies)
+	constraints.append(row_sums <= [r + 1 for r in interaction_ranges])
+	constraints.append(row_sums >= [max(1, r - 1) for r in interaction_ranges])
 	
 	# Objective function to place a penalty on the number of interactions per qubit.
 	# objective = cp.Minimize(cp.norm(col_sums, "fro"))
@@ -59,7 +60,7 @@ def GenerateSupport(nmaps, nqubits, qubit_occupancies):
 		# Choose random subsets of qubits of the specified sizes.
 		supports = []
 		for m in range(nmaps):
-			support = tuple((random.sample(range(nqubits), qubit_occupancies[m])))
+			support = tuple((random.sample(range(nqubits), interaction_ranges[m])))
 			supports.append(support)
 	
 	return supports

@@ -71,7 +71,11 @@ def ContractTensorNetwork(network, end_trace=0):
 	# Contract the network using einsum
 	start = timer()
 	contracted_support = tuple([q for q in qubits])
-	if (end_trace == 0):
+	use_einsum = 1
+	if (max_tensor_index(left, right) >= 52):
+		use_einsum = 0
+
+	if (use_einsum == 1):
 		contracted_operator = np.einsum(*scheme, optimize="greedy")
 	else:
 		operators = [op for (__, op) in network]
@@ -79,6 +83,12 @@ def ContractTensorNetwork(network, end_trace=0):
 	contracted_network = (contracted_support, contracted_operator)
 	# print("Contraction was done in %.3f seconds." % (timer() - start))
 	return contracted_network
+
+def max_tensor_index(contraction_schedule, free_labels):
+	# Compute the maximum tensor index in the tensor network.
+	tensor_labels = np.unique([l for axes_labels in contraction_schedule for l in axes_labels] + free_labels)
+	max_label = np.max(tensor_labels)	
+	return max_label
 
 def NCon(operators, contraction_schedule, free_labels):
 	# Contract a tensor network using ncon.

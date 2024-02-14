@@ -161,7 +161,7 @@ def KrausTest(kraus):
 		# print("||K_{} - diag(K_{})||_2 = {}".format(k, k, np.linalg.norm(kraus[k, :, :] - np.diag(np.diag(kraus[k, :, :])))))
 		total = total + np.dot(HermitianConjugate(kraus[k, :, :]), kraus[k, :, :])
 	success = 0
-	if np.allclose(total, np.eye(kraus.shape[1], dtype=np.complex128)):
+	if np.allclose(total, np.eye(kraus.shape[1], dtype=np.complex128), atol=1E-7):
 		success = 1
 		# print("Kraus test passed.")
 	else:

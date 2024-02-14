@@ -4,7 +4,7 @@ from ncon import ncon
 import cotengra as ctg 
 from timeit import default_timer as timer
 from define.QECCLfid.unique import SupportToLabel
-# from unique import SupportToLabel # conly for decoding purposes.
+# from unique import SupportToLabel # only for decoding purposes.
 
 def OptimalEinsum(scheme, ops, opt = "greedy", verbose=0, parallel=0):
 	# Contract a tensor network using einsum supplemented with its optimization tools.
@@ -16,7 +16,7 @@ def OptimalEinsum(scheme, ops, opt = "greedy", verbose=0, parallel=0):
 	return prod
 
 
-def ContractTensorNetwork(network, end_trace=0):
+def ContractTensorNetwork(network, end_trace=0, use_einsum=0):
 	# Compute the trace of a tensor network.
 	interactions = [sup for (sup, __) in network]
 	# print("{} interactions\n{}".format(len(interactions), interactions))
@@ -69,9 +69,8 @@ def ContractTensorNetwork(network, end_trace=0):
 	# print("right\n{}".format(right))
 
 	# Contract the network using einsum
-	start = timer()
+	# start = timer()
 	contracted_support = tuple([q for q in qubits])
-	use_einsum = 1
 	if (max_tensor_index(left, right) >= 52):
 		use_einsum = 0
 
@@ -81,7 +80,7 @@ def ContractTensorNetwork(network, end_trace=0):
 		operators = [op for (__, op) in network]
 		contracted_operator = NCon(operators, left, right)
 	contracted_network = (contracted_support, contracted_operator)
-	# print("Contraction was done in %.3f seconds." % (timer() - start))
+	# print("Contraction was done in %.3f seconds using %d." % (timer() - start, use_einsum))
 	return contracted_network
 
 def max_tensor_index(contraction_schedule, free_labels):
@@ -144,10 +143,13 @@ if __name__ == '__main__':
 	E = np.random.randn(2, 2, 2, 2)
 	F = np.random.randn(2, 2, 2, 2, 2, 2)
 	G = np.random.randn(2, 2, 2, 2, 2, 2)
-	H = np.random.randn(2, 2, 2, 2)
+	H = np.random.randn(2, 2, 2, 2, 2, 2, 2, 2)
 	I = np.random.randn(2, 2)
 	
-	network = [((0,1), A), ((1,), B), ((1,2), C), ((0,2,3), D), ((1,3), E), ((1,2,3), F), ((0,1,3), G), ((1,2), H), ((3,), I), ((0,1), A), ((1,), B), ((1,2), C), ((0,2,3), D), ((1,3), E), ((1,2,3), F), ((0,1,3), G), ((1,2), H), ((3,), I), ((0,1), A), ((1,), B), ((1,2), C), ((0,2,3), D), ((1,3), E), ((1,2,3), F), ((0,1,3), G), ((1,2), H), ((3,), I)]
+	network = [((0,1), A), ((1,), B), ((1,2), C), ((0,2,3), D), ((1,3), E), ((1,2,3), F), ((0,1,3), G), ((0,1,2,3), H), ((3,), I)]
 	
-	(contracted_support, contracted_operator) = ContractTensorNetwork(network, end_trace=1)
-	print("Contracted Tensor Network is supported on {}:\n{}.".format(contracted_support, contracted_operator))
+	(contracted_support, contracted_operator) = ContractTensorNetwork(network, end_trace=1, use_einsum=1)
+	print("Contracted Tensor Network on Einsum is supported on {}:\n{}.".format(contracted_support, contracted_operator))
+
+	(contracted_support, contracted_operator) = ContractTensorNetwork(network, end_trace=1, use_einsum=0)
+	print("Contracted Tensor Network on NCon is supported on {}:\n{}.".format(contracted_support, contracted_operator))

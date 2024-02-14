@@ -43,7 +43,7 @@ def KrausToTheta(kraus):
 def ThetaToChiElement(pauli_op_i, pauli_op_j, theta_dict):
 	# Convert from the Theta representation to the Chi representation.
 	# The "Theta" matrix T of a CPTP map whose chi-matrix is X is defined as:
-	# T_ij = \sum_(ij) [ X_ij (P_i o (P_j)^T) ]
+	# T = \sum_(ij) [ X_ij (P_i o (P_j)^T) ]
 	# So we find that
 	# Chi_ij = Tr[ (P_i o (P_j)^T) T]
 	# Note that [P_i o (P_j)^T] can be expressed as a product of the single qubit Pauli matrices

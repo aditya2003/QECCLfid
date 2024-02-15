@@ -34,7 +34,7 @@ double* KrausToTheta(double *kraus_real, double *kraus_imag, int nq, long nkr){
 		T_ij = \sum_(ij) [ X_ij (P_i o (P_j)^T) ]
 		Note that the chi matrix X can be defined using the Kraus matrices {K_k} in the following way
 		X_ij = \sum_k [ <P_i|K_k><K_k|P_j> ]
-			   = \sum_k [ Tr(P_i K_k) Tr((K_k)^\dag P_j)]
+			 = \sum_k [ Tr(P_i K_k) Tr((K_k)^\dag P_j)]
 		So we find that
 		T = \sum_(ij) [ \sum_k [ Tr(P_i K_k) Tr((K_k)^\dag P_j)] ] (P_i o (P_j)^T) ]
 	*/
@@ -50,18 +50,18 @@ double* KrausToTheta(double *kraus_real, double *kraus_imag, int nq, long nkr){
 	complex128_t ***kraus = malloc(sizeof(complex128_t **) * nkr);
 	for (k = 0; k < nkr; k ++){
 		kraus[k] = malloc(sizeof(complex128_t *) * dim);
-		// printf("K_%d\n", k);
+		printf("K_%d\n", k);
 		for (i = 0; i < dim; i ++){
 			kraus[k][i] = malloc(sizeof(complex128_t) * dim);
 			for (j = 0; j < dim; j ++){
 				real_part = kraus_real[k * dim * dim + i * dim + j];
 				imag_part = kraus_imag[k * dim * dim + i * dim + j];
 				kraus[k][i][j] = real_part + I * imag_part;
-				// printf("%.3lf + i %.3lf  ", real_part, imag_part);
+				printf("%g + i %g  ", real_part, imag_part);
 			}
-			// printf("\n");
+			printf("\n");
 		}
-		// printf("------\n");
+		printf("------\n");
 	}
 
 	// printf("n_pauli s= %ld and dim = %ld\n", n_pauli, dim);
@@ -124,6 +124,8 @@ double* KrausToTheta(double *kraus_real, double *kraus_imag, int nq, long nkr){
 					exit(0);
 				}
 			}
+
+			printf("Chi[%d, %d] = %g + i %g.\n", i, j, creal(chi[i][j]), cimag(chi[i][j]));
 			
 			// Compute the tensor product of two Pauli operators.
 			transpose_sign = transpose_signs[j] + I * 0;
@@ -140,7 +142,7 @@ double* KrausToTheta(double *kraus_real, double *kraus_imag, int nq, long nkr){
 		// printf("----\n");
 	}
 
-	// PrintArray2DComplexDouble(theta, "Theta", n_pauli, n_pauli);
+	PrintArray2DComplexDouble(theta, "Theta", n_pauli, n_pauli);
 
 	// Flatten the theta matrix to return it.
 	double *theta_flat = malloc(sizeof(double) * (2 * n_pauli * n_pauli));

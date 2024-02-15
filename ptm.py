@@ -10,6 +10,23 @@ from define.qcode import GetOperatorsForTLSIndex
 from define.QECCLfid.contract import ContractTensorNetwork
 from define.QECCLfid.utils import Dagger, circular_shift, GetNQubitPauli, PauliTensor, ConvertToDecimal
 
+def KrausToPTM_Python(kraus):
+	'''
+	Convert from Kraus to PTM.
+	PTM_ij = Tr( E(P_i) . P_j )
+	       = sum_k ( E_k P_i E^dag_k P_j )
+	'''
+	dim = kraus.shape[1]
+	nq = int(np.ceil(np.log2(dim)))
+	npauli = np.power(4, nq, dtype = np.int64)
+
+	paulis = np.zeros((npauli, dim, dim), dtype = np.complex128)
+	for p in range(npauli):
+		paulis[p, :, :] = PauliTensor(GetNQubitPauli(p, nq)).reshape(dim, dim)
+
+	ptm = np.real(np.einsum('klm,imn,kpn,jpl->ij', kraus, paulis, np.conj(kraus), paulis)) / dim
+	return ptm
+
 
 def KrausToPTM(kraus):
 	# Convert from the Kraus representation to the PTM.
@@ -32,7 +49,8 @@ def KrausToPTM(kraus):
 	_convert.KrausToPTM.restype = ndpointer(dtype=ct.c_double, shape=(4**nq * 4**nq,))
 	# Call the backend function.
 	ptm_out = _convert.KrausToPTM(real_kraus, imag_kraus, nq, nkr)
-	# print("PTM out\n{}".format(ptm_out))
+	ptm_python = KrausToPTM_Python(kraus)
+	print("PTM\n{}".format(ptm_out.reshape(4**nq, 4**nq) - ptm_python))
 	ptm = ptm_out.reshape([4, 4] * nq)
 	return ptm
 
@@ -103,7 +121,7 @@ def PTMAdjointTest(kraus, ptm):
 	for k in range(kraus.shape[0]):
 		kraus_adj[k, :, :] = Dagger(kraus[k, :, :])
 	click = timer()
-	ptm_adj = KrausToPTM(kraus_adj)
+	ptm_adj = KrausToPTM_Python(kraus_adj)
 	# print("Adjoint PTM was constructed in %d seconds." % (timer() - click))
 	# print("ptm - ptm_adj: {}".format(np.sum(np.abs(ptm.reshape(4**nq, 4**nq) - ptm_adj.reshape(4**nq, 4**nq).T))))
 	return np.allclose(ptm.reshape(4**nq, 4**nq), ptm_adj.reshape(4**nq, 4**nq).T)
@@ -144,7 +162,7 @@ def ConstructPTM_Partial(map_start, map_end, mem_start, ptm_channels, kraus_dict
 		(support, kraus) = kraus_dict[m]
 		mem_end = mem_start + 16 ** len(support)
 		click = timer()
-		ptm = KrausToPTM(np.array(kraus))
+		ptm = KrausToPTM_Python(np.array(kraus))
 		# print("Map {} supported on {}\n{}".format(m, support, ptm))
 		# if (PTMAdjointTest(np.array(kraus), ptm) == False):
 		# 	print("PTM Test for map %d failed." % (m))

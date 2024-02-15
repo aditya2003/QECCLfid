@@ -16,7 +16,7 @@ def OptimalEinsum(scheme, ops, opt = "greedy", verbose=0, parallel=0):
 	return prod
 
 
-def ContractTensorNetwork(network, end_trace=0, use_einsum=0):
+def ContractTensorNetwork(network, end_trace=0, use_einsum=1):
 	# Compute the trace of a tensor network.
 	interactions = [sup for (sup, __) in network]
 	# print("{} interactions\n{}".format(len(interactions), interactions))

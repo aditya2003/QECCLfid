@@ -1,3 +1,4 @@
+import time
 import numpy as np
 import ctypes as ct
 from tqdm import tqdm
@@ -7,7 +8,7 @@ from psutil import virtual_memory
 from timeit import default_timer as timer
 from define.QECCLfid.ptm import fix_index_after_tensor
 from define.QECCLfid.contract import ContractTensorNetwork
-from define.QECCLfid.theta import KrausToTheta, ThetaToChiElement
+from define.QECCLfid.theta import KrausToTheta_Python, ThetaToChiElement
 from define.qcode import GetOperatorsForLSTIndex, PrepareSyndromeLookUp
 
 
@@ -40,7 +41,7 @@ def Chi_Element_Diag_Partial(map_start, map_end, mem_start, theta_channels, krau
 		(support, kraus) = krausdict[m]
 		# print("Computing theta matrix for map {} supported on {}".format(m, support))
 		click = timer()
-		theta = KrausToTheta(np.array(kraus))
+		theta = KrausToTheta_Python(np.array(kraus))
 		print("\033[2mTheta matrix for map %d was computed in %.2f seconds.\033[0m" % (m + 1, timer() - click))
 		# theta_channels[m] = (theta_support, theta)
 		mem_inter = mem_start + 16 ** len(support)
@@ -58,7 +59,7 @@ def Theta_Chi_Partial(core, start, stop, mp_chi, paulis, theta_dict):
 	# print("Core %d" % (core + 1))
 	for i in tqdm(range(start, stop), ascii = True, desc = "Core %d" % (core + 1), colour = "yellow"):
 		mp_chi[i] = np.real(ThetaToChiElement(paulis[i, :], paulis[i, :], theta_dict))
-	# return None
+	return None
 
 
 def Chi_Element_Diag(krausdict, paulis, n_cores=None):
@@ -184,7 +185,15 @@ def NoiseReconstruction(qcode, kraus_dict, max_weight=None):
 		end = start + n_errors_weight[w]
 		chi[qcode.group_by_weight[w]] = chi_partial[start:end]
 		start = end
-	if (np.sum(chi) >= 1):
-		print("Invalid chi matrix: chi[0,0] = {}\nKraus operators: {}.".format(chi[0], krausdict))
+	if ((np.real(chi[0]) > 1) or (np.real(np.sum(chi)) >= 1)):
+		print("Invalid chi matrix: chi[0,0] = {}.".format(chi[0]))
+		# Save the Kraus operators for investigation
+		filename = "problematic_kraus_%s.txt" % (time.time())
+		# print("kraus_dict\n{}".format(kraus_dict))
+		with open(filename, "w") as fp:
+			fp.write("Budget of chi excluded = {} and infid = {}.\n".format(1 - np.sum(chi), 1 - chi[0]))
+			for k in kraus_dict:
+				(supp, op) = kraus_dict[k]
+				fp.write("supp: {}\n{}\n======\n".format(supp, op))
 	print("\033[2mBudget of chi excluded = %.2e and infid = %.2e.\033[0m" % (1 - np.sum(chi), 1 - chi[0]))
 	return chi

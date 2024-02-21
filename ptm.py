@@ -1,7 +1,6 @@
 import os
 import copy
 import numpy as np
-import numba as nb
 import ctypes as ct
 from tqdm import tqdm
 from einsumt import einsumt

@@ -1,7 +1,7 @@
 import cython
 import numpy as np
 from ncon import ncon
-import cotengra as ctg 
+# import cotengra as ctg
 from timeit import default_timer as timer
 from define.QECCLfid.unique import SupportToLabel
 # from unique import SupportToLabel # only for decoding purposes.

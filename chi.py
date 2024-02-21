@@ -54,11 +54,11 @@ def Chi_Element_Diag_Partial(map_start, map_end, mem_start, theta_channels, krau
 
 def Theta_Chi_Partial(core, start, stop, mp_chi, paulis, theta_dict):
 	# Compute the chi matrix elements for a list of Paulis
-	# for i in tqdm(range(start, stop), ascii = True, desc = "Core %d" % (core + 1), position = core, colour = "yellow"):
-	# 	mp_chi[i] = np.real(ThetaToChiElement(paulis[i, :], paulis[i, :], theta_dict))
-	# print("Core %d" % (core + 1))
-	for i in tqdm(range(start, stop), ascii = True, desc = "Core %d" % (core + 1), colour = "yellow"):
+	for i in tqdm(range(start, stop), ascii = True, desc = "Core %d" % (core + 1), position = core, colour = "yellow"):
 		mp_chi[i] = np.real(ThetaToChiElement(paulis[i, :], paulis[i, :], theta_dict))
+	# print("Core %d" % (core + 1))
+	# for i in tqdm(range(start, stop), ascii = True, desc = "Core %d" % (core + 1), colour = "yellow"):
+	# 	mp_chi[i] = np.real(ThetaToChiElement(paulis[i, :], paulis[i, :], theta_dict))
 	return None
 
 
@@ -141,12 +141,12 @@ def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 	for p in range(n_cores):
 		start = p * chunk
 		stop = min((p + 1) * chunk, paulis.shape[0])
-		# processes.append(mp.Process(target=Theta_Chi_Partial, args = (p, start, stop, mp_chi, paulis, theta_dict)))
-		Theta_Chi_Partial(p, start, stop, mp_chi, paulis, theta_dict)
-	# for p in range(n_cores):
-	# 	processes[p].start()
-	# for p in range(n_cores):
-	# 	processes[p].join()
+		processes.append(mp.Process(target=Theta_Chi_Partial, args = (p, start, stop, mp_chi, paulis, theta_dict)))
+		# Theta_Chi_Partial(p, start, stop, mp_chi, paulis, theta_dict)
+	for p in range(n_cores):
+		processes[p].start()
+	for p in range(n_cores):
+		processes[p].join()
 
 	# Add new lines to ensure that future prints don't overlap with the progress bars
 	# for p in range(n_cores):
@@ -167,7 +167,8 @@ def NoiseReconstruction(qcode, kraus_dict, max_weight=None):
 	chi matrix in LST ordering.
 	"""
 	if max_weight is None:
-		max_weight = qcode.N//2 + 1
+		max_weight = qcode.N // 2 + 1
+		# max_weight = qcode.N # only for debugging purposes.
 	if qcode.group_by_weight is None:
 		PrepareSyndromeLookUp(qcode)
 	n_errors_weight = [qcode.group_by_weight[w].size for w in range(max_weight + 1)]
@@ -185,6 +186,7 @@ def NoiseReconstruction(qcode, kraus_dict, max_weight=None):
 		end = start + n_errors_weight[w]
 		chi[qcode.group_by_weight[w]] = chi_partial[start:end]
 		start = end
+	# print("chi matrix diagonal entries\n{}".format(chi))
 	if ((np.real(chi[0]) > 1) or (np.real(np.sum(chi)) >= 1)):
 		print("Invalid chi matrix: chi[0,0] = {}.".format(chi[0]))
 		# Save the Kraus operators for investigation

@@ -52,11 +52,14 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 	print("\033[2mCHI was constructed in %d seconds.\033[0m" % (timer() - click))
 
 	click = timer()
-	# if len(kraus_dict) > 1:
-	if len(kraus_dict) > 0: # only for debugging purposes
+	"""
+	if len(kraus_dict) > 1:
+	# if len(kraus_dict) > 0: # only for debugging purposes
 		ptm = ConstructPTM(qcode, kraus_dict)
 	else:
 		ptm = get_process_correlated(qcode, kraus_dict).reshape(2**(qcode.N + qcode.K), 2**(qcode.N + qcode.K))
+	"""
+	ptm = ConstructPTM(qcode, kraus_dict)
 	print("\033[2mPTM was constructed in %d seconds.\033[0m" % (timer() - click))
 	print("\033[2mProcess[0, 0] = {}\033[0m".format(ptm[0, 0]))
 

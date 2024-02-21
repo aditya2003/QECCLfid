@@ -1,7 +1,9 @@
 import os
 import numpy as np
 import ctypes as ct
+from einsumt import einsumt
 from numpy.ctypeslib import ndpointer
+# from timeit import default_timer as timer # only for decoding purposes
 from define.QECCLfid.utils import GetNQubitPauli, PauliTensor
 from define.QECCLfid.tensor import TensorTranspose, TensorKron, TensorTrace, TraceDot
 from define.QECCLfid.contract import ContractTensorNetwork
@@ -9,7 +11,7 @@ from timeit import default_timer as timer
 from define.QECCLfid.utils import GetNQubitPauli # only for decoding purposes
 
 def KrausToTheta_Python(kraus):
-	"""
+	r"""
 	Kraus to theta in Python.
 	1. Convert from Kraus to Chi
 		Convert from the Kraus representation to the chi matrix.
@@ -23,9 +25,11 @@ def KrausToTheta_Python(kraus):
 	nq = int(np.ceil(np.log2(dim)))
 	npauli = np.power(4, nq, dtype = np.int64)
 
+	# start = timer()
 	paulis = np.zeros((npauli, dim, dim), dtype = np.complex128)
 	for p in range(npauli):
 		paulis[p, :, :] = PauliTensor(GetNQubitPauli(p, nq)).reshape(dim, dim)
+	# print("Enumerating Paulis took {} seconds.".format(timer() - start))
 
 	# theta = np.zeros((npauli, npauli), dtype = np.complex128)
 	# for i in range(npauli):
@@ -33,8 +37,8 @@ def KrausToTheta_Python(kraus):
 	# 		chi_ij = np.einsum('kln,nl,kpm,pm->', kraus, paulis[i, :, :], np.conj(kraus), paulis[j, :, :]) / npauli
 	# 		# print("chi[{}, {}] = {}".format(i, j, chi_ij))
 	# 		theta = theta + chi_ij * np.kron(paulis[i, :, :], np.transpose(paulis[j, :, :]))
-	chi = np.einsum('kln,inl,kpm,jpm->ij', kraus, paulis, np.conj(kraus), paulis) / npauli
-	theta = np.einsum('ij,ikl,jmn->kmln', chi, paulis, np.transpose(paulis, axes=(0, 2, 1)))
+	chi = einsumt('kln,inl,kpm,jpm->ij', kraus, paulis, np.conj(kraus), paulis) / npauli
+	theta = einsumt('ij,ikl,jmn->kmln', chi, paulis, np.transpose(paulis, axes=(0, 2, 1)))
 	theta_reshaped = theta.reshape([2, 2, 2, 2] * nq)
 	return theta_reshaped
 

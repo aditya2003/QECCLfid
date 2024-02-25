@@ -187,8 +187,9 @@ def NoiseReconstruction(qcode, kraus_dict, max_weight=None):
 		chi[qcode.group_by_weight[w]] = chi_partial[start:end]
 		start = end
 	# print("chi matrix diagonal entries\n{}".format(chi))
-	if ((np.real(chi[0]) > 1) or (np.real(np.sum(chi)) >= 1)):
-		print("Invalid chi matrix: chi[0,0] = {}.".format(chi[0]))
+	atol = 1E-10
+	if ((np.real(chi[0]) >= 1 - atol) or (np.real(np.sum(chi)) >= 1 + atol)):
+		print("Invalid chi matrix: chi[0,0] = {} and sum of chi = {}.".format(chi[0], np.sum(chi)))
 		# Save the Kraus operators for investigation
 		filename = "problematic_kraus_%s.txt" % (time.time())
 		# print("kraus_dict\n{}".format(kraus_dict))

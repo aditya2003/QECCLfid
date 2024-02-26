@@ -12,14 +12,17 @@ def StineToKraus(U):
 	# Compute the Krauss operators for the input quantum channel, which is represented in the Stinespring dialation
 	# The Krauss operator T_k is given by: <a|T_k|b> = <a e_k|U|b e_0> , where {|e_i>} is a basis for the environment and |a>, |b> are basis vectors of the system
 	# Note that a k-qubit channel needs to be generated from a unitary matrix on 3*k qubits where 2*k qubits represent the environment.
+	# We can do this using tensor contraction tools:
+	# T_k = <e_k|U|e_0>
+	#     = env[k]^\dag . U . env[0]
+	# Assuming U is full rank:
+	# sys-env = np.reshape(U, [2^n, 2^n, 4^n, 4^n])
+	# T_k = eye-env[:, :, k, 0]
+	# Note that a k-qubit channel needs to be generated from a unitary matrix on 3*k qubits where 2*k qubits represent the environment.
 	nq = int(np.log2(U.shape[0]))//3
-	# environment = np.eye(4**nq)[:,:,np.newaxis]
-	# system = np.eye(2**nq)[:,:,np.newaxis]
-	krauss = np.zeros((4**nq, 2**nq, 2**nq), dtype=np.complex128)
-	for r in range(2**nq):
-		for c in range(2**nq):
-			krauss[:, r, c] = U[r * 4**nq + np.arange(4**nq, dtype = np.int64), c * 4**nq]
-	return krauss
+	sys_env_split = np.reshape(U, [2**nq, 4**nq, 2**nq, 4**nq])
+	kraus = np.einsum('ikj->kij', sys_env_split[:, :, :, 0])
+	return kraus
 
 
 def GenerateSupport(nmaps, nqubits, interaction_ranges):
@@ -93,7 +96,7 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUn
 			n_nontrivial_maps += 1
 	# interaction_range = [3, 3, 3, 3, 3, 3, 3, 2] # Only for decoding purposes.
 	# interaction_range = [4] # Only for decoding purposes.
-	n_nontrivial_maps = len(interaction_range) # Only for decoding purposes.
+	# n_nontrivial_maps = len(interaction_range) # Only for decoding purposes.
 	# print("Range of interactions : {}".format(interaction_range))
 
 	# If the Kraus list is empty, then append the identity error on some qubit.
@@ -103,9 +106,9 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUn
 		# nmaps_per_qubit = max(0.1 * n_nontrivial_maps, 1)
 		supports = GenerateSupport(n_nontrivial_maps, qcode.N, interaction_range)
 		interaction_range = [len(supp) for supp in supports]
-		print("Range of interactions : {}\nsupports = {}".format(interaction_range, supports))
+		print("Range of interactions : {}".format(interaction_range))
 		# supports = [(0, 1, 2), (1, 2, 3), (2, 3, 4), (3, 4, 5), (4, 5, 6), (1, 3, 5), (2, 4, 6), (5, 6)] # Only for decoding purposes.
-		# supports = [(), (), (), (), (), ()] # Only for decoding purposes.
+		# supports = [(0, 1, 2, 3)] # Only for decoding purposes.
 
 		non_trivial_channels = {m:None for m in range(n_nontrivial_maps)}
 		for m in range(n_nontrivial_maps):

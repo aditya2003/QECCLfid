@@ -50,18 +50,18 @@ double* KrausToTheta(double *kraus_real, double *kraus_imag, int nq, long nkr){
 	complex128_t ***kraus = malloc(sizeof(complex128_t **) * nkr);
 	for (k = 0; k < nkr; k ++){
 		kraus[k] = malloc(sizeof(complex128_t *) * dim);
-		printf("K_%d\n", k);
+		// printf("K_%d\n", k);
 		for (i = 0; i < dim; i ++){
 			kraus[k][i] = malloc(sizeof(complex128_t) * dim);
 			for (j = 0; j < dim; j ++){
 				real_part = kraus_real[k * dim * dim + i * dim + j];
 				imag_part = kraus_imag[k * dim * dim + i * dim + j];
 				kraus[k][i][j] = real_part + I * imag_part;
-				printf("%g + i %g  ", real_part, imag_part);
+				// printf("%g + i %g  ", real_part, imag_part);
 			}
-			printf("\n");
+			// printf("\n");
 		}
-		printf("------\n");
+		// printf("------\n");
 	}
 
 	// printf("n_pauli s= %ld and dim = %ld\n", n_pauli, dim);
@@ -125,7 +125,7 @@ double* KrausToTheta(double *kraus_real, double *kraus_imag, int nq, long nkr){
 				}
 			}
 
-			printf("Chi[%d, %d] = %g + i %g.\n", i, j, creal(chi[i][j]), cimag(chi[i][j]));
+			// printf("Chi[%d, %d] = %g + i %g.\n", i, j, creal(chi[i][j]), cimag(chi[i][j]));
 			
 			// Compute the tensor product of two Pauli operators.
 			transpose_sign = transpose_signs[j] + I * 0;
@@ -142,7 +142,7 @@ double* KrausToTheta(double *kraus_real, double *kraus_imag, int nq, long nkr){
 		// printf("----\n");
 	}
 
-	PrintArray2DComplexDouble(theta, "Theta", n_pauli, n_pauli);
+	// PrintArray2DComplexDouble(theta, "Theta", n_pauli, n_pauli);
 
 	// Flatten the theta matrix to return it.
 	double *theta_flat = malloc(sizeof(double) * (2 * n_pauli * n_pauli));

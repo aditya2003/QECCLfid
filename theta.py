@@ -37,8 +37,11 @@ def KrausToTheta_Python(kraus):
 	# 		chi_ij = np.einsum('kln,nl,kpm,pm->', kraus, paulis[i, :, :], np.conj(kraus), paulis[j, :, :]) / npauli
 	# 		# print("chi[{}, {}] = {}".format(i, j, chi_ij))
 	# 		theta = theta + chi_ij * np.kron(paulis[i, :, :], np.transpose(paulis[j, :, :]))
-	chi = einsumt('kln,inl,kpm,jpm->ij', kraus, paulis, np.conj(kraus), paulis) / npauli
-	theta = einsumt('ij,ikl,jmn->kmln', chi, paulis, np.transpose(paulis, axes=(0, 2, 1)))
+	# start = timer()
+	chi = np.einsum('kln,inl,kpm,jpm->ij', kraus, paulis, np.conj(kraus), paulis) / npauli
+	# print("Chi computed in {} seconds.".format(timer() - start))
+	theta = np.einsum('ij,ikl,jmn->kmln', chi, paulis, np.transpose(paulis, axes=(0, 2, 1)))
+	# print("Theta matrix computed in {} seconds.".format(timer() - start))
 	theta_reshaped = theta.reshape([2, 2, 2, 2] * nq)
 	return theta_reshaped
 
@@ -64,16 +67,21 @@ def KrausToTheta(kraus):
 	# Output is the real part of Theta followed by its imaginary part.
 	_convert.KrausToTheta.restype = ndpointer(dtype=ct.c_double, shape=(2 * 4**nq * 4**nq,))
 	# Call the backend function.
+	start = timer()
 	theta_out = _convert.KrausToTheta(real_kraus, imag_kraus, nq, nkr)
-	print("theta_out\n{}".format(theta_out))
+	# print("theta_out\n{}".format(theta_out))
 	theta_real = theta_out[ : (4**nq * 4**nq)].reshape([2, 2, 2, 2] * nq)
 	theta_imag = theta_out[(4**nq * 4**nq) :].reshape([2, 2, 2, 2] * nq)
 	theta = theta_real + 1j * theta_imag
+	# print("Theta matrix computed in {} seconds.".format(timer() - start))
 	#
 	# Get Theta matrix from pure Python code
-	theta_mat_alt = KrausToTheta_Python(kraus) # Only for decoding purposes
-	print("theta - theta_mat_alt\n{}".format(theta.reshape(4**nq, 4**nq) -theta_mat_alt.reshape(4**nq, 4**nq))) # Only for decoding purposes
-	# print("Tr(theta) = {}".format(np.trace(theta_mat))) # Only for decoding purposes
+	# start = timer()
+	# theta_mat_alt = KrausToTheta_Python(kraus) # Only for decoding purposes
+	# print("Theta matrix from the Python code was computed in {} seconds.".format(timer() - start))
+	# print("theta - theta_mat_alt\n{}".format(theta.reshape(4**nq, 4**nq) -theta_mat_alt.reshape(4**nq, 4**nq))) # Only for decoding purposes
+	# print("IsClose: {}".format(np.allclose(theta, theta_mat_alt)))
+	# print("Tr(theta) = {}".format(np.trace(theta_mat_alt))) # Only for decoding purposes
 	return theta
 
 

@@ -94,7 +94,7 @@ double* KrausToPTM(double *kraus_real, double *kraus_imag, int nq, long nkr){
 				// printf("PTM_%d[%d, %d] = %.3f\n", k, i, j, ptm[i][j]);
 			}
 			ptm[i][j] = ptm[i][j]/((double) dim);
-			printf("PTM[%d, %d] = %g\n", i, j, ptm[i][j]);
+			// printf("PTM[%d, %d] = %g\n", i, j, ptm[i][j]);
 		}
 	}
 

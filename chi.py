@@ -8,7 +8,7 @@ from psutil import virtual_memory
 from timeit import default_timer as timer
 from define.QECCLfid.ptm import fix_index_after_tensor
 from define.QECCLfid.contract import ContractTensorNetwork
-from define.QECCLfid.theta import KrausToTheta_Python, ThetaToChiElement
+from define.QECCLfid.theta import KrausToTheta, ThetaToChiElement
 from define.qcode import GetOperatorsForLSTIndex, PrepareSyndromeLookUp
 
 
@@ -41,7 +41,7 @@ def Chi_Element_Diag_Partial(map_start, map_end, mem_start, theta_channels, krau
 		(support, kraus) = krausdict[m]
 		# print("Computing theta matrix for map {} supported on {}".format(m, support))
 		click = timer()
-		theta = KrausToTheta_Python(np.array(kraus))
+		theta = KrausToTheta(np.array(kraus))
 		print("\033[2mTheta matrix for map %d was computed in %.2f seconds.\033[0m" % (m + 1, timer() - click))
 		# theta_channels[m] = (theta_support, theta)
 		mem_inter = mem_start + 16 ** len(support)
@@ -82,7 +82,7 @@ def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 	for m in range(n_maps):
 		(support, kraus) = krausdict[m]
 		size_theta_contracted[m] = 2 * 16 ** len(support)
-	theta_channels = mp.Array(ct.c_double, sum(size_theta_contracted))
+	theta_channels = np.zeros(sum(size_theta_contracted), dtype=np.double)
 
 	chunk = int(np.ceil(n_maps/n_cores))
 	processes = []
@@ -194,9 +194,10 @@ def NoiseReconstruction(qcode, kraus_dict, max_weight=None):
 		filename = "problematic_kraus_%s.txt" % (time.time())
 		# print("kraus_dict\n{}".format(kraus_dict))
 		with open(filename, "w") as fp:
+			fp.write("Invalid chi matrix: chi[0,0] = {} and sum of chi = {}\n.".format(chi[0], np.sum(chi)))
 			fp.write("Budget of chi excluded = {} and infid = {}.\n".format(1 - np.sum(chi), 1 - chi[0]))
 			for k in kraus_dict:
 				(supp, op) = kraus_dict[k]
-				fp.write("supp: {}\n{}\n======\n".format(supp, op))
+				fp.write("supp: {}\n{}\n======\n".format(supp, np.array_str(op)))
 	print("\033[2mBudget of chi excluded = %.2e and infid = %.2e.\033[0m" % (1 - np.sum(chi), 1 - chi[0]))
 	return chi

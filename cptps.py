@@ -44,7 +44,7 @@ def GenerateSupport(nmaps, nqubits, interaction_ranges):
 	constraints.append(col_sums >= 1)
 	# Each interaction must involve a fixed number of qubits +/- 1.
 	row_sums = cp.sum(mat, axis=1)
-	constraints.append(row_sums <= [r + 1 for r in interaction_ranges])
+	constraints.append(row_sums <= [min(r + 1, max(interaction_ranges)) for r in interaction_ranges])
 	constraints.append(row_sums >= [max(1, r - 1) for r in interaction_ranges])
 	
 	# Objective function to place a penalty on the number of interactions per qubit.

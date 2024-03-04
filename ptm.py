@@ -51,8 +51,8 @@ def KrausToPTM(kraus):
 	_convert.KrausToPTM.restype = ndpointer(dtype=ct.c_double, shape=(4**nq * 4**nq,))
 	# Call the backend function.
 	ptm_out = _convert.KrausToPTM(real_kraus, imag_kraus, nq, nkr)
-	ptm_python = KrausToPTM_Python(kraus)
-	print("PTM\n{}".format(ptm_out.reshape(4**nq, 4**nq) - ptm_python))
+	# ptm_python = KrausToPTM_Python(kraus)
+	# print("PTM\n{}".format(ptm_out.reshape(4**nq, 4**nq) - ptm_python))
 	ptm = ptm_out.reshape([4, 4] * nq)
 	return ptm
 
@@ -165,12 +165,12 @@ def ConstructPTM_Partial(core, map_start, map_end, mem_start, ptm_channels, krau
 		(support, kraus) = kraus_dict[m]
 		mem_end = mem_start + 16 ** len(support)
 		click = timer()
-		ptm = KrausToPTM_Python(np.array(kraus))
+		ptm = KrausToPTM(np.array(kraus))
 		# print("Map {} supported on {}\n{}".format(m, support, ptm))
 		# if (PTMAdjointTest(np.array(kraus), ptm) == False):
 		# 	print("PTM Test for map %d failed." % (m))
 		ptm_channels[mem_start : mem_end] = ptm.reshape(-1)
-		# print("\033[2mPTM for map %d was constructed in %.2f seconds.\033[0m" % (m + 1, timer() - click))
+		print("\033[2mPTM for map %d was constructed in %.2f seconds.\033[0m" % (m + 1, timer() - click))
 		mem_start = mem_end
 	return None
 

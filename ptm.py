@@ -191,41 +191,13 @@ def ConstructPTM(qcode, kraus_dict, n_cores = None):
 	if (n_cores is None):
 		n_cores = mp.cpu_count()
 
-	chunk = int(np.ceil(n_maps/n_cores))
-
-	processes = []
-	for p in range(n_cores):
-		map_start = p * chunk
-		map_end = min((p + 1) * chunk, n_maps)
-		mem_start = sum(ptm_channels_sizes[:map_start])
-		ConstructPTM_Partial(p, map_start, map_end, mem_start, ptm_channels, kraus_dict)
-
-	# Retrieve the results
-	ptm_dict = [None for __ in range(n_maps)]
-	for m in range(n_maps):
-		(support, __) = kraus_dict[m]
-		mem_start = sum(ptm_channels_sizes[:m])
-		mem_end = mem_start + 16 ** len(support)
-		ptm = np.reshape(ptm_channels[mem_start : mem_end], [4, 4] * len(support))
-		ptm_dict[m] = (support, ptm)
-		mem_start = mem_end
-
-	print("Old PTMs\n{}".format(ptm_dict))
-	
-	# Alternate method using pqdm
 	# Using pqdm: https://pqdm.readthedocs.io/en/latest/usage.html
 	args=[[kr_op] for (supp, kr_op) in kraus_dict]
-	# print("{} Args for pqdm = {}".format(len(args), args))
 	ptms_list = pqdm(args, KrausToPTM, n_jobs = n_cores, ascii=True, desc = "PTM elements", argument_type = 'args')
-	ptm_dict_pqdm = list(zip([supp for (supp, __) in kraus_dict], ptms_list))
+	ptm_dict = list(zip([supp for (supp, __) in kraus_dict], ptms_list))
 	
-	print("New PTMs\n{}".format(ptm_dict_pqdm))
+	# print("PTMs\n{}".format(ptm_dict))
 
-	for m in range(n_maps):
-		(__, old_ptm_op) = ptm_dict[m]
-		(__, new_ptm_op) = ptm_dict_pqdm[m]
-		print("Closeness for map {}: {}".format(m, np.allclose(old_ptm_op, new_ptm_op)))
-	
 	click = timer()
 	(supp_ptm, ptm_contracted) = ContractTensorNetwork(ptm_dict, end_trace=0)
 	print("\033[2mPTM tensor network was contracted in %d seconds.\033[0m" % (timer() - click))

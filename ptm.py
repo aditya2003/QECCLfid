@@ -123,7 +123,7 @@ def PTMAdjointTest(kraus, ptm):
 	for k in range(kraus.shape[0]):
 		kraus_adj[k, :, :] = Dagger(kraus[k, :, :])
 	click = timer()
-	ptm_adj = KrausToPTM_Python(kraus_adj)
+	ptm_adj = KrausToPTM(kraus_adj)
 	# print("Adjoint PTM was constructed in %d seconds." % (timer() - click))
 	# print("ptm - ptm_adj: {}".format(np.sum(np.abs(ptm.reshape(4**nq, 4**nq) - ptm_adj.reshape(4**nq, 4**nq).T))))
 	return np.allclose(ptm.reshape(4**nq, 4**nq), ptm_adj.reshape(4**nq, 4**nq).T)

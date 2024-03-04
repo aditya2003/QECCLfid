@@ -2,6 +2,7 @@ import time
 import numpy as np
 import ctypes as ct
 from tqdm import tqdm
+from pqdm.processes import pqdm
 from sys import getsizeof
 import multiprocessing as mp
 from psutil import virtual_memory
@@ -62,7 +63,7 @@ def Theta_Chi_Partial(core, start, stop, mp_chi, paulis, theta_dict):
 	return None
 
 
-def Chi_Element_Diag(krausdict, paulis, n_cores=None):
+def Chi_Element_Diag(kraus_dict, paulis, n_cores=None):
 	r"""
 	Calculates the diagonal entry in chi matrix corresponding to each Pauli in Pilist
 	Assumes each Pauli in list of Paulis Pilist to be a tensor on n_qubits
@@ -74,13 +75,13 @@ def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 	"""
 	if n_cores is None:
 		n_cores = mp.cpu_count()
-	n_maps = len(list(krausdict.keys()))
+	n_maps = len(kraus_dict)
 
 	# print("Constructing the diagonal of the chi matrix for {} maps.".format(n_maps))
 
 	size_theta_contracted = [0 for __ in range(n_maps)]
 	for m in range(n_maps):
-		(support, kraus) = krausdict[m]
+		(support, kraus) = kraus_dict[m]
 		size_theta_contracted[m] = 2 * 16 ** len(support)
 	theta_channels = np.zeros(sum(size_theta_contracted), dtype=np.double)
 
@@ -91,21 +92,13 @@ def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 		map_start = p * chunk
 		map_end = min((p + 1) * chunk, n_maps)
 		mem_start = sum(size_theta_contracted[:map_start])
-		# print("Chi_Element_Diag_Partial({}, {}, {}, theta_channels, krausdict, paulis)".format(map_start, map_end, mem_start))
-		# processes.append(mp.Process(target = Chi_Element_Diag_Partial, args = (map_start, map_end, mem_start, theta_channels, krausdict, paulis)))
-		Chi_Element_Diag_Partial(map_start, map_end, mem_start, theta_channels, krausdict, paulis)
-
-	# for p in range(n_cores):
-	# 	processes[p].start()
-
-	# for p in range(n_cores):
-	# 	processes[p].join()
+		Chi_Element_Diag_Partial(map_start, map_end, mem_start, theta_channels, kraus_dict, paulis)
 
 	# Gather the results
-	theta_dict = [None for __ in krausdict]
+	theta_dict = [None for __ in kraus_dict]
 	nq = paulis.shape[1]
 	for m in range(n_maps):
-		(support, kraus) = krausdict[m]
+		(support, kraus) = kraus_dict[m]
 		theta_support = tuple([q for q in support] + [(nq + q) for q in support])
 		
 		mem_start = sum(size_theta_contracted[:m])
@@ -134,26 +127,11 @@ def Chi_Element_Diag(krausdict, paulis, n_cores=None):
 		n_cores = min(n_cores, n_cores_ram)
 		print("Downsizing to {} cores since the total RAM available is only {} GB and each process needs {} GB.".format(n_cores, ram, theta_mem_size))
 
-	mp_chi = mp.Array(ct.c_double, paulis.shape[0])
+	# Using pqdm: https://pqdm.readthedocs.io/en/latest/usage.html
+	args=[[paulis[p, :], paulis[p, :], theta_dict] for p in range(paulis.shape[0])]
+	chi_diag = pqdm(args, ThetaToChiElement, n_jobs = n_cores, ascii=True, desc = "Chi Matrix elements", argument_type = 'args')
 	
-	chunk = int(np.ceil(paulis.shape[0]/n_cores))
-	processes = []
-	for p in range(n_cores):
-		start = p * chunk
-		stop = min((p + 1) * chunk, paulis.shape[0])
-		processes.append(mp.Process(target=Theta_Chi_Partial, args = (p, start, stop, mp_chi, paulis, theta_dict)))
-		# Theta_Chi_Partial(p, start, stop, mp_chi, paulis, theta_dict)
-	for p in range(n_cores):
-		processes[p].start()
-	for p in range(n_cores):
-		processes[p].join()
-
-	# Add new lines to ensure that future prints don't overlap with the progress bars
-	# for p in range(n_cores):
-	# 	print("")
-
 	# print("Pauli error probabilities:\n{}".format(chi_diag))
-	chi_diag = np.array(mp_chi[:], dtype = np.double)
 	return chi_diag
 
 

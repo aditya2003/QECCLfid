@@ -69,8 +69,8 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 
 	# Load the interactions
 	interactions = []
-	for m in kraus_dict:
-		interactions.append(kraus_dict[m][0])
+	for (supp, __) in kraus_dict:
+		interactions.append(supp)
 	misc_info = (interactions, 1 - chi[0], 1 - np.sum(chi), np.linalg.norm(ptm - np.diag(np.diag(ptm))))
 	return (ptm.reshape(-1), chi, misc_info)
 

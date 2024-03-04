@@ -112,7 +112,7 @@ def ThetaToChiElement(pauli_op_i, pauli_op_j, theta_dict):
 		print("Pi\n{}\nPj\n{}".format(pauli_op_i, pauli_op_j))
 		print("Chi = %g + i %g" % (np.real(chi_elem), np.imag(chi_elem)))
 		exit(0)
-	return chi_elem
+	return np.real(chi_elem.item())
 
 
 if __name__ == '__main__':

@@ -193,7 +193,7 @@ def ConstructPTM(qcode, kraus_dict, n_cores = None):
 
 	# Using pqdm: https://pqdm.readthedocs.io/en/latest/usage.html
 	args=[[kr_op] for (supp, kr_op) in kraus_dict]
-	ptms_list = pqdm(args, KrausToPTM, n_jobs = n_cores, ascii=True, desc = "PTM elements", argument_type = 'args')
+	ptms_list = pqdm(args, KrausToPTM, n_jobs = n_cores, ascii=True, colour = "CYAN", desc = "PTM elements", argument_type = 'args')
 	ptm_dict = list(zip([supp for (supp, __) in kraus_dict], ptms_list))
 	
 	# print("PTMs\n{}".format(ptm_dict))
@@ -208,7 +208,7 @@ def ConstructPTM(qcode, kraus_dict, n_cores = None):
 	(ls_ops, phases) = GetOperatorsForTLSIndex(qcode, range(nstabs * nlogs))
 	process = np.zeros((nlogs * nstabs, nlogs * nstabs), dtype=np.double)
 	
-	for k in tqdm(range(nlogs * nstabs * nlogs * nstabs), ascii = True, desc = "PTM elements: ", colour = "yellow"):
+	for k in tqdm(range(nlogs * nstabs * nlogs * nstabs), ascii = True, desc = "PTM elements: ", colour = "CYAN"):
 	# for k in range(nlogs * nstabs * nlogs * nstabs):
 		(i, j) = (k // (nlogs * nstabs), k % (nlogs * nstabs))
 		process[i, j] = np.real(phases[i] * phases[j] * ExtractPTMElement(ls_ops[i, :], ls_ops[j, :], ptm_contracted, supp_ptm))

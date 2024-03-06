@@ -129,7 +129,7 @@ def Chi_Element_Diag(kraus_dict, paulis, n_cores=None):
 
 	# Using pqdm: https://pqdm.readthedocs.io/en/latest/usage.html
 	args=[[paulis[p, :], paulis[p, :], theta_dict] for p in range(paulis.shape[0])]
-	chi_diag = pqdm(args, ThetaToChiElement, n_jobs = n_cores, ascii=True, desc = "Chi Matrix elements", argument_type = 'args')
+	chi_diag = pqdm(args, ThetaToChiElement, n_jobs = n_cores, ascii=True, colour='CYAN', desc = "Chi Matrix elements", argument_type = 'args')
 	
 	# print("Pauli error probabilities:\n{}".format(chi_diag))
 	return chi_diag

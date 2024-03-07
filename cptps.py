@@ -25,7 +25,7 @@ def StineToKraus(U):
 	return kraus
 
 
-def GenerateSupport(nmaps, nqubits, interaction_ranges):
+def GenerateSupport(nmaps, nqubits, interaction_ranges, cutoff=4):
 	r"""
 	Generates supports for maps such that
 	1. Each qubit participates in at least one maps
@@ -44,7 +44,7 @@ def GenerateSupport(nmaps, nqubits, interaction_ranges):
 	constraints.append(col_sums >= 1)
 	# Each interaction must involve a fixed number of qubits +/- 1.
 	row_sums = cp.sum(mat, axis=1)
-	constraints.append(row_sums <= [min(r + 1, max(interaction_ranges)) for r in interaction_ranges])
+	constraints.append(row_sums <= [min(r + 1, cutoff) for r in interaction_ranges])
 	constraints.append(row_sums >= [max(1, r - 1) for r in interaction_ranges])
 	
 	# Objective function to place a penalty on the number of interactions per qubit.
@@ -104,7 +104,7 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUn
 		non_trivial_channels = {0: ((0,), [np.eye(2, dtype = np.complex128)])}
 	else:
 		# nmaps_per_qubit = max(0.1 * n_nontrivial_maps, 1)
-		supports = GenerateSupport(n_nontrivial_maps, qcode.N, interaction_range)
+		supports = GenerateSupport(n_nontrivial_maps, qcode.N, interaction_range, cutoff=cutoff)
 		interaction_range = [len(supp) for supp in supports]
 		# print("Range of interactions : {}".format(interaction_range))
 		# supports = [(0, 1, 2), (1, 2, 3), (2, 3, 4), (3, 4, 5), (4, 5, 6), (1, 3, 5), (2, 4, 6), (5, 6)] # Only for decoding purposes.

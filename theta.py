@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import ctypes as ct
-from einsumt import einsumt
 from numpy.ctypeslib import ndpointer
 # from timeit import default_timer as timer # only for decoding purposes
 from define.QECCLfid.utils import GetNQubitPauli, PauliTensor

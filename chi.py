@@ -55,7 +55,7 @@ def Chi_Element_Diag_Partial(map_start, map_end, mem_start, theta_channels, krau
 
 def Theta_to_Chi_Elements(paulis, theta_dict):
 	# Compute the chi matrix elements for a list of Paulis
-	chi_elements = np.zeros(paulis.shape[0], dtype = np.complex128)
+	chi_elements = np.zeros(paulis.shape[0], dtype = np.double)
 	for p in range(paulis.shape[0]):
 		chi_elements[p] = np.real(ThetaToChiElement(paulis[p, :], paulis[p, :], theta_dict))
 	return chi_elements

@@ -2,6 +2,7 @@ import os
 import copy
 import numpy as np
 import ctypes as ct
+import more_itertools as mit
 from tqdm import tqdm
 from pqdm.processes import pqdm
 from numpy.ctypeslib import ndpointer
@@ -158,21 +159,16 @@ def ExtractPTMElement(pauli_op_i, pauli_op_j, ptm, supp_ptm):
 	return ptm_ij
 
 
-def ConstructPTM_Partial(core, map_start, map_end, mem_start, ptm_channels, kraus_dict):
+def ConstructPTM_Partial(kraus_chans):
 	# Construct PTM for some maps.
 	# for m in tqdm(range(map_start, map_end), ascii = True, desc = "Core %d" % (core + 1), position = core, colour = "yellow"):
-	for m in range(map_start, map_end):
-		(support, kraus) = kraus_dict[m]
-		mem_end = mem_start + 16 ** len(support)
-		click = timer()
-		ptm = KrausToPTM(np.array(kraus))
-		# print("Map {} supported on {}\n{}".format(m, support, ptm))
-		# if (PTMAdjointTest(np.array(kraus), ptm) == False):
-		# 	print("PTM Test for map %d failed." % (m))
-		ptm_channels[mem_start : mem_end] = ptm.reshape(-1)
-		print("\033[2mPTM for map %d was constructed in %.2f seconds.\033[0m" % (m + 1, timer() - click))
-		mem_start = mem_end
-	return None
+	n_maps = len(kraus_chans)
+	ptm_chans = [None for __ in range(n_maps)]
+	for m in range(n_maps):
+		# click = timer()
+		ptm_chans[m] = KrausToPTM(np.array(kraus_chans[m]))
+		# print("\033[2mPTM for map %d was constructed in %.2f seconds.\033[0m" % (m + 1, timer() - click))
+	return ptm_chans
 
 
 def ConstructPTM(qcode, kraus_dict, n_cores = None):
@@ -191,9 +187,13 @@ def ConstructPTM(qcode, kraus_dict, n_cores = None):
 	if (n_cores is None):
 		n_cores = mp.cpu_count()
 
+	n_cores = min(n_cores, n_maps)
+
 	# Using pqdm: https://pqdm.readthedocs.io/en/latest/usage.html
-	args=[[kr_op] for (supp, kr_op) in kraus_dict]
-	ptms_list = pqdm(args, KrausToPTM, n_jobs = n_cores, ascii=True, colour = "CYAN", desc = "PTM elements", argument_type = 'args')
+	kr_ops=[kr_op for (supp, kr_op) in kraus_dict]
+	kr_ops_chunks = [list(chunk) for chunk in mit.divide(n_cores, kr_ops)]
+	ptms_list_chunks = pqdm(kr_ops_chunks, ConstructPTM_Partial, n_jobs = n_cores, ascii=True, colour = "CYAN", desc = "PTM elements", argument_type = 'args')
+	ptms_list = [ptms for p in range(n_cores) for ptms in ptms_list_chunks[p]]
 	ptm_dict = list(zip([supp for (supp, __) in kraus_dict], ptms_list))
 	
 	# print("PTMs\n{}".format(ptm_dict))

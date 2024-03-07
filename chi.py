@@ -53,14 +53,12 @@ def Chi_Element_Diag_Partial(map_start, map_end, mem_start, theta_channels, krau
 	return None
 
 
-def Theta_Chi_Partial(core, start, stop, mp_chi, paulis, theta_dict):
+def Theta_to_Chi_Elements(paulis, theta_dict):
 	# Compute the chi matrix elements for a list of Paulis
-	for i in tqdm(range(start, stop), ascii = True, desc = "Core %d" % (core + 1), position = core, colour = "yellow"):
-		mp_chi[i] = np.real(ThetaToChiElement(paulis[i, :], paulis[i, :], theta_dict))
-	# print("Core %d" % (core + 1))
-	# for i in tqdm(range(start, stop), ascii = True, desc = "Core %d" % (core + 1), colour = "yellow"):
-	# 	mp_chi[i] = np.real(ThetaToChiElement(paulis[i, :], paulis[i, :], theta_dict))
-	return None
+	chi_elements = np.zeros(paulis.shape[0], dtype = np.complex128)
+	for p in range(paulis.shape[0]):
+		chi_elements[p] = np.real(ThetaToChiElement(paulis[p, :], paulis[p, :], theta_dict))
+	return chi_elements
 
 
 def Chi_Element_Diag(kraus_dict, paulis, n_cores=None):
@@ -128,9 +126,11 @@ def Chi_Element_Diag(kraus_dict, paulis, n_cores=None):
 		print("Downsizing to {} cores since the total RAM available is only {} GB and each process needs {} GB.".format(n_cores, ram, theta_mem_size))
 
 	# Using pqdm: https://pqdm.readthedocs.io/en/latest/usage.html
-	args=[[paulis[p, :], paulis[p, :], theta_dict] for p in range(paulis.shape[0])]
-	chi_diag = pqdm(args, ThetaToChiElement, n_jobs = n_cores, ascii=True, colour='CYAN', desc = "Chi Matrix elements", argument_type = 'args')
-	
+	# print("paulis[::{}, :] = {}".format(n_cores, np.array_split(paulis, n_cores, axis=0)))
+	args=list(zip(np.array_split(paulis, n_cores, axis=0), [theta_dict for __ in range(n_cores)]))
+	chi_diag_elements_chunks = pqdm(args, Theta_to_Chi_Elements, n_jobs = n_cores, ascii=True, colour='CYAN', desc = "Chi Matrix elements", argument_type = 'args')
+	# print("chi_diag_elements_chunks\n{}".format(chi_diag_elements_chunks))
+	chi_diag = np.concatenate(tuple(chi_diag_elements_chunks))
 	# print("Pauli error probabilities:\n{}".format(chi_diag))
 	return chi_diag
 

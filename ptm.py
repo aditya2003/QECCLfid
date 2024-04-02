@@ -2,7 +2,7 @@ import os
 import copy
 import numpy as np
 import ctypes as ct
-import more_itertools as mit
+# import more_itertools as mit
 from tqdm import tqdm
 from pqdm.processes import pqdm
 from numpy.ctypeslib import ndpointer
@@ -54,7 +54,7 @@ def KrausToPTM(kraus):
 	ptm_out = _convert.KrausToPTM(real_kraus, imag_kraus, nq, nkr)
 	# ptm_python = KrausToPTM_Python(kraus)
 	# print("PTM\n{}".format(ptm_out.reshape(4**nq, 4**nq) - ptm_python))
-	ptm = ptm_out.reshape([4, 4] * nq)
+	ptm = np.array(ptm_out).reshape([4, 4] * nq)
 	return ptm
 
 
@@ -166,7 +166,8 @@ def ConstructPTM_Partial(kraus_chans):
 	ptm_chans = [None for __ in range(n_maps)]
 	for m in range(n_maps):
 		# click = timer()
-		ptm_chans[m] = KrausToPTM(np.array(kraus_chans[m]))
+		ptm_chans[m] = KrausToPTM(kraus_chans[m])
+		print("PTM for map {} is\n{}".format(m, ptm_chans[m]))
 		# print("\033[2mPTM for map %d was constructed in %.2f seconds.\033[0m" % (m + 1, timer() - click))
 	return ptm_chans
 
@@ -189,11 +190,30 @@ def ConstructPTM(qcode, kraus_dict, n_cores = None):
 
 	n_cores = min(n_cores, n_maps)
 
+	# n_cores = 2 # only for debugging purposes.
+
 	# Using pqdm: https://pqdm.readthedocs.io/en/latest/usage.html
-	kr_ops=[kr_op for (supp, kr_op) in kraus_dict]
-	kr_ops_chunks = [list(chunk) for chunk in mit.divide(n_cores, kr_ops)]
-	ptms_list_chunks = pqdm(kr_ops_chunks, ConstructPTM_Partial, n_jobs = n_cores, ascii=True, colour = "CYAN", desc = "PTM elements", argument_type = 'args')
-	ptms_list = [ptms for p in range(n_cores) for ptms in ptms_list_chunks[p]]
+	# kr_ops=[kr_op for (supp, kr_op) in kraus_dict]
+	# chunk_size = int(np.ceil(n_maps / n_cores))
+	# kr_ops_chunks = [kr_ops[p * (chunk_size) : min(n_maps, (p + 1) * chunk_size)] for p in range(n_cores)]
+	# # kr_ops_chunks = [list(chunk) for chunk in mit.divide(n_cores, kr_ops)]
+
+	# print("Kraus operator chunks")
+	# for p in range(n_cores):
+	# 	print("Chunk {}\n{}".format(p, kr_ops_chunks[p]))
+
+	# ptms_list_chunks = pqdm(kr_ops_chunks, ConstructPTM_Partial, n_jobs = n_cores, ascii=True, colour = "CYAN", desc = "PTM elements", argument_type = 'args')
+	
+	# print("Kraus operator chunks")
+	# for p in range(n_cores):
+	# 	print("Chunk {}\n{}\nPTM\n{}".format(p, kr_ops_chunks[p], ptms_list_chunks[p]))
+
+	
+	# ptms_list = [ptms for p in range(n_cores) for ptms in ptms_list_chunks[p]]
+	# ptm_dict = list(zip([supp for (supp, __) in kraus_dict], ptms_list))
+
+	args=[[kr_op] for (supp, kr_op) in kraus_dict]
+	ptms_list = pqdm(args, KrausToPTM, n_jobs = n_cores, ascii=True, colour = "CYAN", desc = "PTM elements", argument_type = 'args')
 	ptm_dict = list(zip([supp for (supp, __) in kraus_dict], ptms_list))
 	
 	# print("PTMs\n{}".format(ptm_dict))

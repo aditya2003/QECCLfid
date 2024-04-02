@@ -70,6 +70,15 @@ def GenerateSupport(nmaps, nqubits, interaction_ranges, cutoff=4):
 	return supports
 
 
+def RandomSupport(nmaps, nqubits, interaction_ranges):
+	# Choose random subsets of qubits of the specified sizes.
+	supports = []
+	for m in range(nmaps):
+		support = tuple((random.sample(range(nqubits), interaction_ranges[m])))
+		supports.append(support)
+	return supports
+
+
 def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUnitary = 0):
 	r"""
 	Sub-routine to prepare the dictionary for error eps = sum of cptp maps
@@ -104,7 +113,8 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUn
 		non_trivial_channels = {0: ((0,), [np.eye(2, dtype = np.complex128)])}
 	else:
 		# nmaps_per_qubit = max(0.1 * n_nontrivial_maps, 1)
-		supports = GenerateSupport(n_nontrivial_maps, qcode.N, interaction_range, cutoff=cutoff)
+		# supports = GenerateSupport(n_nontrivial_maps, qcode.N, interaction_range, cutoff=cutoff)
+		supports = RandomSupport(n_nontrivial_maps, qcode.N, interaction_range)
 		interaction_range = [len(supp) for supp in supports]
 		# print("Range of interactions : {}".format(interaction_range))
 		# supports = [(0, 1, 2), (1, 2, 3), (2, 3, 4), (3, 4, 5), (4, 5, 6), (1, 3, 5), (2, 4, 6), (5, 6)] # Only for decoding purposes.

@@ -4,6 +4,7 @@ import scipy as sp # only for debugging purposes.
 import cvxpy as cp
 from define.QECCLfid.utils import SamplePoisson
 from define.randchans import RandomUnitary
+from define import globalvars as gv
 
 def HermitianConjugate(M):
 	return M.conj().T
@@ -36,7 +37,7 @@ def GenerateSupport(nmaps, nqubits, interaction_ranges, cutoff=4):
 	# A matrix of variables, where each row corresponds to an interaction while each column to a qubit.
 	# The (i,j) entry of this matrix is 1 if the i-th interaction involves the j-th qubit.
 	mat = cp.Variable(shape=(nmaps, nqubits), boolean = True)
-	
+
 	# These are hard constraints.
 	constraints = []
 	# Each qubit to be part of at least one map.
@@ -46,15 +47,15 @@ def GenerateSupport(nmaps, nqubits, interaction_ranges, cutoff=4):
 	row_sums = cp.sum(mat, axis=1)
 	constraints.append(row_sums <= [min(r + 1, cutoff) for r in interaction_ranges])
 	constraints.append(row_sums >= [max(1, r - 1) for r in interaction_ranges])
-	
+
 	# Objective function to place a penalty on the number of interactions per qubit.
 	# objective = cp.Minimize(cp.norm(col_sums, "fro"))
 	objective = cp.Minimize(cp.norm(col_sums, "inf"))
-	
+
 	# Solve the optimization problem.
 	problem = cp.Problem(objective,constraints)
 	problem.solve(solver = 'ECOS_BB', verbose=False)
-	
+
 	if ("optimal" in problem.status):
 		if (not (problem.status == "optimal")):
 			print("\033[2mWarning: The problem status is \"{}\".\033[0m".format(problem.status))
@@ -66,7 +67,7 @@ def GenerateSupport(nmaps, nqubits, interaction_ranges, cutoff=4):
 		for m in range(nmaps):
 			support = tuple((random.sample(range(nqubits), interaction_ranges[m])))
 			supports.append(support)
-	
+
 	return supports
 
 
@@ -79,7 +80,7 @@ def RandomSupport(nmaps, nqubits, interaction_ranges):
 	return supports
 
 
-def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUnitary = 0):
+def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUnitary = 0, isComposite = 0, p_dep = 0):
 	r"""
 	Sub-routine to prepare the dictionary for error eps = sum of cptp maps
 	Generates Kraus by using Stine to Kraus
@@ -123,7 +124,7 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUn
 		non_trivial_channels = [None for m in range(n_nontrivial_maps)]
 		for m in range(n_nontrivial_maps):
 			n_q = interaction_range[m]
-			
+
 			# For random Unitary channels: set the only Kraus operator to be the random Unitary on n_q qubits.
 			if (isUnitary == 1):
 				# print("Rotation angle for map {} is {}.".format(m, rotation_angle))
@@ -134,7 +135,19 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUn
 				kraus = StineToKraus(rand_unitary)
 
 			# print("Kraus for map {} is\n{}".format(m, kraus))
-			
+			#For composite CPTP composed from Unitary and Depolarizing: modify the kraus from unitary and compose it with depolarizing on n_q qubits
+			if (isComposite == 1):
+				rand_unitary = RandomUnitary(rotation_angle / np.power(2, n_q), np.power(2, n_q), method="exp")
+				# define depolarizing, can't import due to circular dependency
+				kraus_dep = np.zeros((4, 2, 2), dtype=np.complex128)
+				coefficients_dep = [1-p_dep, p_dep/3, p_dep/3, p_dep/3]
+				for i in range(4):
+					kraus_dep[i, :, :] = np.sqrt(coefficients_dep[i]) * gv.Pauli[i, :, :]
+				kraus_nq = kraus_dep[:]
+				for i in range(n_q-1):
+					kraus_nq = [np.kron(x,y) for x in kraus_nq for y in kraus_dep]
+				kraus = np.array([np.dot(x,rand_unitary) for x in kraus_nq])
+
 			if (KrausTest(kraus) == 0):
 				print("Kraus test failed for the following channel.\n{}".format(kraus))
 

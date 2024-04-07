@@ -158,65 +158,52 @@ def ExtractPTMElement(pauli_op_i, pauli_op_j, ptm, supp_ptm):
 	# print("PTM element extracted for Pi = {} and Pj = {} is {}.".format(pauli_op_i, pauli_op_j, ptm_ij))
 	return ptm_ij
 
+def chi_to_ptm_pauli(pauli_chi_mat, nq):
+	# Convert a chi matrix of a Pauli channel to its PTM representation.
+	# ptm[i,j] = 1/2^n Tr ( P_i . E( P_j ) )
+	# 		   = 1/2^n sum_kl chi_kl Tr ( P_i . P_k . P_j . P_l )
+	# 		   = 1/2^n sum_kl chi_kl 
+	# 		   = 1/2^n sum_akl chi_kl ( P_i . P_k . P_j . P_l )_aa
+	# 		   = 1/2^n sum_abcd sum_kl chi_kl ( (P_i)ab (P_k)bc (P_j)cd (P_l)da )
+	# Note that the ptm for a Pauli channel is a diagonal matrix.
+	# 		   = 1/2^n sum_abcd sum_k chi_kk ( (P_i)ab (P_k)bc (P_j)cd (P_k)da )
+	# 		   = 1/2^n sum_abcd sum_k chi_k ( (P_i)ab (P_k)bc (P_j)cd (P_k)da )
+	# 		   = 1/2^n np.einsum('k,iab,kbc,jcd,kda->ij', chi, P, P, P, P)
+	npauli = np.power(4, nq, dtype = np.uint64)
+	paulis = np.zeros((npauli, 2**nq, 2**nq), dtype = np.complex128)
+	for p in range(npauli):
+		pauli_op = GetNQubitPauli(p, nq)
+		tn_pauli = PauliTensor(pauli_op)
+		paulis[p, :, :] = tn_pauli.reshape(2**nq, 2**nq)
+	pauli_ptm_mat = 1 / np.power(2, nq) * np.real(np.einsum('k,iab,kbc,jcd,kda->ij', pauli_chi_mat, paulis, paulis, paulis, paulis, optimize="greedy"))
+	return pauli_ptm_mat
 
-def ConstructPTM_Partial(kraus_chans):
-	# Construct PTM for some maps.
-	# for m in tqdm(range(map_start, map_end), ascii = True, desc = "Core %d" % (core + 1), position = core, colour = "yellow"):
-	n_maps = len(kraus_chans)
-	ptm_chans = [None for __ in range(n_maps)]
-	for m in range(n_maps):
-		# click = timer()
-		ptm_chans[m] = KrausToPTM(kraus_chans[m])
-		print("PTM for map {} is\n{}".format(m, ptm_chans[m]))
-		# print("\033[2mPTM for map %d was constructed in %.2f seconds.\033[0m" % (m + 1, timer() - click))
-	return ptm_chans
-
-
-def ConstructPTM(qcode, kraus_dict, n_cores = None):
+def ConstructPTM(qcode, kraus_theta_chi_dict, compose_with_pauli=0):
 	r"""
 	Generates LS part of the process matrix of the n-qubit channel.
 	"""
 	nstabs = 2 ** (qcode.N - qcode.K)
 	nlogs = 4 ** qcode.K
-	n_maps = len(kraus_dict)
-	ptm_channels_sizes = [0 for __ in range(n_maps)]
-	for m in range(n_maps):
-		(support, __) = kraus_dict[m]
-		ptm_channels_sizes[m] = 16 ** len(support)
-	ptm_channels = mp.Array(ct.c_double, sum(ptm_channels_sizes))
-
-	if (n_cores is None):
-		n_cores = mp.cpu_count()
-
-	n_cores = min(n_cores, n_maps)
-
-	# n_cores = 2 # only for debugging purposes.
-
-	# Using pqdm: https://pqdm.readthedocs.io/en/latest/usage.html
-	# kr_ops=[kr_op for (supp, kr_op) in kraus_dict]
-	# chunk_size = int(np.ceil(n_maps / n_cores))
-	# kr_ops_chunks = [kr_ops[p * (chunk_size) : min(n_maps, (p + 1) * chunk_size)] for p in range(n_cores)]
-	# # kr_ops_chunks = [list(chunk) for chunk in mit.divide(n_cores, kr_ops)]
-
-	# print("Kraus operator chunks")
-	# for p in range(n_cores):
-	# 	print("Chunk {}\n{}".format(p, kr_ops_chunks[p]))
-
-	# ptms_list_chunks = pqdm(kr_ops_chunks, ConstructPTM_Partial, n_jobs = n_cores, ascii=True, colour = "CYAN", desc = "PTM elements", argument_type = 'args')
+	n_maps = len(kraus_theta_chi_dict)
 	
-	# print("Kraus operator chunks")
-	# for p in range(n_cores):
-	# 	print("Chunk {}\n{}\nPTM\n{}".format(p, kr_ops_chunks[p], ptms_list_chunks[p]))
+	kraus_chi_ptm_dict = []
+	for (supp, __, kraus, chi_pauli, __) in kraus_theta_chi_dict:
+		ptm_mat = KrausToPTM(kraus)
+		if (compose_with_pauli == 1):
+			ptm_pauli_chan = chi_to_ptm_pauli(chi_pauli, len(supp))
+			ptm_mat = ptm_mat.reshape(4**len(supp), 4**len(supp)) @ ptm_pauli_chan
+		kraus_chi_ptm_dict.append((supp, kraus, chi_pauli, ptm_mat.reshape([4, 4] * len(supp))))
 
-	
-	# ptms_list = [ptms for p in range(n_cores) for ptms in ptms_list_chunks[p]]
-	# ptm_dict = list(zip([supp for (supp, __) in kraus_dict], ptms_list))
+	# Compose the PTMs with the Pauli channels that need to be composed.
+	# These were generated while constructing the chi matrix.
+	ptm_dict = [(supp, ptm_mat) for (supp, __, __, ptm_mat) in kraus_chi_ptm_dict]
 
-	args=[[kr_op] for (supp, kr_op) in kraus_dict]
-	ptms_list = pqdm(args, KrausToPTM, n_jobs = n_cores, ascii=True, colour = "CYAN", desc = "PTM elements", argument_type = 'args')
-	ptm_dict = list(zip([supp for (supp, __) in kraus_dict], ptms_list))
-	
-	# print("PTMs\n{}".format(ptm_dict))
+	#################
+	# only for debugging purposes
+	# print("PTM dict\n{}".format(ptm_dict))
+	# example_ptm = np.array([[1, 0, 0, 0], [0, 0.9800666, 0.1986693, 0], [0, -0.1986693, 0.9800666, 0], [0, 0, 0, 1]]) @ np.diag([1, 0.9, 0.86, 0.84])
+	# print("example_ptm\n{}".format(example_ptm))
+	#################
 
 	click = timer()
 	(supp_ptm, ptm_contracted) = ContractTensorNetwork(ptm_dict, end_trace=0)
@@ -234,7 +221,7 @@ def ConstructPTM(qcode, kraus_dict, n_cores = None):
 		process[i, j] = np.real(phases[i] * phases[j] * ExtractPTMElement(ls_ops[i, :], ls_ops[j, :], ptm_contracted, supp_ptm))
 	
 	# process = ComputePTMElements(nlogs, nstabs, ls_ops, phases, np.array(supp_ptm, dtype = np.int8), ptm_contracted)
-	# print("process\n{}".format(process))
+	print("process\n{}".format(process))
 	return process
 
 """

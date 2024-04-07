@@ -3,6 +3,7 @@ from collections import deque
 from functools import reduce
 from define.QECCLfid.contract import OptimalEinsum
 import string
+# from numba import njit
 
 def ConvertToDecimal(digits, base):
 	# Convert a number represented in a given base to its decimal form (base 10).
@@ -27,7 +28,7 @@ def PauliTensor(pauli_op):
 	pauli_tensor = OptimalEinsum(scheme, ops)
 	return pauli_tensor
 
-
+# @njit("uint8[:](uint64, uint64)")
 def GetNQubitPauli(ind, nq):
 	# Compute the n-qubit Pauli that is at position 'i' in an ordering based on [I, X, Y, Z].
 	# We will express the input number in base 4^n - 1.
@@ -36,7 +37,6 @@ def GetNQubitPauli(ind, nq):
 		pauli[i] = ind % 4
 		ind = int(ind//4)
 	return pauli[::-1]
-
 
 def SamplePoisson(mean, cutoff=None):
 	# Sample a number from a Poisson distribution.

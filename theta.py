@@ -1,13 +1,14 @@
 import os
 import numpy as np
 import ctypes as ct
+from tqdm import tqdm
 from numpy.ctypeslib import ndpointer
 # from timeit import default_timer as timer # only for decoding purposes
 from define.QECCLfid.utils import GetNQubitPauli, PauliTensor
 from define.QECCLfid.tensor import TensorTranspose, TensorKron, TensorTrace, TraceDot
 from define.QECCLfid.contract import ContractTensorNetwork
 from timeit import default_timer as timer
-from define.QECCLfid.utils import GetNQubitPauli # only for decoding purposes
+from define.QECCLfid.utils import GetNQubitPauli, PauliTensor
 
 def KrausToTheta_Python(kraus):
 	r"""
@@ -36,13 +37,41 @@ def KrausToTheta_Python(kraus):
 	# 		chi_ij = np.einsum('kln,nl,kpm,pm->', kraus, paulis[i, :, :], np.conj(kraus), paulis[j, :, :]) / npauli
 	# 		# print("chi[{}, {}] = {}".format(i, j, chi_ij))
 	# 		theta = theta + chi_ij * np.kron(paulis[i, :, :], np.transpose(paulis[j, :, :]))
-	# start = timer()
+	start = timer()
 	chi = np.einsum('kln,inl,kpm,jpm->ij', kraus, paulis, np.conj(kraus), paulis) / npauli
-	# print("Chi computed in {} seconds.".format(timer() - start))
+	# print("Chi computed in {} seconds.\n{}".format(timer() - start, chi))
 	theta = np.einsum('ij,ikl,jmn->kmln', chi, paulis, np.transpose(paulis, axes=(0, 2, 1)))
 	# print("Theta matrix computed in {} seconds.".format(timer() - start))
 	theta_reshaped = theta.reshape([2, 2, 2, 2] * nq)
 	return theta_reshaped
+
+def get_theta_pauli_channel(nq, infid):
+	# Compute the Theta matrix of a random Pauli channel with fixed infidelity.
+	# Recall that
+	# Theta = \sum_(ij) chi_ij (P_i o (P_j)^T)
+	# So, the Theta matrix of a random Pauli channel is
+	# Theta = \sum_(i) chi_ii (P_i o (P_i)^T)
+	#       = np.einsum('ii')
+	# Note that the chi matrix for a random Pauli channel is a diagonal matrix where all the diagonal entries except for the first one are random.
+	# The first diagonal entry is fidelity.
+	npauli = np.power(4, nq, dtype = np.uint64)
+	chi = np.random.uniform(0, 1, size=(npauli,))
+	chi[0] = 1 - infid
+	chi[1:] = infid * chi[1:] / np.sum(chi[1:])
+	# chi = np.array([0.9, 0.05, 0.03, 0.02]) # only for debugging purposes
+	theta = np.zeros((npauli, npauli), dtype = np.complex128)
+	for p in range(npauli):
+		pauli_op = GetNQubitPauli(p, nq)
+		tn_pauli = PauliTensor(pauli_op)
+		pauli_mat = tn_pauli.reshape(2**nq, 2**nq)
+		theta = theta + chi[p] * np.kron(pauli_mat, pauli_mat.T)
+	###########
+	# only for debugging purposes
+	# (I,X,Y,Z) = (np.eye(2), np.array([[0,1],[1,0]]), np.array([[0,-1j],[1j,0]]), np.array([[1,0],[0,-1]]))
+	# theta = chi[0] * np.kron(I, I) + chi[1] * np.kron(X, X) - chi[2] * np.kron(Y, Y) + chi[3] * np.kron(Z, Z)
+	###########
+	return (theta, chi)
+
 
 def KrausToTheta(kraus):
 	# Compute the Theta matrix of a channel whose Kraus matrix is given.
@@ -73,6 +102,29 @@ def KrausToTheta(kraus):
 	theta_imag = theta_out[(4**nq * 4**nq) :].reshape([2, 2, 2, 2] * nq)
 	theta = theta_real + 1j * theta_imag
 	# print("Theta matrix computed in {} seconds.".format(timer() - start))
+	##########
+	# only for debugging purposes
+	# (I,X,Y,Z) = (np.eye(2), np.array([[0,1],[1,0]]), np.array([[0,-1j],[1j,0]]), np.array([[1,0],[0,-1]]))
+	# print("chi[0,0] = {}".format(np.trace(theta.reshape(4,4) @ np.kron(I, I))))
+	# print("chi[0,1] = {}".format(np.trace(theta.reshape(4,4) @ np.kron(I, X))))
+	# print("chi[0,2] = {}".format(np.trace(theta.reshape(4,4) @ np.kron(I, Y))))
+	# print("chi[0,3] = {}".format(np.trace(theta.reshape(4,4) @ np.kron(I, Z))))
+
+	# print("chi[1,0] = {}".format(np.trace(theta.reshape(4,4) @ np.kron(X, I))))
+	# print("chi[1,1] = {}".format(np.trace(theta.reshape(4,4) @ np.kron(X, X))))
+	# print("chi[1,2] = {}".format(np.trace(theta.reshape(4,4) @ np.kron(X, Y))))
+	# print("chi[1,3] = {}".format(np.trace(theta.reshape(4,4) @ np.kron(X, Z))))
+
+	# print("chi[2,0] = {}".format(np.trace(theta.reshape(4,4) @ np.kron(Y, I))))
+	# print("chi[2,1] = {}".format(np.trace(theta.reshape(4,4) @ np.kron(Y, X))))
+	# print("chi[2,2] = {}".format(np.trace(theta.reshape(4,4) @ np.kron(Y, Y))))
+	# print("chi[2,3] = {}".format(np.trace(theta.reshape(4,4) @ np.kron(Y, Z))))
+
+	# print("chi[3,0] = {}".format(np.trace(theta.reshape(4,4) @ np.kron(Z, I))))
+	# print("chi[3,1] = {}".format(np.trace(theta.reshape(4,4) @ np.kron(Z, X))))
+	# print("chi[3,2] = {}".format(np.trace(theta.reshape(4,4) @ np.kron(Z, Y))))
+	# print("chi[3,3] = {}".format(np.trace(theta.reshape(4,4) @ np.kron(Z, Z))))
+	##########
 	#
 	# Get Theta matrix from pure Python code
 	# start = timer()
@@ -84,7 +136,7 @@ def KrausToTheta(kraus):
 	return theta
 
 
-def ThetaToChiElement(pauli_op_i, pauli_op_j, theta_dict):
+def ThetaToChiElement(pauli_op_i, pauli_op_j, kraus_theta_chi_dict):
 	# Convert from the Theta representation to the Chi representation.
 	# The "Theta" matrix T of a CPTP map whose chi-matrix is X is defined as:
 	# T = \sum_(ij) [ X_ij (P_i o (P_j)^T) ]
@@ -95,7 +147,9 @@ def ThetaToChiElement(pauli_op_i, pauli_op_j, theta_dict):
 	# We will store T as a Tensor with dimension = (2 * number of qubits) and bond dimension = 4.
 	# click = timer()
 	nq = pauli_op_i.size
-	# ops = [(supp_theta, theta)]
+	theta_dict = [(supp_theta, theta) for (__, supp_theta, __, __, theta) in kraus_theta_chi_dict]
+
+	# print("theta_dict = {}".format(theta_dict))
 	
 	Pj = [((q,), PauliTensor(pauli_op_j[q, np.newaxis])) for q in range(nq)]
 	PjT = [((q,), (-1)**(int(pauli_op_j[q] == 2)) * PauliTensor(pauli_op_j[q, np.newaxis])) for q in range(nq)]
@@ -105,6 +159,8 @@ def ThetaToChiElement(pauli_op_i, pauli_op_j, theta_dict):
 	(__, chi_elem) = ContractTensorNetwork(theta_dict + PjT + Pi, end_trace=1)
 	# chi_elem = 0 # For debugging purposes.
 	chi_elem /= 4**nq
+
+	# print("chi[{}, {}] = {}".format(pauli_op_i, pauli_op_j, chi_elem))
 	
 	# print("Chi element of Pauli op {} = {}".format(pauli_op_i, chi_elem))
 	if ((np.real(chi_elem) <= -1E-15) or (np.abs(np.imag(chi_elem)) >= 1E-15)):

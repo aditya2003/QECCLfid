@@ -14,6 +14,7 @@ from define.QECCLfid.ptm import ConstructPTM
 def GetProcessChi(qcode, method = "sum_unitaries", *params):
 	nstabs = 2 ** (qcode.N - qcode.K)
 	nlogs = 4 ** qcode.K
+	compose_with_pauli_rate = 0
 
 	if method == "sum_unitaries":
 		(p_error, rotation_angle, w_thresh) = params[:3]
@@ -31,9 +32,10 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 		(angle, cutoff, n_maps, mean) = params[:4]
 		kraus_dict = CorrelatedCPTP(angle, qcode, cutoff = int(cutoff), n_maps = int(n_maps), mean = mean, isUnitary = 1)
 
-	elif method == "comp_unitary":
-		(angle, cutoff, n_maps, mean, p_dep) = params[:5]
-		kraus_dict = CorrelatedCPTP(angle, qcode, cutoff = int(cutoff), n_maps = int(n_maps), mean = mean, isUnitary = 0, isComposite = 1, p_dep = p_dep)
+	elif method == "nc_cptp":
+		# Non catastrophic CPTP: composition of a unitary channel with a random Pauli channel.
+		(angle, compose_with_pauli_rate, cutoff, n_maps, mean) = params[:5]
+		kraus_dict = CorrelatedCPTP(angle, qcode, cutoff = int(cutoff), n_maps = int(n_maps), mean = mean, isUnitary = 1)
 
 	elif method == "correctable_kraus":
 		(angle, ratio) = params[:2]
@@ -46,11 +48,14 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 
 	click = timer()
 	print("\033[2mKraus operators done in %d seconds.\033[0m" % (timer() - click))
-	chi = NoiseReconstruction(qcode, kraus_dict)
+	(chi, kraus_theta_chi_dict) = NoiseReconstruction(qcode, kraus_dict, compose_with_pauli_rate=compose_with_pauli_rate, max_weight=None)
 	print("\033[2mCHI was constructed in %d seconds.\033[0m" % (timer() - click))
 
 	click = timer()
-	ptm = ConstructPTM(qcode, kraus_dict)
+	compose_with_pauli = 0
+	if (compose_with_pauli_rate > 0):
+		compose_with_pauli = 1
+	ptm = ConstructPTM(qcode, kraus_theta_chi_dict, compose_with_pauli=compose_with_pauli)
 	print("\033[2mPTM was constructed in %d seconds.\033[0m" % (timer() - click))
 	# print("\033[2mProcess[0, 0] = {}\033[0m".format(ptm[0, 0]))
 

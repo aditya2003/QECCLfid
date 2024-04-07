@@ -80,7 +80,7 @@ def RandomSupport(nmaps, nqubits, interaction_ranges):
 	return supports
 
 
-def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUnitary = 0, isComposite = 0, p_dep = 0):
+def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUnitary = 0):
 	r"""
 	Sub-routine to prepare the dictionary for error eps = sum of cptp maps
 	Generates Kraus by using Stine to Kraus
@@ -104,9 +104,9 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUn
 		if n_q != 0:
 			interaction_range.append(n_q)
 			n_nontrivial_maps += 1
-	# interaction_range = [3, 3, 3, 3, 3, 3, 3, 2] # Only for decoding purposes.
-	# interaction_range = [1, 1] # Only for decoding purposes.
-	# n_nontrivial_maps = len(interaction_range) # Only for decoding purposes.
+	# interaction_range = [3, 3, 3, 3, 3, 3, 3, 2] # Only for debugging purposes.
+	# interaction_range = [1] # Only for debugging purposes.
+	# n_nontrivial_maps = len(interaction_range) # Only for debugging purposes.
 	# print("Range of interactions : {}".format(interaction_range))
 
 	# If the Kraus list is empty, then append the identity error on some qubit.
@@ -114,12 +114,12 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUn
 		non_trivial_channels = {0: ((0,), [np.eye(2, dtype = np.complex128)])}
 	else:
 		# nmaps_per_qubit = max(0.1 * n_nontrivial_maps, 1)
-		# supports = GenerateSupport(n_nontrivial_maps, qcode.N, interaction_range, cutoff=cutoff)
-		supports = RandomSupport(n_nontrivial_maps, qcode.N, interaction_range)
+		supports = GenerateSupport(n_nontrivial_maps, qcode.N, interaction_range, cutoff=cutoff)
+		# supports = RandomSupport(n_nontrivial_maps, qcode.N, interaction_range)
 		interaction_range = [len(supp) for supp in supports]
 		# print("Range of interactions : {}".format(interaction_range))
 		# supports = [(0, 1, 2), (1, 2, 3), (2, 3, 4), (3, 4, 5), (4, 5, 6), (1, 3, 5), (2, 4, 6), (5, 6)] # Only for decoding purposes.
-		# supports = [(0,), (1,)] # Only for decoding purposes.
+		# supports = [(0,)] # Only for debugging purposes.
 
 		non_trivial_channels = [None for m in range(n_nontrivial_maps)]
 		for m in range(n_nontrivial_maps):
@@ -130,23 +130,14 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUn
 				# print("Rotation angle for map {} is {}.".format(m, rotation_angle))
 				rand_unitary = RandomUnitary(rotation_angle / np.power(2, n_q), np.power(2, n_q), method="exp")
 				kraus = rand_unitary[np.newaxis, :, :]
+				#############
+				# Only for debugging purposes:
+				# unitary_mat = sp.linalg.expm(-1j * 0.1 * np.array([[1.0, 0], [0, -1.0]]))
+				# kraus = unitary_mat[np.newaxis, :, :]
+				#############
 			else:
 				rand_unitary = RandomUnitary(rotation_angle / np.power(2, n_q), np.power(8, n_q))
 				kraus = StineToKraus(rand_unitary)
-
-			# print("Kraus for map {} is\n{}".format(m, kraus))
-			#For composite CPTP composed from Unitary and Depolarizing: modify the kraus from unitary and compose it with depolarizing on n_q qubits
-			if (isComposite == 1):
-				rand_unitary = RandomUnitary(rotation_angle / np.power(2, n_q), np.power(2, n_q), method="exp")
-				# define depolarizing, can't import due to circular dependency
-				kraus_dep = np.zeros((4, 2, 2), dtype=np.complex128)
-				coefficients_dep = [1-p_dep, p_dep/3, p_dep/3, p_dep/3]
-				for i in range(4):
-					kraus_dep[i, :, :] = np.sqrt(coefficients_dep[i]) * gv.Pauli[i, :, :]
-				kraus_nq = kraus_dep[:]
-				for i in range(n_q-1):
-					kraus_nq = [np.kron(x,y) for x in kraus_nq for y in kraus_dep]
-				kraus = np.array([np.dot(x,rand_unitary) for x in kraus_nq])
 
 			if (KrausTest(kraus) == 0):
 				print("Kraus test failed for the following channel.\n{}".format(kraus))

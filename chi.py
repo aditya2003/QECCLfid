@@ -82,10 +82,13 @@ def Chi_Element_Diag(kraus_dict, paulis, compose_with_pauli_rate=0, n_cores=None
 		click = timer()
 		theta = KrausToTheta(kraus)
 		if (compose_with_pauli_rate > 0):
-			# Compose the k-qubit channel with a random Pauli channel whose fidelity is provided.
+			# Compose the k-qubit channel with a random Pauli channel whose single-qubit infidelity (r0) is provided.
+			# The infidelity of the channel is computed as follows.
+			# r = 1 - (1 - r0)^k, where r is the infidelity of the k-qubit map.
 			# This is particularly useful for approximating a random CPTP map with the composition of a random Unitary map and a random Pauli channel
 			# The composition is simple in the Theta matrix picture since we just have to multiply the respective Theta matrices.
-			(theta_pauli, chi_pauli) = get_theta_pauli_channel(len(support), compose_with_pauli_rate)
+			infid = 1 - np.power(1 - compose_with_pauli_rate, len(support))
+			(theta_pauli, chi_pauli) = get_theta_pauli_channel(len(support), infid)
 			# print("map {} with theta\n{}\nand theta_pauli\n{}".format(m, theta, theta_pauli))
 			theta = theta.reshape(4**len(support), 4**len(support)) @ theta_pauli
 		# print("\033[2mTheta matrix for map %d was computed in %.2f seconds.\033[0m" % (m + 1, timer() - click))

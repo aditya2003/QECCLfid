@@ -221,7 +221,7 @@ def ConstructPTM(qcode, kraus_theta_chi_dict, compose_with_pauli=0):
 		process[i, j] = np.real(phases[i] * phases[j] * ExtractPTMElement(ls_ops[i, :], ls_ops[j, :], ptm_contracted, supp_ptm))
 	
 	# process = ComputePTMElements(nlogs, nstabs, ls_ops, phases, np.array(supp_ptm, dtype = np.int8), ptm_contracted)
-	print("process\n{}".format(process))
+	# print("process\n{}".format(process))
 	return process
 
 """

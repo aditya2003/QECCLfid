@@ -178,6 +178,31 @@ def chi_to_ptm_pauli(pauli_chi_mat, nq):
 	pauli_ptm_mat = 1 / np.power(2, nq) * np.real(np.einsum('k,iab,kbc,jcd,kda->ij', pauli_chi_mat, paulis, paulis, paulis, paulis, optimize="greedy"))
 	return pauli_ptm_mat
 
+def ComputePTMElement(kraus_dict, ls_ops, phases, ns_indices, nstabs, nlogs):
+	# Compute an element of the n-qubit PTM when there is only one Kraus operator.
+	ptm_elements = np.zeros(ns_indices.size, dtype = np.double)
+	for k in range(ns_indices.size):
+		ns_index = ns_indices[k]
+		# Compute the Pauli operators for which we need to compute the PTM element
+		(ns_i, ns_j) = (ns_index // (nlogs * nstabs), ns_index % (nlogs * nstabs))
+		pauli_op_i = ls_ops[ns_i, :]
+		pauli_op_j = ls_ops[ns_j, :]
+
+		(kraus_support, kraus) = kraus_dict[0]
+		nqubits = pauli_op_i.size
+		# Pauli operators as tensors
+		PauliMats = np.array([[[1, 0], [0, 1]], [[0, 1], [1, 0]], [[0, -1j], [1j, 0]], [[1, 0], [0, -1]]], dtype=np.complex128)
+		pauli_op_i_network = [((q,), PauliMats[pauli_op_i[q], :, :]) for q in range(nqubits) if pauli_op_i[q] > 0]
+		pauli_op_j_network = [((q,), PauliMats[pauli_op_j[q], :, :]) for q in range(nqubits) if pauli_op_j[q] > 0]
+		# forming the tensor network
+		kraus_unpacked = kraus.reshape([2, 2] * len(kraus_support))
+		kraus_dag_unpacked = kraus.conj().T.reshape([2, 2] * len(kraus_support))
+		network = [(kraus_support, kraus_unpacked)] + pauli_op_i_network + [(kraus_support, kraus_dag_unpacked)] + pauli_op_j_network
+		(__, ptm_ij) = ContractTensorNetwork(network, end_trace=1, use_einsum=1)
+		ptm_elements[k] = np.real(ptm_ij * phases[ns_i] * phases[ns_j])
+		# print("ptm element corresponding to the normalizer element {} = {}".format(k, ptm_elements[k]))
+	return ptm_elements
+
 def ConstructPTM(qcode, kraus_theta_chi_dict, compose_with_pauli=0):
 	r"""
 	Generates LS part of the process matrix of the n-qubit channel.
@@ -185,43 +210,47 @@ def ConstructPTM(qcode, kraus_theta_chi_dict, compose_with_pauli=0):
 	nstabs = 2 ** (qcode.N - qcode.K)
 	nlogs = 4 ** qcode.K
 	n_maps = len(kraus_theta_chi_dict)
-	
-	kraus_chi_ptm_dict = []
-	for (supp, __, kraus, chi_pauli, __) in kraus_theta_chi_dict:
-		ptm_mat = KrausToPTM(kraus)
-		if (compose_with_pauli == 1):
-			ptm_pauli_chan = chi_to_ptm_pauli(chi_pauli, len(supp))
-			ptm_mat = ptm_mat.reshape(4**len(supp), 4**len(supp)) @ ptm_pauli_chan
-		kraus_chi_ptm_dict.append((supp, kraus, chi_pauli, ptm_mat.reshape([4, 4] * len(supp))))
-
-	# Compose the PTMs with the Pauli channels that need to be composed.
-	# These were generated while constructing the chi matrix.
-	ptm_dict = [(supp, ptm_mat) for (supp, __, __, ptm_mat) in kraus_chi_ptm_dict]
-
-	#################
-	# only for debugging purposes
-	# print("PTM dict\n{}".format(ptm_dict))
-	# example_ptm = np.array([[1, 0, 0, 0], [0, 0.9800666, 0.1986693, 0], [0, -0.1986693, 0.9800666, 0], [0, 0, 0, 1]]) @ np.diag([1, 0.9, 0.86, 0.84])
-	# print("example_ptm\n{}".format(example_ptm))
-	#################
-
-	click = timer()
-	(supp_ptm, ptm_contracted) = ContractTensorNetwork(ptm_dict, end_trace=0)
-	print("\033[2mPTM tensor network was contracted in %d seconds.\033[0m" % (timer() - click))
-
-	# print("Individual PTMs\n{}".format(ptm_dict))
-	# print("Number of nonzero elements in the contracted PTM\n{}".format(np.count_nonzero(ptm_contracted)))
-	
 	(ls_ops, phases) = GetOperatorsForTLSIndex(qcode, range(nstabs * nlogs))
 	process = np.zeros((nlogs * nstabs, nlogs * nstabs), dtype=np.double)
 	
-	for k in tqdm(range(nlogs * nstabs * nlogs * nstabs), ascii = True, desc = "PTM elements: ", colour = "CYAN"):
-	# for k in range(nlogs * nstabs * nlogs * nstabs):
-		(i, j) = (k // (nlogs * nstabs), k % (nlogs * nstabs))
-		process[i, j] = np.real(phases[i] * phases[j] * ExtractPTMElement(ls_ops[i, :], ls_ops[j, :], ptm_contracted, supp_ptm))
-	
-	# process = ComputePTMElements(nlogs, nstabs, ls_ops, phases, np.array(supp_ptm, dtype = np.int8), ptm_contracted)
-	# print("process\n{}".format(process))
+	if (n_maps > 1):
+		ptm_dict = []
+		for (supp, __, kraus, chi_pauli, __) in kraus_theta_chi_dict:
+			ptm_mat = KrausToPTM(kraus)
+			if (compose_with_pauli == 1):
+				# Compose the PTMs with the Pauli channels that need to be composed.
+				# These were generated while constructing the chi matrix.
+				ptm_pauli_chan = chi_to_ptm_pauli(chi_pauli, len(supp))
+				ptm_mat = ptm_mat.reshape(4**len(supp), 4**len(supp)) @ ptm_pauli_chan
+			ptm_dict.append((supp, ptm_mat.reshape([4, 4] * len(supp))))
+
+		click = timer()
+		(supp_ptm, ptm_contracted) = ContractTensorNetwork(ptm_dict, end_trace=0)
+		print("\033[2mPTM tensor network was contracted in %d seconds.\033[0m" % (timer() - click))
+		
+
+		# print("Individual PTMs\n{}".format(ptm_dict))
+		# print("Number of nonzero elements in the contracted PTM\n{}".format(np.count_nonzero(ptm_contracted)))
+		
+		for k in tqdm(range(nlogs * nstabs * nlogs * nstabs), ascii = True, desc = "PTM elements: ", colour = "CYAN"):
+		# for k in range(nlogs * nstabs * nlogs * nstabs):
+			(i, j) = (k // (nlogs * nstabs), k % (nlogs * nstabs))
+			process[i, j] = np.real(phases[i] * phases[j] * ExtractPTMElement(ls_ops[i, :], ls_ops[j, :], ptm_contracted, supp_ptm))
+
+	else:
+		kraus_dict = [(supp, kraus) for (supp, __, kraus, __, __) in kraus_theta_chi_dict]
+		# for k in tqdm(range(nlogs * nstabs * nlogs * nstabs), ascii = True, desc = "PTM elements: ", colour = "CYAN"):
+		# 	(i, j) = (k // (nlogs * nstabs), k % (nlogs * nstabs))
+		# 	process[i, j] = np.real(phases[i] * phases[j] * ComputePTMElement(kraus_dict, ls_ops[i, :], ls_ops[j, :]))
+		n_cores = mp.cpu_count()
+		chunks = np.array_split(np.arange(nlogs * nstabs * nlogs * nstabs, dtype=int), n_cores)
+		args = [(kraus_dict, ls_ops, phases, ch, nstabs, nlogs) for ch in chunks]
+		process_list = pqdm(args, ComputePTMElement, n_jobs = n_cores, ascii=True, colour='CYAN', desc = "PTM elements", argument_type = 'args')
+		# process_list = []
+		# for ag in args:
+		# 	process_list.append(ComputePTMElement(*ag))
+		process = 1 / np.power(2.0, qcode.N) * np.array(np.concatenate(tuple(process_list))).reshape(nstabs * nlogs, nstabs * nlogs)
+
 	return process
 
 """

@@ -1,8 +1,7 @@
 import random
 import numpy as np
 import scipy as sp # only for debugging purposes.
-import cvxpy as cp
-from define.QECCLfid.utils import SamplePoisson
+from define.QECCLfid.utils import SamplePoisson, get_interactions, RandomSupport, GenerateSupport
 from define.randchans import RandomUnitary
 from define import globalvars as gv
 
@@ -25,61 +24,6 @@ def StineToKraus(U):
 	kraus = np.einsum('ikj->kij', sys_env_split[:, :, :, 0])
 	return kraus
 
-
-def GenerateSupport(nmaps, nqubits, interaction_ranges, cutoff=4):
-	r"""
-	Generates supports for maps such that
-	1. Each qubit participates in at least one maps
-	2. Every map has support given by the number of qubits in interaction_ranges list
-	3. Allocation optimized such that each qubit participates roughly in nmaps_per_qubit maps
-	returns a list of tuples with support indicies for each map
-	"""
-	# A matrix of variables, where each row corresponds to an interaction while each column to a qubit.
-	# The (i,j) entry of this matrix is 1 if the i-th interaction involves the j-th qubit.
-	mat = cp.Variable(shape=(nmaps, nqubits), boolean = True)
-
-	# These are hard constraints.
-	constraints = []
-	# Each qubit to be part of at least one map.
-	col_sums = cp.sum(mat, axis=0, keepdims=True)
-	constraints.append(col_sums >= 1)
-	# Each interaction must involve a fixed number of qubits +/- 1.
-	row_sums = cp.sum(mat, axis=1)
-	constraints.append(row_sums <= [min(r + 1, cutoff) for r in interaction_ranges])
-	constraints.append(row_sums >= [max(1, r - 1) for r in interaction_ranges])
-
-	# Objective function to place a penalty on the number of interactions per qubit.
-	# objective = cp.Minimize(cp.norm(col_sums, "fro"))
-	objective = cp.Minimize(cp.norm(col_sums, "inf"))
-
-	# Solve the optimization problem.
-	problem = cp.Problem(objective,constraints)
-	problem.solve(solver = 'ECOS_BB', verbose=False)
-
-	if ("optimal" in problem.status):
-		if (not (problem.status == "optimal")):
-			print("\033[2mWarning: The problem status is \"{}\".\033[0m".format(problem.status))
-		supports = [tuple(np.nonzero(np.round(row).astype(np.int64))[0]) for row in mat.value]
-	else:
-		print("\033[2mQubit allocation to maps infeasible.\033[0m")
-		# Choose random subsets of qubits of the specified sizes.
-		supports = []
-		for m in range(nmaps):
-			support = tuple((random.sample(range(nqubits), interaction_ranges[m])))
-			supports.append(support)
-
-	return supports
-
-
-def RandomSupport(nmaps, nqubits, interaction_ranges):
-	# Choose random subsets of qubits of the specified sizes.
-	supports = []
-	for m in range(nmaps):
-		support = tuple((random.sample(range(nqubits), interaction_ranges[m])))
-		supports.append(support)
-	return supports
-
-
 def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUnitary = 0):
 	r"""
 	Sub-routine to prepare the dictionary for error eps = sum of cptp maps
@@ -97,16 +41,11 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUn
 	krauslist = krauss ops acting on support
 	"""
 	# print("Sum of CPTP maps:\nmean = {}, cutoff = {}, n_maps = {}".format(mean, cutoff, n_maps))
-	n_nontrivial_maps = 0
-	interaction_range = []
-	for m in range(n_maps):
-		n_q = SamplePoisson(mean = mean, cutoff=cutoff)
-		if n_q != 0:
-			interaction_range.append(n_q)
-			n_nontrivial_maps += 1
+	interaction_range = get_interactions(n_maps, mean, cutoff)
 	# interaction_range = [3, 3, 3, 3, 3, 3, 3, 2] # Only for debugging purposes.
-	# interaction_range = [1] # Only for debugging purposes.
-	# n_nontrivial_maps = len(interaction_range) # Only for debugging purposes.
+	# interaction_range = [2] # Only for debugging purposes.
+	
+	n_nontrivial_maps = len(interaction_range)
 	# print("Range of interactions : {}".format(interaction_range))
 
 	# If the Kraus list is empty, then append the identity error on some qubit.
@@ -114,12 +53,12 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUn
 		non_trivial_channels = {0: ((0,), [np.eye(2, dtype = np.complex128)])}
 	else:
 		# nmaps_per_qubit = max(0.1 * n_nontrivial_maps, 1)
-		supports = GenerateSupport(n_nontrivial_maps, qcode.N, interaction_range, cutoff=cutoff)
+		supports = GenerateSupport(qcode.N, interaction_range, cutoff=cutoff)
 		# supports = RandomSupport(n_nontrivial_maps, qcode.N, interaction_range)
 		interaction_range = [len(supp) for supp in supports]
 		# print("Range of interactions : {}".format(interaction_range))
 		# supports = [(0, 1, 2), (1, 2, 3), (2, 3, 4), (3, 4, 5), (4, 5, 6), (1, 3, 5), (2, 4, 6), (5, 6)] # Only for decoding purposes.
-		# supports = [(0,)] # Only for debugging purposes.
+		# supports = [(0,1)] # Only for debugging purposes.
 
 		non_trivial_channels = [None for m in range(n_nontrivial_maps)]
 		for m in range(n_nontrivial_maps):
@@ -132,7 +71,8 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUn
 				kraus = rand_unitary[np.newaxis, :, :]
 				#############
 				# Only for debugging purposes:
-				# unitary_mat = sp.linalg.expm(-1j * 0.1 * np.array([[1.0, 0], [0, -1.0]]))
+				# print("Map {} is a rotation about the ZZ axis".format(m))
+				# unitary_mat = sp.linalg.expm(-1j * 0.1 * np.array([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]], dtype = np.complex128))
 				# kraus = unitary_mat[np.newaxis, :, :]
 				#############
 			else:
@@ -199,5 +139,5 @@ if __name__ == "__main__":
 		if (n_q > 0):
 			interaction_range.append(n_q)
 	nmaps = len(interaction_range)
-	supports = GenerateSupport(nmaps, nqubits, interaction_range)
+	supports = GenerateSupport(nqubits, interaction_range)
 	print("interaction range: {}\nSupport = {}".format(interaction_range, supports))

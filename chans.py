@@ -2,7 +2,7 @@ import numpy as np
 from timeit import default_timer as timer
 from define.QECCLfid.utils import Dagger
 from define.QECCLfid.utils import Kron
-from define.QECCLfid.ising import Ising
+from define.QECCLfid.ising import Ising, CG1DModel
 from define.QECCLfid.sum_unitaries import SumUnitaries
 from define.QECCLfid.cptps import CorrelatedCPTP
 from define.QECCLfid.ckraus import AdversarialRotKraus
@@ -23,6 +23,10 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 	elif method == "ising":
 		J, mu, time = params[:3]
 		kraus_dict = Ising(J, mu, time, qcode)
+
+	elif method == "cg1d":
+		(angle, cutoff, n_maps, mean) = params[:4]
+		kraus_dict = CG1DModel(int(n_maps), angle, mean, int(cutoff), int(qcode.N))
 
 	elif method == "corr_cptp":
 		(angle, cutoff, n_maps, mean) = params[:4]
@@ -56,7 +60,7 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 	if (compose_with_pauli_rate > 0):
 		compose_with_pauli = 1
 	ptm = ConstructPTM(qcode, kraus_theta_chi_dict, compose_with_pauli=compose_with_pauli)
-	print("\033[2mPTM was constructed in %d seconds.\033[0m" % (timer() - click))
+	print("\033[2mPTM was constructed in {} seconds.\033[0m\n".format(timer() - click))
 	# print("\033[2mProcess[0, 0] = {}\033[0m".format(ptm[0, 0]))
 
 	# if (CHI_PTM_Tests(chi, ptm, kraus_dict, kraus_dict_adj, qcode, compare_against_old = 0) == 0):

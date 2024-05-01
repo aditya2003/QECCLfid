@@ -1,4 +1,6 @@
+import random
 import numpy as np
+import cvxpy as cp
 from collections import deque
 from functools import reduce
 from define.QECCLfid.contract import OptimalEinsum
@@ -49,6 +51,104 @@ def SamplePoisson(mean, cutoff=None):
 			rv_val = np.random.poisson(lam = mean)
 	return rv_val
 
+def GenerateSupport(nqubits, interaction_ranges, cutoff=4):
+	r"""
+	Generates supports for maps such that
+	1. Each qubit participates in at least one maps
+	2. Every map has support given by the number of qubits in interaction_ranges list
+	3. Allocation optimized such that each qubit participates roughly in nmaps_per_qubit maps
+	returns a list of tuples with support indicies for each map
+	"""
+	nmaps = len(interaction_ranges)
+	# A matrix of variables, where each row corresponds to an interaction while each column to a qubit.
+	# The (i,j) entry of this matrix is 1 if the i-th interaction involves the j-th qubit.
+	mat = cp.Variable(shape=(nmaps, nqubits), boolean = True)
+
+	# These are hard constraints.
+	constraints = []
+	# Each qubit to be part of at least one map.
+	col_sums = cp.sum(mat, axis=0, keepdims=True)
+	constraints.append(col_sums >= 1)
+	# Each interaction must involve a fixed number of qubits +/- 1.
+	row_sums = cp.sum(mat, axis=1)
+	constraints.append(row_sums <= [min(r + 1, cutoff) for r in interaction_ranges])
+	constraints.append(row_sums >= [max(1, r - 1) for r in interaction_ranges])
+
+	# Objective function to place a penalty on the number of interactions per qubit.
+	# objective = cp.Minimize(cp.norm(col_sums, "fro"))
+	objective = cp.Minimize(cp.norm(col_sums, "inf"))
+
+	# Solve the optimization problem.
+	problem = cp.Problem(objective,constraints)
+	problem.solve(solver = 'ECOS_BB', verbose=False)
+
+	if ("optimal" in problem.status):
+		if (not (problem.status == "optimal")):
+			print("\033[2mWarning: The problem status is \"{}\".\033[0m".format(problem.status))
+		supports = [tuple(np.nonzero(np.round(row).astype(np.int64))[0]) for row in mat.value]
+	else:
+		print("\033[2mQubit allocation to maps infeasible.\033[0m")
+		# Choose random subsets of qubits of the specified sizes.
+		supports = []
+		for m in range(nmaps):
+			support = tuple((random.sample(range(nqubits), interaction_ranges[m])))
+			supports.append(support)
+
+	return supports
+
+def RandomSupport(nqubits, interaction_ranges):
+	# Choose random subsets of qubits of the specified sizes.
+	supports = []
+	for m in range(len(interaction_ranges)):
+		support = tuple((random.sample(range(nqubits), interaction_ranges[m])))
+		supports.append(support)
+	return supports
+
+def get_interactions(n_maps, mean, cutoff):
+	# Sample the sizes of interactions that constitute a channel.
+	# The sizes are to be samples from a Poisson distribution with a fixed mean.
+	interaction_range = []
+	for m in range(n_maps):
+		n_q = SamplePoisson(mean = mean, cutoff=cutoff)
+		if n_q != 0:
+			interaction_range.append(n_q)
+	return interaction_range
+
+def check_hermiticity(M, message):
+	# Check if M - M^dag = 0
+	print("{}: {}".format(message, M - M.conj().T))
+	return None
+
+def extend_operator(support_qubits, operator, nqubits):
+	r"""
+	# Given an operator defined on a subspace, extend it to a larger dimension.
+	Given some support S and local hamiltonian h
+	1. Compute the complementary support S'
+	2. do h -> h_1 = h \otimes I_{complementary space}
+	3. h_1 is supported on S + S'
+	4. Compute a permutation to S + S' to set it to the order we want: P = argsort(S + S')
+	5. Reshape h_1 to [2, 2] * N
+	6. Apply Permutation P to the row indices and the same permutation to the column
+		Applying np.transpose(h_1.reshape([2,2]*N), [P + P])
+	7. Reshape back.
+	"""
+	dim = np.power(2, nqubits, dtype=int)
+	# check_hermiticity(operator, "Hermiticity of the local operator")
+
+	# Extend the operator by padding an identity matrix of the appropriate dimension.
+	complement_qubits = np.setdiff1d(range(nqubits), support_qubits)
+	complement_dim = np.power(2, nqubits - len(support_qubits), dtype = int)
+	extended_unordered = np.kron(operator, np.eye(complement_dim)).reshape([2, 2] * nqubits)
+	# check_hermiticity(extended_unordered.reshape(dim, dim), "Hermiticity of the extended unordered operator")
+	
+	# print("axes labels = {}".format(np.concatenate((support_qubits, complement_qubits, nqubits + support_qubits, complement_qubits + nqubits))))
+	# Order the axes according to the qubits in the system.
+	unordered_axes = np.concatenate((support_qubits, complement_qubits, nqubits + support_qubits, complement_qubits + nqubits))
+	ordering = np.argsort(unordered_axes)
+	extended_operator = extended_unordered.transpose(ordering)
+	
+	# check_hermiticity(extended_operator.reshape(dim, dim), "Hermiticity of the extended operator")
+	return extended_operator.reshape(dim, dim)
 
 def extend_gate(support, mat, extended_support):
 	r"""
@@ -98,10 +198,10 @@ def extend_gate(support, mat, extended_support):
 	)
 	#     print("Extend {} on {} to {}".format(mat, support, extended_support))
 	support_range = np.array(
-		[np.asscalar(np.argwhere(extended_support == s)) for s in support], dtype=np.int64
+		[(np.argwhere(extended_support == s)).item() for s in support], dtype=np.int64
 	)
 	# print("support_range = {}".format(support_range))
-	if np.asscalar(np.ptp(support_range)) < 2:
+	if (np.ptp(support_range)).item() < 2:
 		# print(
 		#     "M = I_(%d) o G o I_(%d)"
 		#     % (np.min(support_range), extended_support.size - 1 - np.max(support_range))
@@ -113,7 +213,7 @@ def extend_gate(support, mat, extended_support):
 		)
 	swap = np.identity(2 ** extended_support.size, dtype=np.double)
 	for i in range(len(support)):
-		j = np.asscalar(np.argwhere(extended_support == support[i]))
+		j = (np.argwhere(extended_support == support[i])).item()
 		d = np.sign(i - j)
 		# print("bring {} to {} in direction {}".format(j, i, d))
 		if not (d == 0):

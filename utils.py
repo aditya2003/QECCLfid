@@ -1,6 +1,7 @@
 import random
 import numpy as np
 import cvxpy as cp
+from scipy.linalg import norm, block_diag
 from collections import deque
 from functools import reduce
 from define.QECCLfid.contract import OptimalEinsum
@@ -116,7 +117,7 @@ def get_interactions(n_maps, mean, cutoff):
 
 def check_hermiticity(M, message):
 	# Check if M - M^dag = 0
-	print("{}: {}".format(message, M - M.conj().T))
+	print("{}: {}".format(message, norm(M - M.conj().T)))
 	return None
 
 def extend_operator(support_qubits, operator, nqubits):
@@ -124,7 +125,7 @@ def extend_operator(support_qubits, operator, nqubits):
 	# Given an operator defined on a subspace, extend it to a larger dimension.
 	Given some support S and local hamiltonian h
 	1. Compute the complementary support S'
-	2. do h -> h_1 = h \otimes I_{complementary space}
+	2. do h -> h_1 = h \oplus Z_{complementary dimension}
 	3. h_1 is supported on S + S'
 	4. Compute a permutation to S + S' to set it to the order we want: P = argsort(S + S')
 	5. Reshape h_1 to [2, 2] * N
@@ -137,8 +138,8 @@ def extend_operator(support_qubits, operator, nqubits):
 
 	# Extend the operator by padding an identity matrix of the appropriate dimension.
 	complement_qubits = np.setdiff1d(range(nqubits), support_qubits)
-	complement_dim = np.power(2, nqubits - len(support_qubits), dtype = int)
-	extended_unordered = np.kron(operator, np.eye(complement_dim) / np.sqrt(complement_dim)).reshape([2, 2] * nqubits)
+	complement_dim = np.power(2, nqubits, dtype = int) - np.power(2, len(support_qubits), dtype = int)
+	extended_unordered = block_diag(operator, np.zeros((complement_dim, complement_dim), dtype = np.complex128)).reshape([2, 2] * nqubits)
 	# check_hermiticity(extended_unordered.reshape(dim, dim), "Hermiticity of the extended unordered operator")
 	
 	# print("axes labels = {}".format(np.concatenate((support_qubits, complement_qubits, nqubits + support_qubits, complement_qubits + nqubits))))

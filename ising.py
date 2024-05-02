@@ -74,16 +74,9 @@ def CG1DModel(n_factors, angle, mean_correlation_length, cutoff, nqubits):
 		# extended_operator = extend_operator(np.array(supports[m], dtype=int), local_term, nqubits)
 		
 		local_term = np.array([[1, 0], [0, -1]], dtype = np.complex128) # Z rotation on qubit m. Only for debugging purposes.
-		extended_operator = np.zeros((2**nqubits, 2**nqubits), dtype=np.complex128)
-		print("supports[{}] = {}".format(m, supports[m]))
-		if (supports[m][0] == 0):
-			extended_operator = np.kron(local_term, np.eye(2**(nqubits - 1)))
-		elif (supports[m][0] == nqubits - 1):
-			extended_operator = np.kron(np.eye(2**(nqubits - 1)), local_term)
-		else:
-			extended_operator = np.kron(np.kron(np.eye(2**(supports[m][0] - 1)), local_term), np.eye(2**(nqubits - supports[m][0])))
-		
-		H = H + extended_operator / norm(extended_operator)
+		extended_operator = extend_operator(np.array(supports[m], dtype=int), local_term, nqubits)
+				
+		H = H + extended_operator
 
 	# check_hermiticity(H, "Hermiticity of H: H - H^dag")
 

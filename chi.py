@@ -139,9 +139,9 @@ def KraussToChi(kraus_dict, nrops):
 	chi = np.zeros(npauli, dtype = np.double)
 	start = timer()
 	for p in range(npauli):
-		network = [(kraus_support, kraus.reshape([2, 2] * support_size))] + [((q,), PauliMats[nrops[p, q], :, :]) for q in range(nqubits)]
+		network = [(kraus_support, kraus.reshape([2, 2] * support_size))] + [((q,), PauliMats[nrops[p, q], :, :]) for q in range(nqubits) if nrops[p, q] > 0]
 		(__, chi_left) = ContractTensorNetwork(network, end_trace=1, use_einsum=1)
-		network = [(kraus_support, np.transpose(np.conj(kraus)).reshape([2, 2] * support_size))] + [((q,), PauliMats[nrops[p, q], :, :]) for q in range(nqubits)]
+		network = [(kraus_support, kraus.conj().T.reshape([2, 2] * support_size))] + [((q,), PauliMats[nrops[p, q], :, :]) for q in range(nqubits) if nrops[p, q] > 0]
 		(__, chi_right) = ContractTensorNetwork(network, end_trace=1, use_einsum=1)
 		chi[p] = np.real(chi_left * chi_right)
 	chi = chi / np.power(4, nqubits)
@@ -161,20 +161,24 @@ def NoiseReconstruction(qcode, kraus_dict, compose_with_pauli_rate=0, max_weight
 		max_weight = qcode.N
 	if qcode.group_by_weight is None:
 		PrepareSyndromeLookUp(qcode)
-	n_errors_weight = [qcode.group_by_weight[w].size for w in range(max_weight + 1)]
-	nrops = np.zeros((np.sum(n_errors_weight, dtype = np.int64), qcode.N), dtype = np.int8)
-	filled = 0
-	for w in range(max_weight + 1):
-		(nrops[filled : (filled + n_errors_weight[w]), :], __) = GetOperatorsForLSTIndex(qcode, qcode.group_by_weight[w])
-		filled += n_errors_weight[w]
+	# n_errors_weight = [qcode.group_by_weight[w].size for w in range(max_weight + 1)]
+	# nrops = np.zeros((np.sum(n_errors_weight, dtype = np.int64), qcode.N), dtype = np.int8)
+	# filled = 0
+	# for w in range(max_weight + 1):
+	# 	(nrops[filled : (filled + n_errors_weight[w]), :], __) = GetOperatorsForLSTIndex(qcode, qcode.group_by_weight[w])
+	# 	filled += n_errors_weight[w]
 	
 	if (len(kraus_dict) == 1):
-		chi = KraussToChi(kraus_dict, nrops)
+		chi = KraussToChi(kraus_dict, qcode.PauliOperatorsLST)
 		kraus_theta_chi_dict = [(supp, None, kraus, None, None) for (supp, kraus) in kraus_dict]
 	else:
 		# In the chi matrix, fill the entries corresponding to nrops with the reconstruction data.
-		(chi, kraus_theta_chi_dict) = Chi_Element_Diag(kraus_dict, nrops, compose_with_pauli_rate=compose_with_pauli_rate)
+		(chi, kraus_theta_chi_dict) = Chi_Element_Diag(kraus_dict, qcode.PauliOperatorsLST, compose_with_pauli_rate=compose_with_pauli_rate)
 	# print("chi matrix diagonal entries\n{}".format(chi))
+
+	# print the relative budgets of weight 0, 1, 2 and 3 errors.
+	for w in range(max_weight):
+		print("Total probability of weight {} errors = {}.".format(w, np.sum(chi[qcode.group_by_weight[w]])))
 	
 	atol = 1E-10
 	if ((np.any(np.real(chi) < -atol)) or (np.real(np.sum(chi)) >= 1 + atol)):

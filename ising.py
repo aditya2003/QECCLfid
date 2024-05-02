@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.linalg import norm
 from scipy.linalg import expm
 from timeit import default_timer as timer
 from define.QECCLfid.utils import extend_operator, get_interactions, RandomSupport, GenerateSupport, check_hermiticity
@@ -57,26 +58,40 @@ def CG1DModel(n_factors, angle, mean_correlation_length, cutoff, nqubits):
 	krauslist = krauss ops acting on support
 	"""
 	dim = np.power(2, nqubits, dtype = int)
-	interaction_range = get_interactions(n_factors, mean_correlation_length, cutoff)
+	# interaction_range = get_interactions(n_factors, mean_correlation_length, cutoff)
 	# supports = RandomSupport(nqubits, interaction_range)
-	supports = GenerateSupport(nqubits, interaction_range, cutoff=cutoff)
+	# supports = [(q, ) for q in range(nqubits)] + GenerateSupport(nqubits, interaction_range, cutoff=cutoff)
+	supports = [(0,), (1,), (2,), (3,), (4,), (5,), (6,)] # only for debugging purposes
 	interaction_range = [len(supp) for supp in supports]
 
 	print("CG1D Model describing a Hamiltonian acting on {}.".format(supports))
 
 	# Compute the global Hamiltonain H as a sum of random local terms.
-	H = np.zeros(dim, dtype = np.complex128)
+	H = np.zeros((dim, dim), dtype = np.complex128)
 	for m in range(len(interaction_range)):
 		dim = np.power(2, interaction_range[m], dtype = int)
-		local_term = RandomHermitian(dim)
-		H = H + extend_operator(np.array(supports[m], dtype=int), local_term, nqubits)
+		# local_term = RandomHermitian(dim)
+		# extended_operator = extend_operator(np.array(supports[m], dtype=int), local_term, nqubits)
+		
+		local_term = np.array([[1, 0], [0, -1]], dtype = np.complex128) # Z rotation on qubit m. Only for debugging purposes.
+		extended_operator = np.zeros((2**nqubits, 2**nqubits), dtype=np.complex128)
+		print("supports[{}] = {}".format(m, supports[m]))
+		if (supports[m][0] == 0):
+			extended_operator = np.kron(local_term, np.eye(2**(nqubits - 1)))
+		elif (supports[m][0] == nqubits - 1):
+			extended_operator = np.kron(np.eye(2**(nqubits - 1)), local_term)
+		else:
+			extended_operator = np.kron(np.kron(np.eye(2**(supports[m][0] - 1)), local_term), np.eye(2**(nqubits - supports[m][0])))
+		
+		H = H + extended_operator / norm(extended_operator)
 
 	# check_hermiticity(H, "Hermiticity of H: H - H^dag")
 
 	# Exponentiate the Hamiltonian
 	start = timer()
+	angle = 0.3
 	kraus = expm(-1j * angle * H)
-	# print("Unitarity of Kraus\n{}".format(np.linalg.norm(np.dot(kraus, kraus.conj().T) - np.eye(kraus.shape[0]))))
+	print("Unitarity of Kraus\n{}".format(np.linalg.norm(np.dot(kraus, kraus.conj().T) - np.eye(kraus.shape[0]))))
 	kraus_dict = [(tuple(list(range(nqubits))), kraus[np.newaxis, :, :])]
 	# print("Kraus of dimensions {} corresponding to the CG1D was computed in {} seconds.".format(kraus.shape, timer() - start))
 	return kraus_dict

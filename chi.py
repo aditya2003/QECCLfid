@@ -169,6 +169,7 @@ def NoiseReconstruction(qcode, kraus_dict, compose_with_pauli_rate=0, max_weight
 	# 	filled += n_errors_weight[w]
 	
 	if (len(kraus_dict) == 1):
+		# print("Special method for {} Kraus operator.".format(len(kraus_dict)))
 		chi = KraussToChi(kraus_dict, qcode.PauliOperatorsLST)
 		kraus_theta_chi_dict = [(supp, None, kraus, None, None) for (supp, kraus) in kraus_dict]
 	else:

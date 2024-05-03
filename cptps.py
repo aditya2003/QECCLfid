@@ -41,9 +41,9 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUn
 	krauslist = krauss ops acting on support
 	"""
 	# print("Sum of CPTP maps:\nmean = {}, cutoff = {}, n_maps = {}".format(mean, cutoff, n_maps))
-	# interaction_range = get_interactions(n_maps, mean, cutoff)
+	interaction_range = get_interactions(n_maps, mean, cutoff)
 	# interaction_range = [3, 3, 3, 3, 3, 3, 3, 2] # Only for debugging purposes.
-	interaction_range = [1, 1, 1, 1, 1, 1, 1] # Only for debugging purposes.
+	# interaction_range = [1, 1, 1, 1, 1, 1, 1] # Only for debugging purposes.
 	
 	n_nontrivial_maps = len(interaction_range)
 	# print("Range of interactions : {}".format(interaction_range))
@@ -53,11 +53,11 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUn
 		non_trivial_channels = {0: ((0,), [np.eye(2, dtype = np.complex128)])}
 	else:
 		# nmaps_per_qubit = max(0.1 * n_nontrivial_maps, 1)
-		# supports = GenerateSupport(qcode.N, interaction_range, cutoff=cutoff)
+		supports = GenerateSupport(qcode.N, interaction_range, cutoff=cutoff)
 		# supports = RandomSupport(n_nontrivial_maps, qcode.N, interaction_range)
-		# interaction_range = [len(supp) for supp in supports]
+		interaction_range = [len(supp) for supp in supports]
 		# print("Range of interactions : {}".format(interaction_range))
-		supports = [(0,), (1,), (2,), (3,), (4,), (5,), (6,)] # Only for debugging purposes.
+		# supports = [(0,), (1,), (2,), (3,), (4,), (5,), (6,)] # Only for debugging purposes.
 
 		non_trivial_channels = [None for m in range(n_nontrivial_maps)]
 		for m in range(n_nontrivial_maps):
@@ -66,13 +66,13 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUn
 			# For random Unitary channels: set the only Kraus operator to be the random Unitary on n_q qubits.
 			if (isUnitary == 1):
 				# print("Rotation angle for map {} is {}.".format(m, rotation_angle))
-				# rand_unitary = RandomUnitary(rotation_angle / np.power(2, n_q), np.power(2, n_q), method="exp")
-				# kraus = rand_unitary[np.newaxis, :, :]
+				rand_unitary = RandomUnitary(rotation_angle / np.power(2, n_q), np.power(2, n_q), method="exp")
+				kraus = rand_unitary[np.newaxis, :, :]
 				#############
 				# Only for debugging purposes:
-				print("Map {} is a rotation on {} about the Z axis".format(m, supports[m]))
-				unitary_mat = sp.linalg.expm(-1j * 0.3 * np.array([[1, 0], [0, -1]], dtype = np.complex128))
-				kraus = unitary_mat[np.newaxis, :, :]
+				# print("Map {} is a rotation on {} about the Z axis".format(m, supports[m]))
+				# unitary_mat = sp.linalg.expm(-1j * 0.3 * np.array([[1, 0], [0, -1]], dtype = np.complex128))
+				# kraus = unitary_mat[np.newaxis, :, :]
 				#############
 			else:
 				rand_unitary = RandomUnitary(rotation_angle / np.power(2, n_q), np.power(8, n_q))

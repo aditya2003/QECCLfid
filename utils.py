@@ -138,8 +138,8 @@ def extend_operator(support_qubits, operator, nqubits):
 
 	# Extend the operator by padding an identity matrix of the appropriate dimension.
 	complement_qubits = np.setdiff1d(range(nqubits), support_qubits)
-	complement_dim = np.power(2, nqubits, dtype = int) - np.power(2, len(support_qubits), dtype = int)
-	extended_unordered = block_diag(operator, np.zeros((complement_dim, complement_dim), dtype = np.complex128)).reshape([2, 2] * nqubits)
+	complement_dim = np.power(2, nqubits - len(support_qubits), dtype = int)
+	extended_unordered = np.kron(operator, np.eye(complement_dim, dtype = np.complex128)).reshape([2, 2] * nqubits)
 	# check_hermiticity(extended_unordered.reshape(dim, dim), "Hermiticity of the extended unordered operator")
 	
 	# print("axes labels = {}".format(np.concatenate((support_qubits, complement_qubits, nqubits + support_qubits, complement_qubits + nqubits))))

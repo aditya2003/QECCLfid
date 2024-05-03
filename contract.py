@@ -6,7 +6,7 @@ from timeit import default_timer as timer
 from define.QECCLfid.unique import SupportToLabel
 # from unique import SupportToLabel # only for decoding purposes.
 
-def OptimalEinsum(scheme, ops, opt = "greedy", verbose=0, parallel=0):
+def OptimalEinsum(scheme, ops, opt = "greedy", verbose=0):
 	# Contract a tensor network using einsum supplemented with its optimization tools.
 	start = timer()
 	prod = np.einsum(scheme, *ops, optimize="greedy")

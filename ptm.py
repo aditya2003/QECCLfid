@@ -4,9 +4,9 @@ import numpy as np
 import ctypes as ct
 # import more_itertools as mit
 from tqdm import tqdm
-from pqdm.processes import pqdm
 from numpy.ctypeslib import ndpointer
 import multiprocessing as mp
+from multiprocessing import Array, Process
 from define import globalvars as gv
 from timeit import default_timer as timer
 from define.qcode import GetOperatorsForTLSIndex
@@ -27,7 +27,7 @@ def KrausToPTM_Python(kraus):
 	for p in range(npauli):
 		paulis[p, :, :] = PauliTensor(GetNQubitPauli(p, nq)).reshape(dim, dim)
 
-	ptm = np.real(einsumt('klm,imn,kpn,jpl->ij', kraus, paulis, np.conj(kraus), paulis)) / dim
+	ptm = np.real(np.einsum('klm,imn,kpn,jpl->ij', kraus, paulis, np.conj(kraus), paulis)) / dim
 	return ptm
 
 
@@ -178,9 +178,9 @@ def chi_to_ptm_pauli(pauli_chi_mat, nq):
 	pauli_ptm_mat = 1 / np.power(2, nq) * np.real(np.einsum('k,iab,kbc,jcd,kda->ij', pauli_chi_mat, paulis, paulis, paulis, paulis, optimize="greedy"))
 	return pauli_ptm_mat
 
-def ComputePTMElement(kraus_dict, ls_ops, phases, ns_indices, nstabs, nlogs):
+def ComputePTMElement(ptm_vec, kraus_dict, ls_ops, phases, ns_indices, nstabs, nlogs):
 	# Compute an element of the n-qubit PTM when there is only one Kraus operator.
-	ptm_elements = np.zeros(ns_indices.size, dtype = np.double)
+	# ptm_elements = np.zeros(ns_indices.size, dtype = np.double)
 	for k in range(ns_indices.size):
 		ns_index = ns_indices[k]
 		# Compute the Pauli operators for which we need to compute the PTM element
@@ -199,9 +199,11 @@ def ComputePTMElement(kraus_dict, ls_ops, phases, ns_indices, nstabs, nlogs):
 		kraus_dag_unpacked = kraus.conj().T.reshape([2, 2] * len(kraus_support))
 		network = [(kraus_support, kraus_unpacked)] + pauli_op_i_network + [(kraus_support, kraus_dag_unpacked)] + pauli_op_j_network
 		(__, ptm_ij) = ContractTensorNetwork(network, end_trace=1, use_einsum=1)
-		ptm_elements[k] = np.real(ptm_ij * phases[ns_i] * phases[ns_j])
+		# ptm_elements[k] = np.real(ptm_ij * phases[ns_i] * phases[ns_j])
+		ptm_vec[ns_index] = np.real(ptm_ij * phases[ns_i] * phases[ns_j])
 		# print("ptm element corresponding to the normalizer element {} = {}".format(k, ptm_elements[k]))
-	return ptm_elements
+		# return ptm_elements
+	return None
 
 def ConstructPTM(qcode, kraus_theta_chi_dict, compose_with_pauli=0):
 	r"""
@@ -239,17 +241,28 @@ def ConstructPTM(qcode, kraus_theta_chi_dict, compose_with_pauli=0):
 
 	else:
 		kraus_dict = [(supp, kraus) for (supp, __, kraus, __, __) in kraus_theta_chi_dict]
-		# for k in tqdm(range(nlogs * nstabs * nlogs * nstabs), ascii = True, desc = "PTM elements: ", colour = "CYAN"):
-		# 	(i, j) = (k // (nlogs * nstabs), k % (nlogs * nstabs))
-		# 	process[i, j] = np.real(phases[i] * phases[j] * ComputePTMElement(kraus_dict, ls_ops[i, :], ls_ops[j, :]))
 		n_cores = mp.cpu_count()
+		# print("multiprocessing.current_process() = {}".format(mp.current_process()))
+		# n_cores = 1
 		chunks = np.array_split(np.arange(nlogs * nstabs * nlogs * nstabs, dtype=int), n_cores)
-		args = [(kraus_dict, ls_ops, phases, ch, nstabs, nlogs) for ch in chunks]
-		process_list = pqdm(args, ComputePTMElement, n_jobs = n_cores, ascii=True, colour='CYAN', desc = "PTM elements", argument_type = 'args')
+		ptm_vec = Array('d', range(nlogs * nstabs * nlogs * nstabs))
+		# ptm_vec = np.arange(nlogs * nstabs * nlogs * nstabs, dtype = np.double)
+		processes = []
+		for p in range(n_cores):
+			processes.append(Process(target=ComputePTMElement, args=(ptm_vec, kraus_dict, ls_ops, phases, chunks[p], nstabs, nlogs)))
+			# ComputePTMElement(ptm_vec, kraus_dict, ls_ops, phases, chunks[p], nstabs, nlogs)
+		for p in range(n_cores):
+			processes[p].start()
+		for p in range(n_cores):
+			processes[p].join()
+		
+		# Reshape the result.
+		process = 1 / np.power(2.0, qcode.N) *  np.array(ptm_vec).reshape(nstabs * nlogs, nstabs * nlogs)
+
 		# process_list = []
 		# for ag in args:
 		# 	process_list.append(ComputePTMElement(*ag))
-		process = 1 / np.power(2.0, qcode.N) * np.array(np.concatenate(tuple(process_list))).reshape(nstabs * nlogs, nstabs * nlogs)
+		# process = 1 / np.power(2.0, qcode.N) * np.array(np.concatenate(tuple(process_list))).reshape(nstabs * nlogs, nstabs * nlogs)
 
 	return process
 

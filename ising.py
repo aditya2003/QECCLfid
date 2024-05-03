@@ -58,10 +58,10 @@ def CG1DModel(n_factors, angle, mean_correlation_length, cutoff, nqubits):
 	krauslist = krauss ops acting on support
 	"""
 	dim = np.power(2, nqubits, dtype = int)
-	# interaction_range = get_interactions(n_factors, mean_correlation_length, cutoff)
+	interaction_range = get_interactions(n_factors, mean_correlation_length, cutoff)
 	# supports = RandomSupport(nqubits, interaction_range)
-	# supports = [(q, ) for q in range(nqubits)] + GenerateSupport(nqubits, interaction_range, cutoff=cutoff)
-	supports = [(0,), (1,), (2,), (3,), (4,), (5,), (6,)] # only for debugging purposes
+	supports = [(q, ) for q in range(nqubits)] + GenerateSupport(nqubits, interaction_range, cutoff=cutoff)
+	# supports = [(0,), (1,), (2,), (3,), (4,), (5,), (6,)] # only for debugging purposes
 	interaction_range = [len(supp) for supp in supports]
 
 	print("CG1D Model describing a Hamiltonian acting on {}.".format(supports))
@@ -70,21 +70,19 @@ def CG1DModel(n_factors, angle, mean_correlation_length, cutoff, nqubits):
 	H = np.zeros((dim, dim), dtype = np.complex128)
 	for m in range(len(interaction_range)):
 		dim = np.power(2, interaction_range[m], dtype = int)
-		# local_term = RandomHermitian(dim)
-		# extended_operator = extend_operator(np.array(supports[m], dtype=int), local_term, nqubits)
-		
-		local_term = np.array([[1, 0], [0, -1]], dtype = np.complex128) # Z rotation on qubit m. Only for debugging purposes.
+		local_term = RandomHermitian(dim)
+		# local_term = np.array([[1, 0], [0, -1]], dtype = np.complex128) # Z rotation on qubit m. Only for debugging purposes.
 		extended_operator = extend_operator(np.array(supports[m], dtype=int), local_term, nqubits)
 				
-		H = H + extended_operator
+		H = H + angle / dim * extended_operator
 
 	# check_hermiticity(H, "Hermiticity of H: H - H^dag")
-
 	# Exponentiate the Hamiltonian
 	start = timer()
-	angle = 0.3
-	kraus = expm(-1j * angle * H)
-	print("Unitarity of Kraus\n{}".format(np.linalg.norm(np.dot(kraus, kraus.conj().T) - np.eye(kraus.shape[0]))))
+	# angle = 0.3 # only for debugging purposes
+	# kraus = expm(-1j * angle * H) # only for debugging purposes
+	# print("Unitarity of Kraus\n{}".format(np.linalg.norm(np.dot(kraus, kraus.conj().T) - np.eye(kraus.shape[0]))))
+	kraus = expm(-1j * H)
 	kraus_dict = [(tuple(list(range(nqubits))), kraus[np.newaxis, :, :])]
 	# print("Kraus of dimensions {} corresponding to the CG1D was computed in {} seconds.".format(kraus.shape, timer() - start))
 	return kraus_dict

@@ -60,7 +60,8 @@ def CG1DModel(n_factors, angle, mean_correlation_length, cutoff, nqubits):
 	dim = np.power(2, nqubits, dtype = int)
 	interaction_range = get_interactions(n_factors, mean_correlation_length, cutoff)
 	# supports = RandomSupport(nqubits, interaction_range)
-	supports = [(q, ) for q in range(nqubits)] + GenerateSupport(nqubits, interaction_range, cutoff=cutoff)
+	# supports = [(q, ) for q in range(nqubits)] + GenerateSupport(nqubits, interaction_range, cutoff=cutoff)
+	supports = GenerateSupport(nqubits, interaction_range, cutoff=cutoff)
 	# supports = [(0,), (1,), (2,), (3,), (4,), (5,), (6,)] # only for debugging purposes
 	interaction_range = [len(supp) for supp in supports]
 

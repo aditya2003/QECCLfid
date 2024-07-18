@@ -75,7 +75,7 @@ def CG1DModel(n_factors, angle, mean_correlation_length, cutoff, nqubits):
 		# local_term = np.array([[1, 0], [0, -1]], dtype = np.complex128) # Z rotation on qubit m. Only for debugging purposes.
 		extended_operator = extend_operator(np.array(supports[m], dtype=int), local_term, nqubits)
 				
-		H = H + angle / dim * extended_operator
+		H = H + angle / interaction_range[m] * extended_operator
 
 	# check_hermiticity(H, "Hermiticity of H: H - H^dag")
 	# Exponentiate the Hamiltonian

@@ -65,7 +65,10 @@ def CG1DModelPauli(angle, cutoff, qcode):
 	for w in range(1, cutoff + 1):
 		print("Weight {} terms".format(w))
 		pauli_ops = qcode.PauliOperatorsLST[qcode.group_by_weight[w]]
-		coeffs = np.power(0.5, w) * np.random.uniform(-2, 2, size=(qcode.group_by_weight[w].size,))
+		# coeffs = np.power(0.5, w) * np.random.uniform(-2, 2, size=(qcode.group_by_weight[w].size,))
+
+		coeffs = np.log10(-np.random.uniform(2*w, 2*w+4, size=(qcode.group_by_weight[w].size,)))
+
 		# coeffs = 1/qcode.group_by_weight[w].size * np.ones(qcode.group_by_weight[w].size, dtype = np.double)
 		# mask = np.any(np.logical_or((pauli_ops == 1), (pauli_ops == 2)), axis=1)
 		# coeffs[mask] = coeffs[mask] / np.power(10, w)
@@ -73,6 +76,9 @@ def CG1DModelPauli(angle, cutoff, qcode):
 			pauli_op = pauli_ops[i, :]
 			print("c = {}, P = {}".format(coeffs[i], pauli_op))
 			H = H + coeffs[i] * PauliTensor(pauli_op).reshape(dim, dim)
+
+	# Normalize H to norm 1.
+	H = H / np.linalg.norm(H)
 	
 	kraus = expm(-1j * angle * H)
 	kraus_dict = [(tuple(list(range(qcode.N))), kraus[np.newaxis, :, :])]

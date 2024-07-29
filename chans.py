@@ -2,7 +2,7 @@ import numpy as np
 from timeit import default_timer as timer
 from define.QECCLfid.utils import Dagger
 from define.QECCLfid.utils import Kron
-from define.QECCLfid.ising import Ising, CG1DModel
+from define.QECCLfid.ising import Ising, CG1DModel, CG1DModelPauli
 from define.QECCLfid.sum_unitaries import SumUnitaries
 from define.QECCLfid.cptps import CorrelatedCPTP
 from define.QECCLfid.ckraus import AdversarialRotKraus
@@ -26,7 +26,8 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 
 	elif method == "cg1d":
 		(angle, cutoff, n_maps, mean) = params[:4]
-		kraus_dict = CG1DModel(int(n_maps), angle, mean, int(cutoff), int(qcode.N))
+		# kraus_dict = CG1DModel(int(n_maps), angle, mean, int(cutoff), int(qcode.N))
+		kraus_dict = CG1DModelPauli(angle, int(cutoff), qcode)
 
 	elif method == "corr_cptp":
 		(angle, cutoff, n_maps, mean) = params[:4]
@@ -55,6 +56,11 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 	(chi, kraus_theta_chi_dict) = NoiseReconstruction(qcode, kraus_dict, compose_with_pauli_rate=compose_with_pauli_rate, max_weight=None)
 	print("\033[2mCHI was constructed in %d seconds.\033[0m" % (timer() - click))
 
+	# test_ops = [0, 100, 200, 300, 400, 500]
+	# print("Chi Matrix entries for operators")
+	# for op in test_ops:
+	# 	print("P = {}: \\chi_P,P = {}".format(qcode.PauliOperatorsLST[op, :], chi[op]))
+
 	click = timer()
 	compose_with_pauli = 0
 	if (compose_with_pauli_rate > 0):
@@ -62,6 +68,11 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 	ptm = ConstructPTM(qcode, kraus_theta_chi_dict, compose_with_pauli=compose_with_pauli)
 	print("\033[2mPTM was constructed in {} seconds.\033[0m\n".format(timer() - click))
 	# print("\033[2mProcess[0, 0] = {}\033[0m".format(ptm[0, 0]))
+
+	# test_ops = [0, 10, 20, 30, 40, 50]
+	# print("PTM Matrix entries for operators")
+	# for op in test_ops:
+	# 	print("P = {}: \\ptm_P,P = {}".format(qcode.PauliOperatorsLST[op, :], ptm[op, op]))
 
 	# if (CHI_PTM_Tests(chi, ptm, kraus_dict, kraus_dict_adj, qcode, compare_against_old = 0) == 0):
 	# 	print("PTM test failed.")

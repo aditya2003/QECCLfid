@@ -2,9 +2,10 @@ import numpy as np
 from numpy.linalg import norm
 from scipy.linalg import expm
 from timeit import default_timer as timer
-from define.QECCLfid.utils import extend_operator, get_interactions, RandomSupport, GenerateSupport, check_hermiticity
-from define.randchans import RandomHermitian
+from define.QECCLfid.utils import extend_operator, get_interactions, RandomSupport, GenerateSupport, check_hermiticity, PauliTensor
+from define.randchans import RandomHermitian, RandomPauli
 from define import globalvars as gv
+from define.qcode import PrepareSyndromeLookUp
 
 def Ising(J, mu, time, qcode):
 	r"""
@@ -43,6 +44,37 @@ def Ising(J, mu, time, qcode):
 	kraus_dict = {0:(tuple(range(qcode.N)), [kraus])}
 	return kraus_dict
 
+
+def CG1DModelPauli(angle, cutoff, qcode):
+	r"""
+	
+	Unitary error U derived from exponentiating a Hamiltonian H: U = exp(i H theta)
+	where H is a sum of local terms: H = h1 + h2 + ... + hM
+		  M : cutoff
+		  h1 = sum of single body Pauli terms with uniform random Coefficients
+		  h2 = sum of two-body Pauli terms with uniform random Coefficients
+		  ...
+		  hM = sum of M-body Pauli terms
+	"""
+	
+	if qcode.group_by_weight is None:
+		PrepareSyndromeLookUp(qcode)
+
+	dim = np.power(2, qcode.N, dtype = int)
+	H = np.zeros((dim, dim), dtype = np.complex128)
+	for w in range(1, cutoff + 1):
+		print("Weight {} terms".format(w))
+		coeffs = np.random.uniform(-1, 1, size=(qcode.group_by_weight[w].size,))
+		for i in range(qcode.group_by_weight[w].size):
+			pauli_op = qcode.PauliOperatorsLST[qcode.group_by_weight[w][i]]
+			print("P = {}".format(pauli_op))
+			H = H + coeffs[i] * PauliTensor(pauli_op).reshape(dim, dim)
+	
+	kraus = expm(-1j * angle * H)
+	kraus_dict = [(tuple(list(range(qcode.N))), kraus[np.newaxis, :, :])]
+	return kraus_dict
+
+
 def CG1DModel(n_factors, angle, mean_correlation_length, cutoff, nqubits):
 	r"""
 	
@@ -60,26 +92,31 @@ def CG1DModel(n_factors, angle, mean_correlation_length, cutoff, nqubits):
 	dim = np.power(2, nqubits, dtype = int)
 	interaction_range = get_interactions(n_factors, mean_correlation_length, cutoff)
 	# supports = RandomSupport(nqubits, interaction_range)
-	# supports = [(q, ) for q in range(nqubits)] + GenerateSupport(nqubits, interaction_range, cutoff=cutoff)
-	supports = GenerateSupport(nqubits, interaction_range, cutoff=cutoff)
-	# supports = [(0,), (1,), (2,), (3,), (4,), (5,), (6,)] # only for debugging purposes
+	supports = 3 * [(q, ) for q in range(nqubits)] + [(i, j) for i in range(nqubits) for j in range(i)]
+	 # + RandomSupport(nqubits, interaction_range)
+	# supports = [(q, ) for q in range(nqubits)] + [(i, j) for i in range(nqubits) for j in range(i)]
+	# supports = GenerateSupport(nqubits, interaction_range, cutoff=cutoff)
+	# supports = [(0, 1), (1, 2, 3)] # only for debugging purposes
 	interaction_range = [len(supp) for supp in supports]
 
 	print("CG1D Model describing a Hamiltonian acting on {}.".format(supports))
 
+	# local_terms = [np.loadtxt("/home/pavi/Documents/IQC/chbank/cg1d/test/test_cg1d_split/h1.txt"), np.loadtxt("/home/pavi/Documents/IQC/chbank/cg1d/test/test_cg1d_split/h2.txt")]
 	# Compute the global Hamiltonain H as a sum of random local terms.
 	H = np.zeros((dim, dim), dtype = np.complex128)
 	for m in range(len(interaction_range)):
 		dim = np.power(2, interaction_range[m], dtype = int)
-		local_term = RandomHermitian(dim)
+		# local_term = RandomHermitian(dim)
+		local_term = RandomPauli(interaction_range[m])
+		# local_term = local_terms[m]
 		# local_term = np.array([[1, 0], [0, -1]], dtype = np.complex128) # Z rotation on qubit m. Only for debugging purposes.
 		extended_operator = extend_operator(np.array(supports[m], dtype=int), local_term, nqubits)
 				
-		H = H + angle / interaction_range[m] * extended_operator
+		H = H + angle * extended_operator
 
 	# check_hermiticity(H, "Hermiticity of H: H - H^dag")
 	# Exponentiate the Hamiltonian
-	start = timer()
+	# start = timer()
 	# angle = 0.3 # only for debugging purposes
 	# kraus = expm(-1j * angle * H) # only for debugging purposes
 	# print("Unitarity of Kraus\n{}".format(np.linalg.norm(np.dot(kraus, kraus.conj().T) - np.eye(kraus.shape[0]))))

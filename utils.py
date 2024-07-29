@@ -8,6 +8,10 @@ from define.QECCLfid.contract import OptimalEinsum
 import string
 # from numba import njit
 
+def flatten2d(list_of_lists):
+	# Flatten a list of lists into a list
+	return [elem for lst in list_of_lists for elem in lst]
+
 def ConvertToDecimal(digits, base):
 	# Convert a number represented in a given base to its decimal form (base 10).
 	decimal = np.sum(digits[::-1] * np.power(base, np.arange(digits.size, dtype = np.int64), dtype = np.int64))
@@ -115,7 +119,7 @@ def get_interactions(n_maps, mean, cutoff):
 			interaction_range.append(n_q)
 	return interaction_range
 
-def check_hermiticity(M, message):
+def check_hermiticity(M, message="|M - M^dag| = "):
 	# Check if M - M^dag = 0
 	print("{}: {}".format(message, norm(M - M.conj().T)))
 	return None
@@ -145,6 +149,11 @@ def extend_operator(support_qubits, operator, nqubits):
 	# print("axes labels = {}".format(np.concatenate((support_qubits, complement_qubits, nqubits + support_qubits, complement_qubits + nqubits))))
 	# Order the axes according to the qubits in the system.
 	unordered_axes = np.concatenate((support_qubits, complement_qubits, nqubits + support_qubits, complement_qubits + nqubits))
+	
+	# unordered_axes = np.array(flatten2d([[2 * i, 2 * i + 1] for i in support_qubits] + [[2 * i, 2 * i + 1] for i in complement_qubits]), dtype=int)	
+	
+	# print("Unordered axes: {}".format(unordered_axes))
+	
 	ordering = np.argsort(unordered_axes)
 	extended_operator = extended_unordered.transpose(ordering)
 	

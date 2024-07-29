@@ -178,12 +178,12 @@ def NoiseReconstruction(qcode, kraus_dict, compose_with_pauli_rate=0, max_weight
 	# print("chi matrix diagonal entries\n{}".format(chi))
 
 	# Print the relative budgets of weight 0, 1, 2 and 3 errors.
-	budgets = np.zeros(max_weight, dtype = np.double)
-	for w in range(max_weight):
+	budgets = np.zeros(max_weight + 1, dtype = np.double)
+	for w in range(max_weight + 1):
 		budgets[w] = np.sum(chi[qcode.group_by_weight[w]])
 	budgets = budgets / np.sum(budgets) * 100
-	for w in range(max_weight):
-		print("\033[2mFraction of weight %d errors: %.3e %%.\033[0m" % (w, budgets[w]))
+	for w in range(max_weight + 1):
+		print("\033[2mFraction of weight %d errors: %.3e %%. %g <= p_%d <= %g\033[0m" % (w, budgets[w], np.min(np.real(chi[qcode.group_by_weight[w]])), w, np.max(np.real(chi[qcode.group_by_weight[w]]))))
 	
 	atol = 1E-10
 	if ((np.any(np.real(chi) < -atol)) or (np.real(np.sum(chi)) >= 1 + atol)):

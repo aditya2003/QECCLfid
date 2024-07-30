@@ -67,7 +67,7 @@ def CG1DModelPauli(angle, cutoff, qcode):
 		pauli_ops = qcode.PauliOperatorsLST[qcode.group_by_weight[w]]
 		# coeffs = np.power(0.5, w) * np.random.uniform(-2, 2, size=(qcode.group_by_weight[w].size,))
 
-		coeffs = np.log10(-np.random.uniform(2*w, 2*w+4, size=(qcode.group_by_weight[w].size,)))
+		coeffs = np.power(0.1, np.random.normal(w-1, 1, size=(qcode.group_by_weight[w].size,)))
 
 		# coeffs = 1/qcode.group_by_weight[w].size * np.ones(qcode.group_by_weight[w].size, dtype = np.double)
 		# mask = np.any(np.logical_or((pauli_ops == 1), (pauli_ops == 2)), axis=1)

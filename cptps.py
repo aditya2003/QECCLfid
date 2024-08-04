@@ -42,8 +42,8 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUn
 	"""
 	# print("Sum of CPTP maps:\nmean = {}, cutoff = {}, n_maps = {}".format(mean, cutoff, n_maps))
 	interaction_range = get_interactions(n_maps, mean, cutoff)
-	# interaction_range = [3, 3, 3, 3, 3, 3, 3, 2] # Only for debugging purposes.
-	# interaction_range = [1, 1, 1, 1, 1, 1, 1] # Only for debugging purposes.
+	# interaction_range = [3, 3, 3, 2, 2, 1] # Only for debugging purposes.
+	# interaction_range = [2] # Only for debugging purposes.
 	
 	n_nontrivial_maps = len(interaction_range)
 	# print("Range of interactions : {}".format(interaction_range))
@@ -54,11 +54,11 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUn
 	else:
 		# nmaps_per_qubit = max(0.1 * n_nontrivial_maps, 1)
 		supports = GenerateSupport(qcode.N, interaction_range, cutoff=cutoff)
-		# supports = RandomSupport(n_nontrivial_maps, qcode.N, interaction_range)
+		# supports = RandomSupport(qcode.N, interaction_range)
+		# supports = [(0,5)] # Only for debugging purposes.
 		interaction_range = [len(supp) for supp in supports]
 		# print("Range of interactions : {}".format(interaction_range))
-		# supports = [(0,), (1,), (2,), (3,), (4,), (5,), (6,)] # Only for debugging purposes.
-
+		
 		non_trivial_channels = [None for m in range(n_nontrivial_maps)]
 		for m in range(n_nontrivial_maps):
 			n_q = interaction_range[m]

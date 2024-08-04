@@ -55,9 +55,12 @@ def Chi_Element_Diag_Partial(map_start, map_end, mem_start, theta_channels, krau
 
 def Theta_to_Chi_Elements(paulis, kraus_theta_chi_dict):
 	# Compute the chi matrix elements for a list of Paulis
+	start = timer()
 	chi_elements = np.zeros(paulis.shape[0], dtype = np.double)
 	for p in range(paulis.shape[0]):
 		chi_elements[p] = np.real(ThetaToChiElement(paulis[p, :], paulis[p, :], kraus_theta_chi_dict))
+		# print("[{}s]: Chi element for p = {}.".format(timer() - start, p))
+	
 	# print("chi_elements = {}".format(chi_elements))
 	return chi_elements
 
@@ -115,7 +118,7 @@ def Chi_Element_Diag(kraus_dict, paulis, compose_with_pauli_rate=0, n_cores=None
 	chi_diag_elements_chunks = pqdm(args, Theta_to_Chi_Elements, n_jobs = n_cores, ascii=True, colour='CYAN', desc = "Chi Matrix elements", argument_type = 'args')
 	
 	###########
-	# Only for decoding purposes
+	# Only for debugging purposes
 	# chi_diag_elements_chunks = []
 	# for i in range(n_cores):
 	# 	chi_diag_elements_chunks.append(Theta_to_Chi_Elements(*args[i]))
@@ -144,7 +147,10 @@ def KraussToChi(kraus_dict, nrops):
 		network = [(kraus_support, kraus.conj().T.reshape([2, 2] * support_size))] + [((q,), PauliMats[nrops[p, q], :, :]) for q in range(nqubits) if nrops[p, q] > 0]
 		(__, chi_right) = ContractTensorNetwork(network, end_trace=1, use_einsum=1)
 		chi[p] = np.real(chi_left * chi_right)
-	chi = chi / np.power(4, nqubits)
+		# if (p == 0):
+		# 	print("kraus.reshape(4,4) = {}".format(kraus.reshape(4,4)))
+		# 	print("Chi_0,0 = {} = {} x {} = {}".format(chi_left, np.trace(kraus.reshape(4,4)), chi_right,np.trace(kraus.conj().T.reshape(4,4))))
+	chi = chi / np.power(4, support_size)
 	print("Chi computed in {} seconds.\n{}".format(timer() - start, chi))
 	return chi
 

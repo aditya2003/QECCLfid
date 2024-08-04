@@ -80,7 +80,7 @@ def ContractTensorNetwork(network, end_trace=0, use_einsum=1):
 		operators = [op for (__, op) in network]
 		contracted_operator = NCon(operators, left, right)
 	contracted_network = (contracted_support, contracted_operator)
-	# print("Contraction was done in %.3f seconds using %d." % (timer() - start, use_einsum))
+	# print("Contraction was done in %.3f seconds using %s." % (timer() - start, ["ncon", "numpy"][use_einsum]))
 	return contracted_network
 
 def max_tensor_index(contraction_schedule, free_labels):

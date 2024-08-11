@@ -149,14 +149,14 @@ def ThetaToChiElement(pauli_op_i, pauli_op_j, kraus_theta_chi_dict):
 	nq = pauli_op_i.size
 	theta_dict = [(supp_theta, theta) for (__, supp_theta, __, __, theta) in kraus_theta_chi_dict]
 
-	# print("theta_dict = {}".format(theta_dict))
+	# print("theta_dict\n{}".format([(supp, theta.shape) for (supp, theta) in theta_dict]))
 	
 	Pj = [((q,), PauliTensor(pauli_op_j[q, np.newaxis])) for q in range(nq)]
 	PjT = [((q,), (-1)**(int(pauli_op_j[q] == 2)) * PauliTensor(pauli_op_j[q, np.newaxis])) for q in range(nq)]
 	Pi = [((nq + q,), PauliTensor(pauli_op_i[q, np.newaxis])) for q in range(nq)]
 	
-	# print("Calling ContractTensorNetwork on\n\ttheta_dict sizes: {}".format([supp for (supp, __) in theta_dict]))
-	(__, chi_elem) = ContractTensorNetwork(theta_dict + PjT + Pi, end_trace=1)
+	# print("Calling ContractTensorNetwork on\n\ttheta_dict sizes: {}".format([supp for (supp, __) in theta_dict + PjT + Pi]))
+	(__, chi_elem) = ContractTensorNetwork(theta_dict + PjT + Pi, end_trace=1, verbose=False)
 	# chi_elem = 0 # For debugging purposes.
 	chi_elem /= 4**nq
 

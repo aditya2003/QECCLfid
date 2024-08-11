@@ -1,10 +1,10 @@
 import cython
 import numpy as np
 from ncon import ncon
-# import cotengra as ctg
+import cotengra as ctg
 from timeit import default_timer as timer
 from define.QECCLfid.unique import SupportToLabel
-# from unique import SupportToLabel # only for decoding purposes.
+# from unique import SupportToLabel # only for debugging purposes.
 
 def OptimalEinsum(scheme, ops, opt = "greedy", verbose=0):
 	# Contract a tensor network using einsum supplemented with its optimization tools.
@@ -16,7 +16,7 @@ def OptimalEinsum(scheme, ops, opt = "greedy", verbose=0):
 	return prod
 
 
-def ContractTensorNetwork(network, end_trace=0, use_einsum=1):
+def ContractTensorNetwork(network, end_trace=0, method="einsum", verbose=False):
 	# Compute the trace of a tensor network.
 	interactions = [sup for (sup, __) in network]
 	# print("{} interactions\n{}".format(len(interactions), interactions))
@@ -69,18 +69,30 @@ def ContractTensorNetwork(network, end_trace=0, use_einsum=1):
 	# print("right\n{}".format(right))
 
 	# Contract the network using einsum
-	# start = timer()
+	if (verbose):
+		start = timer()
+	
 	contracted_support = tuple([q for q in qubits])
 	if (max_tensor_index(left, right) >= 52):
-		use_einsum = 0
+		if (method == "einsum"):
+			method = "cotengra"
 
-	if (use_einsum == 1):
+	if (method == "einsum"):
 		contracted_operator = np.einsum(*scheme, optimize="greedy")
 	else:
 		operators = [op for (__, op) in network]
-		contracted_operator = NCon(operators, left, right)
+		if (method == "ncon"):
+			contracted_operator = NCon(operators, left, right)
+		else:
+			if not (method == "cotengra"):
+				print("Invalid method for tensor contraction. Defaulting to use Cotengra.")
+			contracted_operator = Cotengra(operators, left, right)
+		
 	contracted_network = (contracted_support, contracted_operator)
-	# print("Contraction was done in %.3f seconds using %s." % (timer() - start, ["ncon", "numpy"][use_einsum]))
+	
+	if (verbose):
+		print("Contraction was done in %.3f seconds using %s." % (timer() - start, ["ncon", "numpy"][use_einsum]))
+	
 	return contracted_network
 
 def max_tensor_index(contraction_schedule, free_labels):
@@ -119,16 +131,22 @@ def NCon(operators, contraction_schedule, free_labels):
 def Cotengra(operators, contraction_schedule, free_labels):
 	# Contract a tensor network using Cotegra.
 	# https://cotengra.readthedocs.io/en/latest/basics.html
-	labels_cotengra = list(map(ctg.get_symbol, np.unique([lab for interac in contraction_schedule for lab in interac] + free_labels)))
+	# print("contraction_schedule = {}".format(contraction_schedule))
+	labels_cotengra = {ax: ctg.get_symbol(ax) for ax in np.unique([lab for interac in contraction_schedule for lab in interac] + free_labels)}
+	# list(map(ctg.get_symbol, np.unique([lab for interac in contraction_schedule for lab in interac] + free_labels)))
+	# print("labels_cotengra = {}".format(labels_cotengra))
 	
-	contraction_schedule_cotengra = [list(map(ctg.get_symbol, interac)) for interac in contraction_schedule]
-	free_labels_cotengra = list(map(ctg.get_symbol, free_labels))
+	# contraction_schedule_cotengra = [list(map(ctg.get_symbol, interac)) for interac in contraction_schedule]
+	contraction_schedule_cotengra = [[labels_cotengra[ax] for ax in interac] for interac in contraction_schedule]
+	
+	free_labels_cotengra = [labels_cotengra[ax] for ax in free_labels]
 	size_dict = {}
 	for (i, interac) in enumerate(contraction_schedule_cotengra):
 	    for a in range(len(interac)):
-	    	size_dict[ctg.get_symbol(interac[a])] = operators[i].shape[a]
+	    	# print("Symbol {} has size {}".format(interac[a], operators[i].shape[a]))
+	    	size_dict[interac[a]] = operators[i].shape[a]
 
-	opt = ctg.HyperOptimizer()
+	opt = ctg.pathfinders.path_basic.GreedyOptimizer()
 	tree = opt.search(contraction_schedule_cotengra, free_labels_cotengra, size_dict)
 	result = tree.contract(operators)
 
@@ -136,20 +154,28 @@ def Cotengra(operators, contraction_schedule, free_labels):
 
 if __name__ == '__main__':
 	# We want to test the contraction tool for tensor networks.
-	A = np.random.randn(2, 2, 2, 2)
-	B = np.random.randn(2, 2)
-	C = np.random.randn(2, 2, 2, 2)
-	D = np.random.randn(2, 2, 2, 2, 2, 2)
-	E = np.random.randn(2, 2, 2, 2)
-	F = np.random.randn(2, 2, 2, 2, 2, 2)
-	G = np.random.randn(2, 2, 2, 2, 2, 2)
-	H = np.random.randn(2, 2, 2, 2, 2, 2, 2, 2)
-	I = np.random.randn(2, 2)
+
+	supports = [(0, 7), (1, 8), (2, 9), (3, 10), (4, 11), (5, 12), (6, 13)]
+	operators = [np.random.randn(*([2,2] * len(supp))) for supp in supports]
+	network = list(zip(supports, operators))
+
+	# A = np.random.randn(2, 2, 2, 2)
+	# B = np.random.randn(2, 2)
+	# C = np.random.randn(2, 2, 2, 2)
+	# D = np.random.randn(2, 2, 2, 2, 2, 2)
+	# E = np.random.randn(2, 2, 2, 2)
+	# F = np.random.randn(2, 2, 2, 2, 2, 2)
+	# G = np.random.randn(2, 2, 2, 2, 2, 2)
+	# H = np.random.randn(2, 2, 2, 2, 2, 2, 2, 2)
+	# I = np.random.randn(2, 2)
 	
-	network = [((0,1), A), ((1,), B), ((1,2), C), ((0,2,3), D), ((1,3), E), ((1,2,3), F), ((0,1,3), G), ((0,1,2,3), H), ((3,), I)]
+	# network = [((0,1), A), ((1,), B), ((1,2), C), ((0,2,3), D), ((1,3), E), ((1,2,3), F), ((0,1,3), G), ((0,1,2,3), H), ((3,), I)]
 	
-	(contracted_support, contracted_operator) = ContractTensorNetwork(network, end_trace=1, use_einsum=1)
+	(contracted_support, contracted_operator) = ContractTensorNetwork(network, end_trace=1, method="einsum")
 	print("Contracted Tensor Network on Einsum is supported on {}:\n{}.".format(contracted_support, contracted_operator))
 
-	(contracted_support, contracted_operator) = ContractTensorNetwork(network, end_trace=1, use_einsum=0)
-	print("Contracted Tensor Network on NCon is supported on {}:\n{}.".format(contracted_support, contracted_operator))
+	(contracted_support, contracted_operator) = ContractTensorNetwork(network, end_trace=1, method="cotengra")
+	print("Contracted Tensor Network on Cotengra is supported on {}:\n{}.".format(contracted_support, contracted_operator))
+
+	(contracted_support, contracted_operator) = ContractTensorNetwork(network, end_trace=1, method="ncon")
+	print("Contracted Tensor Network on ncon is supported on {}:\n{}.".format(contracted_support, contracted_operator))

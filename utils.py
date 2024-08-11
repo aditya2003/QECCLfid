@@ -67,10 +67,13 @@ def GenerateSupport(nqubits, interaction_ranges, cutoff=4):
 	nmaps = len(interaction_ranges)
 	# A matrix of variables, where each row corresponds to an interaction while each column to a qubit.
 	# The (i,j) entry of this matrix is 1 if the i-th interaction involves the j-th qubit.
-	mat = cp.Variable(shape=(nmaps, nqubits), boolean = True)
+	mat = cp.Variable(shape=(nmaps, nqubits), boolean=True)
 
 	# These are hard constraints.
 	constraints = []
+	# Each variable has to be binary
+	# constraints = [mat[i,j] <= 1 for i in range(nmaps) for j in range(nqubits)]
+	# constraints = [mat[i,j] >= 0 for i in range(nmaps) for j in range(nqubits)]
 	# Each qubit to be part of at least one map.
 	col_sums = cp.sum(mat, axis=0, keepdims=True)
 	constraints.append(col_sums >= 1)
@@ -85,9 +88,10 @@ def GenerateSupport(nqubits, interaction_ranges, cutoff=4):
 
 	# Solve the optimization problem.
 	problem = cp.Problem(objective,constraints)
-	problem.solve(solver = 'ECOS_BB', verbose=False)
+	problem.solve(solver = 'GLPK_MI', verbose=False)
 
 	if ("optimal" in problem.status):
+		# print("Matrix = {}".format(mat.value))
 		if (not (problem.status == "optimal")):
 			print("\033[2mWarning: The problem status is \"{}\".\033[0m".format(problem.status))
 		supports = [tuple(np.nonzero(np.round(row).astype(np.int64))[0]) for row in mat.value]

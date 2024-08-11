@@ -115,13 +115,16 @@ def Chi_Element_Diag(kraus_dict, paulis, compose_with_pauli_rate=0, n_cores=None
 	# Using pqdm: https://pqdm.readthedocs.io/en/latest/usage.html
 	# print("paulis[::{}, :] = {}".format(n_cores, np.array_split(paulis, n_cores, axis=0)))
 	args=list(zip(np.array_split(paulis, n_cores, axis=0), [kraus_theta_chi_dict for __ in range(n_cores)]))
+	# print("Args\n{}".format(args))
 	chi_diag_elements_chunks = pqdm(args, Theta_to_Chi_Elements, n_jobs = n_cores, ascii=True, colour='CYAN', desc = "Chi Matrix elements", argument_type = 'args')
 	
 	###########
 	# Only for debugging purposes
 	# chi_diag_elements_chunks = []
 	# for i in range(n_cores):
-	# 	chi_diag_elements_chunks.append(Theta_to_Chi_Elements(*args[i]))
+	# 	output_core = Theta_to_Chi_Elements(*args[i])
+	# 	print("Output from core {}\n{}".format(i, output_core))
+	# 	chi_diag_elements_chunks.append(output_core)
 	###########
 
 	# print("chi_diag_elements_chunks\n{}".format(chi_diag_elements_chunks))
@@ -151,7 +154,7 @@ def KraussToChi(kraus_dict, nrops):
 		# 	print("kraus.reshape(4,4) = {}".format(kraus.reshape(4,4)))
 		# 	print("Chi_0,0 = {} = {} x {} = {}".format(chi_left, np.trace(kraus.reshape(4,4)), chi_right,np.trace(kraus.conj().T.reshape(4,4))))
 	chi = chi / np.power(4, support_size)
-	print("Chi computed in {} seconds.\n{}".format(timer() - start, chi))
+	# print("Chi computed in {} seconds.\n{}".format(timer() - start, chi))
 	return chi
 
 def NoiseReconstruction(qcode, kraus_dict, compose_with_pauli_rate=0, max_weight=None):

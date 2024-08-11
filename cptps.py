@@ -1,9 +1,9 @@
 import random
 import numpy as np
-import scipy as sp # only for debugging purposes.
+# import scipy as sp # only for debugging purposes.
 from define.QECCLfid.utils import SamplePoisson, get_interactions, RandomSupport, GenerateSupport
 from define.randchans import RandomUnitary
-from define import globalvars as gv
+# from define import globalvars as gv
 
 def HermitianConjugate(M):
 	return M.conj().T
@@ -42,47 +42,50 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUn
 	"""
 	# print("Sum of CPTP maps:\nmean = {}, cutoff = {}, n_maps = {}".format(mean, cutoff, n_maps))
 	interaction_range = get_interactions(n_maps, mean, cutoff)
-	# interaction_range = [3, 3, 3, 2, 2, 1] # Only for debugging purposes.
-	# interaction_range = [2] # Only for debugging purposes.
+	# supports = [(q, ) for q in range(qcode.N)] + GenerateSupport(qcode.N, interaction_range, cutoff=cutoff)
+	supports = [(q, ) for q in range(qcode.N)] + RandomSupport(qcode.N, interaction_range)
+
+	# supports = [(0, 5, 4), (5, 1, 3), (3, 0, 6), (0, 5, 1), (1, 4, 0), (6,), (1, 3), (4,)]
+	# # If the Kraus list is empty, then append the identity error on some qubit.
+	if len(supports) == 0:
+		print("!!! Warning: no maps were generated. Forcing random single qubit interactions.")
+		supports = [(q, ) for q in range(qcode.N)]
 	
-	n_nontrivial_maps = len(interaction_range)
+	interaction_range = [len(supp) for supp in supports]
 	# print("Range of interactions : {}".format(interaction_range))
+	
+	non_trivial_channels = [None for ir in interaction_range]
+	for m in range(len(interaction_range)):
+		n_q = interaction_range[m]
 
-	# If the Kraus list is empty, then append the identity error on some qubit.
-	if n_nontrivial_maps == 0:
-		non_trivial_channels = {0: ((0,), [np.eye(2, dtype = np.complex128)])}
-	else:
-		# nmaps_per_qubit = max(0.1 * n_nontrivial_maps, 1)
-		supports = GenerateSupport(qcode.N, interaction_range, cutoff=cutoff)
-		# supports = RandomSupport(qcode.N, interaction_range)
-		# supports = [(0,5)] # Only for debugging purposes.
-		interaction_range = [len(supp) for supp in supports]
-		# print("Range of interactions : {}".format(interaction_range))
-		
-		non_trivial_channels = [None for m in range(n_nontrivial_maps)]
-		for m in range(n_nontrivial_maps):
-			n_q = interaction_range[m]
-
-			# For random Unitary channels: set the only Kraus operator to be the random Unitary on n_q qubits.
-			if (isUnitary == 1):
-				# print("Rotation angle for map {} is {}.".format(m, rotation_angle))
-				rand_unitary = RandomUnitary(rotation_angle / np.power(2, n_q), np.power(2, n_q), method="exp")
-				kraus = rand_unitary[np.newaxis, :, :]
-				#############
-				# Only for debugging purposes:
-				# print("Map {} is a rotation on {} about the Z axis".format(m, supports[m]))
-				# unitary_mat = sp.linalg.expm(-1j * 0.3 * np.array([[1, 0], [0, -1]], dtype = np.complex128))
-				# kraus = unitary_mat[np.newaxis, :, :]
-				#############
+		# For random Unitary channels: set the only Kraus operator to be the random Unitary on n_q qubits.
+		if (isUnitary == 1):
+			# print("Rotation angle for map {} is {}.".format(m, rotation_angle))
+			# rand_unitary = RandomUnitary(rotation_angle / np.power(2, n_q), np.power(2, n_q), method="exp")
+			# rand_unitary = RandomUnitary(rotation_angle / n_q, np.power(2, n_q), method="exp")
+			# scaling_factor = np.power(0.1, np.random.normal(n_q-1, 1))
+			if (n_q <= 2):
+				rand_unitary = RandomUnitary(rotation_angle * np.power(2, np.random.normal(0,1)), np.power(2, n_q), method="exp")
 			else:
-				rand_unitary = RandomUnitary(rotation_angle / np.power(2, n_q), np.power(8, n_q))
-				kraus = StineToKraus(rand_unitary)
+				rand_unitary = RandomUnitary(rotation_angle / n_q, np.power(2, n_q), method="exp")
+			kraus = rand_unitary[np.newaxis, :, :]
+			#############
+			# Only for debugging purposes:
+			# print("Map {} is a rotation on {} about the Z axis".format(m, supports[m]))
+			# unitary_mat = sp.linalg.expm(-1j * 0.3 * np.array([[1, 0], [0, -1]], dtype = np.complex128))
+			# kraus = unitary_mat[np.newaxis, :, :]
+			#############
+		else:
+			if (n_q > 1):
+				rotation_angle = rotation_angle * np.power(0.5, np.random.normal(n_q-1, 1))
+			rand_unitary = RandomUnitary(rotation_angle, np.power(8, n_q), mehod="exp")
+			kraus = StineToKraus(rand_unitary)
 
-			if (KrausTest(kraus) == 0):
-				print("Kraus test failed for the following channel.\n{}".format(kraus))
+		if (KrausTest(kraus) == 0):
+			print("Kraus test failed for the following channel.\n{}".format(kraus))
 
-			non_trivial_channels[m] = (supports[m], kraus)
-		print("Random channel generated with the following {} interactions\n{}.".format(n_nontrivial_maps, supports))
+		non_trivial_channels[m] = (supports[m], kraus)
+	print("Random channel generated with the following {} interactions\n{}.".format(len(interaction_range), supports))
 
 	return non_trivial_channels
 

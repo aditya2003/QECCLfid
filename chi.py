@@ -2,7 +2,7 @@ import time
 import numpy as np
 import ctypes as ct
 from tqdm import tqdm
-from pqdm.processes import pqdm
+#from pqdm.processes import pqdm
 from sys import getsizeof
 import multiprocessing as mp
 from psutil import virtual_memory
@@ -53,16 +53,15 @@ def Chi_Element_Diag_Partial(map_start, map_end, mem_start, theta_channels, krau
 	return None
 
 
-def Theta_to_Chi_Elements(paulis, kraus_theta_chi_dict):
+def Theta_to_Chi_Elements(paulis_chunk, pauli_chunk_indices, kraus_theta_chi_dict, chi_diag):
 	# Compute the chi matrix elements for a list of Paulis
 	start = timer()
-	chi_elements = np.zeros(paulis.shape[0], dtype = np.double)
-	for p in range(paulis.shape[0]):
-		chi_elements[p] = np.real(ThetaToChiElement(paulis[p, :], paulis[p, :], kraus_theta_chi_dict))
+	for p in range(paulis_chunk.shape[0]):
+		chi_diag[pauli_chunk_indices[p]] = np.real(ThetaToChiElement(paulis_chunk[p, :], paulis_chunk[p, :], kraus_theta_chi_dict))
 		# print("[{}s]: Chi element for p = {}.".format(timer() - start, p))
 	
-	# print("chi_elements = {}".format(chi_elements))
-	return chi_elements
+	# print("[{}s]: {} Chi elements computed.".format(timer() - start, pauli_chunk_indices.size, p))
+	return None
 
 
 def Chi_Element_Diag(kraus_dict, paulis, compose_with_pauli_rate=0, n_cores=None):
@@ -112,11 +111,27 @@ def Chi_Element_Diag(kraus_dict, paulis, compose_with_pauli_rate=0, n_cores=None
 		n_cores = min(n_cores, n_cores_ram)
 		print("Downsizing to {} cores since the total RAM available is only {} GB and each process needs {} GB.".format(n_cores, ram, theta_mem_size))
 
+	npauli = paulis.shape[0]
+	pauli_chunks = np.array_split(paulis, n_cores, axis=0)
+	pauli_indices = np.array_split(np.arange(npauli, dtype=int), n_cores)
+
+	chi_diag = mp.Array('d', range(npauli))
+	
+	processes = []
+	for p in range(n_cores):
+		processes.append(mp.Process(target=Theta_to_Chi_Elements, args=(pauli_chunks[p], pauli_indices[p], kraus_theta_chi_dict, chi_diag)))
+
+	for p in range(n_cores):
+		processes[p].start()
+
+	for p in range(n_cores):
+		processes[p].join()
+	
 	# Using pqdm: https://pqdm.readthedocs.io/en/latest/usage.html
 	# print("paulis[::{}, :] = {}".format(n_cores, np.array_split(paulis, n_cores, axis=0)))
-	args=list(zip(np.array_split(paulis, n_cores, axis=0), [kraus_theta_chi_dict for __ in range(n_cores)]))
+	# args=list(zip(np.array_split(paulis, n_cores, axis=0), [kraus_theta_chi_dict for __ in range(n_cores)]))
 	# print("Args\n{}".format(args))
-	chi_diag_elements_chunks = pqdm(args, Theta_to_Chi_Elements, n_jobs = n_cores, ascii=True, colour='CYAN', desc = "Chi Matrix elements", argument_type = 'args')
+	# chi_diag_elements_chunks = pqdm(args, Theta_to_Chi_Elements, n_jobs = n_cores, ascii=True, colour='CYAN', desc = "Chi Matrix elements", argument_type = 'args')
 	
 	###########
 	# Only for debugging purposes
@@ -128,9 +143,9 @@ def Chi_Element_Diag(kraus_dict, paulis, compose_with_pauli_rate=0, n_cores=None
 	###########
 
 	# print("chi_diag_elements_chunks\n{}".format(chi_diag_elements_chunks))
-	chi_diag = np.concatenate(tuple(chi_diag_elements_chunks))
+	# chi_diag = np.concatenate(tuple(chi_diag_elements_chunks))
 	# print("Pauli error probabilities:\n{}".format(chi_diag))
-	return (chi_diag, kraus_theta_chi_dict)
+	return (np.array(chi_diag), kraus_theta_chi_dict)
 
 def KraussToChi(kraus_dict, nrops):
 	# Compute the Chi matrix from the Kraus representation when we have only one Kraus operator.
@@ -186,13 +201,18 @@ def NoiseReconstruction(qcode, kraus_dict, compose_with_pauli_rate=0, max_weight
 		(chi, kraus_theta_chi_dict) = Chi_Element_Diag(kraus_dict, qcode.PauliOperatorsLST, compose_with_pauli_rate=compose_with_pauli_rate)
 	# print("chi matrix diagonal entries\n{}".format(chi))
 
-	# Print the relative budgets of weight 0, 1, 2 and 3 errors.
-	budgets = np.zeros(max_weight + 1, dtype = np.double)
+	# Compute different statistical properties of the probability distribution over weight w errors.
+	weight_stats = np.zeros((max_weight + 1, 4), dtype = np.double)
 	for w in range(max_weight + 1):
-		budgets[w] = np.sum(chi[qcode.group_by_weight[w]])
-	budgets = budgets / np.sum(budgets) * 100
+		weight_stats[w, 0] = np.sum(chi[qcode.group_by_weight[w]]) # Total probability of weight w errors
+		weight_stats[w, 1] = np.min(chi[qcode.group_by_weight[w]]) # Minimum probability of weight w errors
+		weight_stats[w, 2] = np.max(chi[qcode.group_by_weight[w]]) # Maximum probability of weight w errors
+		weight_stats[w, 3] = np.median(chi[qcode.group_by_weight[w]]) # Median probability of weight w errors
+	
+	# Convert total probability of weight - w errors into percentages.
+	weight_stats[:, 0] = weight_stats[:, 0] / np.sum(weight_stats[:, 0]) * 100
 	for w in range(max_weight + 1):
-		print("\033[2mFraction of weight %d errors: %.3e %%. %g <= p_%d <= %g\033[0m" % (w, budgets[w], np.min(np.real(chi[qcode.group_by_weight[w]])), w, np.max(np.real(chi[qcode.group_by_weight[w]]))))
+		print("\033[2mFraction of weight %d errors: %.3e %%. %g <= p_%d <= %g. Median: %g\033[0m" % (w, weight_stats[w, 0], weight_stats[w, 1], w, weight_stats[w, 2], weight_stats[w, 3]))
 	
 	atol = 1E-10
 	if ((np.any(np.real(chi) < -atol)) or (np.real(np.sum(chi)) >= 1 + atol)):

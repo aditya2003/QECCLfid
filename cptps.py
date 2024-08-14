@@ -44,7 +44,7 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUn
 	interaction_range = get_interactions(n_maps, mean, cutoff)
 	# supports = [(q, ) for q in range(qcode.N)] + GenerateSupport(qcode.N, interaction_range, cutoff=cutoff)
 	# supports = [(q, ) for q in range(qcode.N)] + RandomSupport(qcode.N, interaction_range)
-	supports = [(q, ) for q in range(qcode.N)] + [(i, j) for i in range(1, qcode.N - 1) for j in range(i)] + RandomSupport(qcode.N, interaction_range)
+	supports = [(q, ) for q in range(qcode.N)] + [(i, j) for i in range(1, qcode.N) for j in range(i)] + RandomSupport(qcode.N, interaction_range)
 	# supports = RandomSupport(qcode.N, interaction_range)
 
 	# supports = [(0, 5, 4), (5, 1, 3), (3, 0, 6), (0, 5, 1), (1, 4, 0), (6,), (1, 3), (4,)]

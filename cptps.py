@@ -43,8 +43,8 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUn
 	# print("Sum of CPTP maps:\nmean = {}, cutoff = {}, n_maps = {}".format(mean, cutoff, n_maps))
 	interaction_range = get_interactions(n_maps, mean, cutoff)
 	# supports = [(q, ) for q in range(qcode.N)] + GenerateSupport(qcode.N, interaction_range, cutoff=cutoff)
-	# supports = [(q, ) for q in range(qcode.N)] + RandomSupport(qcode.N, interaction_range)
-	supports = [(q, ) for q in range(qcode.N)] + [(i, j) for i in range(1, qcode.N) for j in range(i)] + RandomSupport(qcode.N, interaction_range)
+	supports = [(q, ) for q in range(qcode.N)] + RandomSupport(qcode.N, interaction_range)
+	# supports = [(q, ) for q in range(qcode.N)] + [(i, j) for i in range(1, qcode.N) for j in range(i)] + RandomSupport(qcode.N, interaction_range)
 	# supports = RandomSupport(qcode.N, interaction_range)
 
 	# supports = [(0, 5, 4), (5, 1, 3), (3, 0, 6), (0, 5, 1), (1, 4, 0), (6,), (1, 3), (4,)]
@@ -75,10 +75,7 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUn
 			# kraus = unitary_mat[np.newaxis, :, :]
 			#############
 		else:
-			if (n_q <= 2):
-				rand_unitary = RandomUnitary(rotation_angle * np.random.uniform(10,100), np.power(8, n_q), method="exp")
-			else:
-				rand_unitary = RandomUnitary(rotation_angle, np.power(8, n_q), method="exp")
+			rand_unitary = RandomUnitary(rotation_angle / n_q, np.power(8, n_q), method="exp")
 			
 			kraus = StineToKraus(rand_unitary)
 

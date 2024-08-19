@@ -66,7 +66,7 @@ def CorrelatedCPTP(rotation_angle, qcode, cutoff = 3, n_maps = 3, mean = 1, isUn
 			# rand_unitary = RandomUnitary(rotation_angle / np.power(2, n_q), np.power(2, n_q), method="exp")
 			# rand_unitary = RandomUnitary(rotation_angle / n_q, np.power(2, n_q), method="exp")
 			# scaling_factor = np.power(0.1, np.random.normal(n_q-1, 1))
-			rand_unitary = RandomUnitary(rotation_angle * np.random.uniform(1, 10), np.power(2, n_q), method="exp")
+			rand_unitary = RandomUnitary(rotation_angle / n_q, np.power(2, n_q), method="exp")
 			kraus = rand_unitary[np.newaxis, :, :]
 			#############
 			# Only for debugging purposes:

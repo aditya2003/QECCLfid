@@ -2,7 +2,7 @@ import numpy as np
 from scipy.special import comb
 from define.qcode import GetOperatorsForTLSIndex, GetOperatorsForLSTIndex, PrepareSyndromeLookUp
 from define.QECCLfid.chi import Chi_Element_Diag
-from define.QECCLfid.ptm import PTM_Element, get_Pauli_tensor, ExtractPTMElement
+from define.QECCLfid.ptm import PTM_Element, get_Pauli_tensor
 from define.QECCLfid.utils import Dot, Kron, Dagger, circular_shift
 # for debugging
 from define.QECCLfid.backup import get_Chielem_ii, get_PTMelem_ij

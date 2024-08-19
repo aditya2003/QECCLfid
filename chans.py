@@ -67,7 +67,7 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 		compose_with_pauli = 1
 	ptm = ConstructPTM(qcode, kraus_theta_chi_dict, compose_with_pauli=compose_with_pauli)
 	print("\033[2mPTM was constructed in {} seconds.\033[0m\n".format(timer() - click))
-	# print("\033[2mProcess[0, 0] = {}\033[0m".format(ptm[0, 0]))
+	print("\033[2mProcess[0, 0] = {}\033[0m".format(ptm[0, 0]))
 
 	# test_ops = [0, 10, 20, 30, 40, 50]
 	# print("PTM Matrix entries for operators")

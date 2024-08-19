@@ -130,7 +130,7 @@ def PTMAdjointTest(kraus, ptm):
 	return np.allclose(ptm.reshape(4**nq, 4**nq), ptm_adj.reshape(4**nq, 4**nq).T)
 
 
-def ExtractPTMElement(pauli_op_i, pauli_op_j, ptm, supp_ptm):
+def ExtractPTMElements(op_indices_core, ls_ops, phases, ptm_contracted, supp_ptm, nstabs, nlogs, ptm_vec):
 	# Compute the PTM element corresponding to a Pair of Pauli operators given a PTM matrix.
 	# Given G, we want to compute G_ij = << Pi | G | Pj >> where |P>> is the vector in the Pauli basis corresponding to the Pauli matrix P.
 	# In other words, |Pi>> is an indicator vector with a "1" at position x and 0 elsewhere.
@@ -138,25 +138,36 @@ def ExtractPTMElement(pauli_op_i, pauli_op_j, ptm, supp_ptm):
 	# x = 4**(n-1) * p(n-1) + ... + 4 * p1 + p0
 	# We want << i(1) i(2) ... i(2n) | A | j(1) j(2) ... j(2n) >>, where i(k) in {0, 1}.
 	# click = timer()
-	nq = pauli_op_i.shape[0]
+	
+	for k in op_indices_core:
+		(i, j) = (k // (nlogs * nstabs), k % (nlogs * nstabs))
 
-	trivial_action = 1
-	for q in range(nq):
-		if q not in supp_ptm:
-			trivial_action *= int(pauli_op_i[q] == pauli_op_j[q])
+		pauli_op_i = ls_ops[i, :]
+		phase_i = phases[i]
+		pauli_op_j = ls_ops[j, :]
+		phase_j = phases[j]
 
-	row_indices = []
-	col_indices = []
-	if (trivial_action != 0):
-		for q in supp_ptm:
-			row_indices.append(pauli_op_i[q])
-			col_indices.append(pauli_op_j[q])
-		ptm_ij = ptm[tuple(row_indices + col_indices)]
-	else:
-		ptm_ij = 0
+		nq = pauli_op_i.shape[0]
+
+		trivial_action = 1
+		for q in range(nq):
+			if q not in supp_ptm:
+				trivial_action *= int(pauli_op_i[q] == pauli_op_j[q])
+
+		row_indices = []
+		col_indices = []
+		if (trivial_action != 0):
+			for q in supp_ptm:
+				row_indices.append(pauli_op_i[q])
+				col_indices.append(pauli_op_j[q])
+			ptm_ij = ptm_contracted[tuple(row_indices + col_indices)]
+		else:
+			ptm_ij = 0
+
+		ptm_vec[k] = np.real(phases[i] * phases[j] * ptm_ij)
 
 	# print("PTM element extracted for Pi = {} and Pj = {} is {}.".format(pauli_op_i, pauli_op_j, ptm_ij))
-	return ptm_ij
+	return None
 
 def chi_to_ptm_pauli(pauli_chi_mat, nq):
 	# Convert a chi matrix of a Pauli channel to its PTM representation.
@@ -214,7 +225,11 @@ def ConstructPTM(qcode, kraus_theta_chi_dict, compose_with_pauli=0):
 	n_maps = len(kraus_theta_chi_dict)
 	(ls_ops, phases) = GetOperatorsForTLSIndex(qcode, range(nstabs * nlogs))
 	process = np.zeros((nlogs * nstabs, nlogs * nstabs), dtype=np.double)
-	
+	n_cores = mp.cpu_count()
+
+	ptm_vec = Array('d', range(nlogs * nstabs * nlogs * nstabs))
+	chunks = np.array_split(np.arange(nlogs * nstabs * nlogs * nstabs, dtype=int), n_cores)
+
 	if (n_maps > 1):
 		ptm_dict = []
 		for (supp, __, kraus, chi_pauli, __) in kraus_theta_chi_dict:
@@ -234,35 +249,40 @@ def ConstructPTM(qcode, kraus_theta_chi_dict, compose_with_pauli=0):
 		# print("Individual PTMs\n{}".format(ptm_dict))
 		# print("Number of nonzero elements in the contracted PTM\n{}".format(np.count_nonzero(ptm_contracted)))
 		
-		for k in tqdm(range(nlogs * nstabs * nlogs * nstabs), ascii = True, desc = "PTM elements: ", colour = "CYAN"):
-		# for k in range(nlogs * nstabs * nlogs * nstabs):
-			(i, j) = (k // (nlogs * nstabs), k % (nlogs * nstabs))
-			process[i, j] = np.real(phases[i] * phases[j] * ExtractPTMElement(ls_ops[i, :], ls_ops[j, :], ptm_contracted, supp_ptm))
+		# for k in tqdm(range(nlogs * nstabs * nlogs * nstabs), ascii = True, desc = "PTM elements: ", colour = "CYAN"):
+		# # for k in range(nlogs * nstabs * nlogs * nstabs):
+		# 	(i, j) = (k // (nlogs * nstabs), k % (nlogs * nstabs))
+		# 	process[i, j] = np.real(phases[i] * phases[j] * ExtractPTMElement(ls_ops[i, :], ls_ops[j, :], ptm_contracted, supp_ptm))
 
-	else:
-		kraus_dict = [(supp, kraus) for (supp, __, kraus, __, __) in kraus_theta_chi_dict]
-		n_cores = mp.cpu_count()
-		# print("multiprocessing.current_process() = {}".format(mp.current_process()))
-		# n_cores = 1
-		chunks = np.array_split(np.arange(nlogs * nstabs * nlogs * nstabs, dtype=int), n_cores)
-		ptm_vec = Array('d', range(nlogs * nstabs * nlogs * nstabs))
-		# ptm_vec = np.arange(nlogs * nstabs * nlogs * nstabs, dtype = np.double)
 		processes = []
 		for p in range(n_cores):
-			processes.append(Process(target=ComputePTMElement, args=(ptm_vec, kraus_dict, ls_ops, phases, chunks[p], nstabs, nlogs)))
-			# ComputePTMElement(ptm_vec, kraus_dict, ls_ops, phases, chunks[p], nstabs, nlogs)
+			processes.append(Process(target=ExtractPTMElements, args=(chunks[p], ls_ops, phases, ptm_contracted, supp_ptm, nstabs, nlogs, ptm_vec)))
 		for p in range(n_cores):
 			processes[p].start()
 		for p in range(n_cores):
 			processes[p].join()
-		
-		# Reshape the result.
-		process = 1 / np.power(2.0, qcode.N) *  np.array(ptm_vec).reshape(nstabs * nlogs, nstabs * nlogs)
 
+	else:
+		kraus_dict = [(supp, kraus) for (supp, __, kraus, __, __) in kraus_theta_chi_dict]
+		# print("multiprocessing.current_process() = {}".format(mp.current_process()))
+		# n_cores = 1
+		processes = []
+		for p in range(n_cores):
+			processes.append(Process(target=ComputePTMElement, args=(ptm_vec, kraus_dict, ls_ops, phases, chunks[p], nstabs, nlogs)))
+		for p in range(n_cores):
+			processes[p].start()
+		for p in range(n_cores):
+			processes[p].join()
+
+		ptm_vec = 1 / np.power(2.0, qcode.N) *  ptm_vec
+		
 		# process_list = []
 		# for ag in args:
 		# 	process_list.append(ComputePTMElement(*ag))
 		# process = 1 / np.power(2.0, qcode.N) * np.array(np.concatenate(tuple(process_list))).reshape(nstabs * nlogs, nstabs * nlogs)
+
+	# Reshape the result.
+	process = np.array(ptm_vec).reshape(nstabs * nlogs, nstabs * nlogs)
 
 	return process
 

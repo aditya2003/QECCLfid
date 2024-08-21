@@ -27,7 +27,7 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 	elif method == "cg1d":
 		(angle, cutoff, n_maps, mean) = params[:4]
 		# kraus_dict = CG1DModel(int(n_maps), angle, mean, int(cutoff), int(qcode.N))
-		kraus_dict = CG1DModelPauli(angle, int(cutoff), qcode)
+		kraus_dict = CG1DModel(angle, int(cutoff), qcode)
 
 	elif method == "corr_cptp":
 		(angle, cutoff, n_maps, mean) = params[:4]

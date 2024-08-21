@@ -70,8 +70,6 @@ def CG1DModelPauli(angle, cutoff, qcode):
 		# coeffs = np.power(0.1, np.random.normal(w-1, 1, size=(qcode.group_by_weight[w].size,)))
 
 		coeffs = np.ones(qcode.group_by_weight[w].size, dtype = np.double)
-		# mask = np.any(np.logical_or((pauli_ops == 1), (pauli_ops == 2)), axis=1)
-		# coeffs[mask] = coeffs[mask] / np.power(10, w)
 		for i in range(qcode.group_by_weight[w].size):
 			pauli_op = pauli_ops[i, :]
 			print("c = {}, P = {}".format(coeffs[i], pauli_op))
@@ -101,8 +99,8 @@ def CG1DModel(n_factors, angle, mean_correlation_length, cutoff, nqubits):
 	"""
 	dim = np.power(2, nqubits, dtype = int)
 	interaction_range = get_interactions(n_factors, mean_correlation_length, cutoff)
-	# supports = RandomSupport(nqubits, interaction_range)
-	supports = 3 * [(q, ) for q in range(nqubits)] + [(i, j) for i in range(nqubits) for j in range(i)]
+	supports = [(q, ) for q in range(nqubits)] + RandomSupport(nqubits, interaction_range)
+	# supports = [(q, ) for q in range(nqubits)] + [(i, j) for i in range(nqubits) for j in range(i)]
 	 # + RandomSupport(nqubits, interaction_range)
 	# supports = [(q, ) for q in range(nqubits)] + [(i, j) for i in range(nqubits) for j in range(i)]
 	# supports = GenerateSupport(nqubits, interaction_range, cutoff=cutoff)

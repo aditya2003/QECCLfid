@@ -161,9 +161,9 @@ def KraussToChi(kraus_dict, nrops):
 	start = timer()
 	for p in range(npauli):
 		network = [(kraus_support, kraus.reshape([2, 2] * support_size))] + [((q,), PauliMats[nrops[p, q], :, :]) for q in range(nqubits) if nrops[p, q] > 0]
-		(__, chi_left) = ContractTensorNetwork(network, end_trace=1, use_einsum=1)
+		(__, chi_left) = ContractTensorNetwork(network, end_trace=1, method="einsum", verbose=False)
 		network = [(kraus_support, kraus.conj().T.reshape([2, 2] * support_size))] + [((q,), PauliMats[nrops[p, q], :, :]) for q in range(nqubits) if nrops[p, q] > 0]
-		(__, chi_right) = ContractTensorNetwork(network, end_trace=1, use_einsum=1)
+		(__, chi_right) = ContractTensorNetwork(network, end_trace=1, method="einsum", verbose=False)
 		chi[p] = np.real(chi_left * chi_right)
 		# if (p == 0):
 		# 	print("kraus.reshape(4,4) = {}".format(kraus.reshape(4,4)))

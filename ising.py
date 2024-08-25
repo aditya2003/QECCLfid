@@ -18,30 +18,27 @@ def Ising(J, mu, time, qcode):
 	support = tuple describing which qubits the kraus ops act on
 	krauslist = krauss ops acting on support
 	"""
-	# J *= -1 # This creats an antiferromagnetic ground state.
-	# ZZ = np.kron(gv.Pauli[3], gv.Pauli[3])
-	YY = np.kron(gv.Pauli[3], gv.Pauli[3])
-	if qcode.interaction_graph is None:
-		qcode.interaction_graph = np.array([(i, (i + 1) % qcode.N) for i in range(qcode.N)], dtype=np.int8)
-		# if qcode.name == "Steane":
-		# 	# Color code triangle graph
-		# 	connections = [(0,5),(0,1),(1,6),(5,6),(4,5),(3,4),(3,6),(2,3),(1,2)]
-		# 	connections_rev = [(y,x) for (x,y) in connections]
-		# 	qcode.interaction_graph = np.array(connections + connections_rev)
-		# else:
-		# 	# Asssume nearest neighbour in numerically sorted order
-		# 	qcode.interaction_graph = np.array([(i, (i + 1) % qcode.N) for i in range(qcode.N)], dtype=np.int8)
+	if qcode.group_by_weight is None:
+		PrepareSyndromeLookUp(qcode)
 
-	Ham = np.zeros(2**qcode.N, dtype = np.double)
-	for (i,j) in qcode.interaction_graph :
-		# Ham = Ham + J * extend_gate([i,j], ZZ, np.arange(qcode.N, dtype=np.int64))
-		Ham = Ham + J * extend_gate([i,j], YY, np.arange(qcode.N, dtype=np.int64))
-	if mu > 0:
-		for i in range(qcode.N):
-			Ham = Ham + mu * extend_gate([i], gv.Pauli[1], np.arange(qcode.N, dtype=np.int64))
-	kraus = expm(-1j * time * Ham)
-	# print("Unitarity of Kraus\n{}".format(np.linalg.norm(np.dot(kraus, kraus.conj().T) - np.eye(kraus.shape[0]))))
-	kraus_dict = {0:(tuple(range(qcode.N)), [kraus])}
+	dim = np.power(2, qcode.N, dtype = int)
+	H = np.zeros((dim, dim), dtype = np.complex128)
+	biases = [0, mu, J]
+	for w in range(1, 3):
+		local_terms = qcode.PauliOperatorsLST[qcode.group_by_weight[w]]
+		weight_contribution = np.zeros((dim, dim), dtype = np.complex128)
+		print("Weight {} terms get multiplied by {}".format(w, biases[w]))
+		for i in range(local_terms.shape[0]):
+			pauli_op = local_terms[i, :]
+			weight_contribution = weight_contribution + PauliTensor(pauli_op).reshape(dim, dim)
+
+		# Normalize H to norm 1.
+		weight_contribution = weight_contribution / np.linalg.norm(weight_contribution)
+		
+		H = H + biases[w] * weight_contribution
+
+	kraus = expm(-1j * time * H)
+	kraus_dict = [(tuple(list(range(qcode.N))), kraus[np.newaxis, :, :])]
 	return kraus_dict
 
 
@@ -63,20 +60,18 @@ def CG1DModelPauli(angle, cutoff, qcode):
 	dim = np.power(2, qcode.N, dtype = int)
 	H = np.zeros((dim, dim), dtype = np.complex128)
 	for w in range(1, cutoff + 1):
-		print("Weight {} terms".format(w))
-		pauli_ops = qcode.PauliOperatorsLST[qcode.group_by_weight[w]]
-		# coeffs = np.power(0.5, w) * np.random.uniform(-2, 2, size=(qcode.group_by_weight[w].size,))
+		# print("Weight {} terms".format(w))
+		local_terms = qcode.PauliOperatorsLST[qcode.group_by_weight[w]]
+		weight_contribution = np.zeros((dim, dim), dtype = np.complex128)
+		coeffs = np.random.uniform(size=(local_terms.shape[0],))
+		for i in range(local_terms.shape[0]):
+			pauli_op = local_terms[i, :]
+			# print("c = {}, P = {}".format(coeffs[i], pauli_op))
+			weight_contribution = weight_contribution + coeffs[i] * PauliTensor(pauli_op).reshape(dim, dim)
 
-		# coeffs = np.power(0.1, np.random.normal(w-1, 1, size=(qcode.group_by_weight[w].size,)))
-
-		coeffs = np.ones(qcode.group_by_weight[w].size, dtype = np.double)
-		for i in range(qcode.group_by_weight[w].size):
-			pauli_op = pauli_ops[i, :]
-			print("c = {}, P = {}".format(coeffs[i], pauli_op))
-			H = H + coeffs[i] * PauliTensor(pauli_op).reshape(dim, dim)
-
-	# Normalize H to norm 1.
-	H = H / np.linalg.norm(H)
+		# Normalize the total contribution from weight-w terms to norm 1.
+		weight_contribution = weight_contribution / np.linalg.norm(weight_contribution)
+		H = H + 1/w * weight_contribution
 	
 	kraus = expm(-1j * angle * H)
 	kraus_dict = [(tuple(list(range(qcode.N))), kraus[np.newaxis, :, :])]

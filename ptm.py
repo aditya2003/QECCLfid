@@ -209,7 +209,7 @@ def ComputePTMElement(ptm_vec, kraus_dict, ls_ops, phases, ns_indices, nstabs, n
 		kraus_unpacked = kraus.reshape([2, 2] * len(kraus_support))
 		kraus_dag_unpacked = kraus.conj().T.reshape([2, 2] * len(kraus_support))
 		network = [(kraus_support, kraus_unpacked)] + pauli_op_i_network + [(kraus_support, kraus_dag_unpacked)] + pauli_op_j_network
-		(__, ptm_ij) = ContractTensorNetwork(network, end_trace=1, use_einsum=1)
+		(__, ptm_ij) = ContractTensorNetwork(network, end_trace=1, method="einsum", verbose=False)
 		# ptm_elements[k] = np.real(ptm_ij * phases[ns_i] * phases[ns_j])
 		ptm_vec[ns_index] = np.real(ptm_ij * phases[ns_i] * phases[ns_j])
 		# print("ptm element corresponding to the normalizer element {} = {}".format(k, ptm_elements[k]))

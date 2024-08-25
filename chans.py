@@ -27,7 +27,7 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 	elif method == "cg1d":
 		(angle, cutoff, n_maps, mean) = params[:4]
 		# kraus_dict = CG1DModel(int(n_maps), angle, mean, int(cutoff), int(qcode.N))
-		kraus_dict = CG1DModel(angle, int(cutoff), qcode)
+		kraus_dict = CG1DModelPauli(angle, int(cutoff), qcode)
 
 	elif method == "corr_cptp":
 		(angle, cutoff, n_maps, mean) = params[:4]
@@ -66,6 +66,12 @@ def GetProcessChi(qcode, method = "sum_unitaries", *params):
 	if (compose_with_pauli_rate > 0):
 		compose_with_pauli = 1
 	ptm = ConstructPTM(qcode, kraus_theta_chi_dict, compose_with_pauli=compose_with_pauli)
+	###################################
+	# Only for debugging purposes
+	# nstabs = 2 ** (qcode.N - qcode.K)
+	# nlogs = 4 ** qcode.K
+	# ptm = np.identity(nlogs * nstabs, dtype=np.double)
+	###################################
 	print("\033[2mPTM was constructed in {} seconds.\033[0m\n".format(timer() - click))
 	print("\033[2mProcess[0, 0] = {}\033[0m".format(ptm[0, 0]))
 

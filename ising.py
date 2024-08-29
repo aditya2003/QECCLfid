@@ -63,7 +63,7 @@ def CG1DModelPauli(angle, cutoff, qcode):
 		# print("Weight {} terms".format(w))
 		local_terms = qcode.PauliOperatorsLST[qcode.group_by_weight[w]]
 		weight_contribution = np.zeros((dim, dim), dtype = np.complex128)
-		coeffs = np.random.uniform(size=(local_terms.shape[0],))
+		coeffs = np.power(10.0, np.random.uniform(-2, 2, size=(local_terms.shape[0],)))
 		for i in range(local_terms.shape[0]):
 			pauli_op = local_terms[i, :]
 			# print("c = {}, P = {}".format(coeffs[i], pauli_op))

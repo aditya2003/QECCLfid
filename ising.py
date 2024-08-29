@@ -70,7 +70,7 @@ def CG1DModelPauli(angle, cutoff, qcode):
 			weight_contribution = weight_contribution + coeffs[i] * PauliTensor(pauli_op).reshape(dim, dim)
 
 		# Normalize the total contribution from weight-w terms to norm 1.
-		weight_contribution = weight_contribution / np.linalg.norm(weight_contribution)
+		# weight_contribution = weight_contribution / np.linalg.norm(weight_contribution)
 		H = H + 1/w * weight_contribution
 	
 	kraus = expm(-1j * angle * H)
